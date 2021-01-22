@@ -197,7 +197,7 @@ module moduleDensityMap2D
       hnew = reshape(surfaceCell, [3,3])
 
       call makeUpperTriangularCell(hnew, cartesianCoord, ntmp)
-      call getInverseCellMatrix(hnew, hinv, rtmp)
+      call getInverseCellMatrix(hnew, hinv, vol)
 
       allocate(fractionalCoord(3,ntmp))
       do iatm=1,ntmp

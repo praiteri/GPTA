@@ -51,12 +51,7 @@ contains
     logical, pointer :: indexSelection
     logical, pointer :: moleculeSelection
 
-    integer :: iatm, natoms, idx, imol, itmp, jdx
-    integer :: indices(3)
-    integer, allocatable, dimension(:) :: atomFlag
-    character(cp), allocatable, dimension(:) :: oldLabels, moleculeLabels
-    character(len=40), allocatable, dimension(:) :: newLabels
-    character(len=STRLEN) :: str
+    integer :: iatm, natoms
 
     actionCommand        => a % actionDetails
 

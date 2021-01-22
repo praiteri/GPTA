@@ -109,14 +109,12 @@ contains
 #endif
   end subroutine initialiseAction
 
-  subroutine dumpScreenInfo(iFlag)
 #ifdef GPTA_OPENMM 
+  subroutine dumpScreenInfo(iFlag)
     use moduleMessages 
     use moduleOpenMM, only : polarisationType, cutoffOpenMM, ewaldPrecision
-#endif
     implicit none
     integer, intent(in) :: iFlag
-#ifdef GPTA_OPENMM 
 
     call message(0,"Calling openMM ")
     call message(0,"...Forcefield file",str=forcefieldFile)
@@ -133,8 +131,8 @@ contains
       call message(0,"......Number of bins for the distributions in z",i=numberOfBinsZ)
     end if
     call message(2)
-#endif
   end subroutine dumpScreenInfo
+#endif
 
 
   subroutine amoeba(a)

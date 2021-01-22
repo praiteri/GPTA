@@ -496,8 +496,7 @@ contains
     real(8) :: rcut, rtmp
     integer :: ix2
     integer :: nmax
-    real(4), allocatable, dimension(:) :: allProjections
-    real(8), allocatable, dimension(:) :: allProjections1
+    real(8), allocatable, dimension(:) :: allProjections
     integer, allocatable, dimension(:) :: sortedIndices  
 
     natoms = frame % natoms

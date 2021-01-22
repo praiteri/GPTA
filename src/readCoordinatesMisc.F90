@@ -125,8 +125,7 @@
     real(8), dimension(3,3), intent(inout) :: hmat
     character(len=200) :: line
     character(len=100) :: cellString
-    integer :: nw, ierr, i
-    real(8) :: rtmp(9)
+    integer :: ierr, i
     
     natoms = 0
 
