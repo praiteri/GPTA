@@ -1,0 +1,14 @@
+opti conp prop phon comp noden nozero 
+name calcite                                                                    
+cell
+#   4.991000   4.991000  17.062000  90.000000  90.000000 120.000000
+   4.990138   4.990138  17.069000  90.000000  90.000000 120.000000
+fractional  1   
+Ca    core 0.0000000 0.0000000 0.0000000              
+C4    core 0.0000000 0.0000000 0.2500000              
+O4    core 0.2573000 0.0000000 0.2500000              
+space
+167
+temperature 298.15
+shrink 8 8 8
+library caco3

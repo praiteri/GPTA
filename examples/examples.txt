@@ -1,0 +1,27 @@
+#!/bin/bash
+gpta.x --i coord.pdb --top
+gpta.x --i coord.pdb --top +reorder --o new.xyz
+gpta.x --i coord.pdb --top --cluster +i 1 +r 5.0 +out cluster
+gpta.x --i coord.pdb coord.xtc --frames 1:2 --extract +cell +dump
+gpta.x --i coord.pdb coord.xtc --gofr +s O O
+gpta.x --i coord.pdb coord.xtc --unwrap --msd +s O
+gpta.x --i coord.pdb coord.xtc --restime +s Ca O +rcut 3.2 +ntraj 3779
+
+gpta.x --define safedist --i calcite.gin --top +reorder +rebuild --o calcite.pdb
+gpta.x --define safedist --i calcite.pdb --top --repl 3,3,1 --o supercell.pdb
+gpta.x --define safedist --i calcite.gin --top +reorder +rebuild  --surface +hkl 1,0,4
+gpta.x --i calcite.gin --xray
+
+gpta.x --i slab.pdb --top +def Ca C4,O4,O4,O4 O2,H2,H2
+gpta.x --i slab.pdb --delete +s O2,H2 --o calcite_slab.pdb
+gpta.x --i slab.pdb --shift 0,0,30 --top --fixcom +s Ca +centre --pbc --o calcite_slab.pdb
+gpta.x --i slab.pdb --top --shift 0,0,30 --pbc --fixcom +s Ca +centre --pbc --o calcite_slab.pdb
+gpta.x --i slab.pdb slab.xtc --top --frames 2 --unwrap --o new.dcd
+gpta.x --i slab.pdb slab.xtc --dmap1D +s O2 +z
+gpta.x --i slab.pdb slab.xtc --dmap2D +s O2 +hkl 0,1,0 +thick 10 +origin 0,25,0
+gpta.x --i slab.pdb slab.xtc --dmap3D +s O2 +thick 10 +origin 0,0,34 +cell 10.,0.,0.,0.,10.,0.,0.,0.,10.
+gpta.x --i slab.pdb slab.xtc --top --molprop +mol M3 +angle 1,2,3 +dist 90,120
+
+gpta.x --i water_0.pdb --top --add +f co3.pdb +n 1 --o test.pdb
+gpta.x --add +cell 10 +f h2o.pdb +n 33 +rmin 2. --o new.pdb
+
