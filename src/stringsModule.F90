@@ -287,7 +287,7 @@ contains
     character(len=*), intent(in) :: cmd
     real(8), intent(out) :: vec
     integer :: nw
-    character(len=50), dimension(50) :: words
+    character(len=STRLEN), dimension(50) :: words
     integer :: ios
 
     call parse(cmd," ",words,nw)
@@ -322,7 +322,7 @@ contains
     character(len=*), intent(in) :: cmd
     integer, intent(out) :: vec
     integer :: nw
-    character(len=50), dimension(50) :: words
+    character(len=STRLEN), dimension(50) :: words
     integer :: ios
 
     call parse(cmd," ",words,nw)
@@ -339,7 +339,7 @@ contains
     character(len=*), intent(in) :: cmd
     character(len=*), intent(out) :: vec
     integer :: nw
-    character(len=50), dimension(50) :: words
+    character(len=STRLEN), dimension(50) :: words
 
     call parse(cmd," ",words,nw)
     if (nw/=2) call message(-1,"Wrong number of arguments for +"//trim(cmd))
@@ -354,7 +354,7 @@ contains
     character(len=*), intent(in) :: cmd
     real(8), dimension(:), intent(out) :: vec
     integer :: i, nw, nt, n
-    character(len=50), dimension(50) :: words, tokens
+    character(len=STRLEN), dimension(50) :: words, tokens
     integer :: ios
 
     call parse(cmd," ",words,nw)
@@ -385,7 +385,7 @@ contains
     character(len=*), intent(in) :: cmd
     integer, dimension(:), intent(out) :: vec
     integer :: i, nw, nt, n
-    character(len=50), dimension(50) :: words, tokens
+    character(len=STRLEN), dimension(50) :: words, tokens
     integer :: ios
 
     call parse(cmd," ",words,nw)
@@ -406,7 +406,7 @@ contains
     character(len=*), intent(in) :: cmd
     character(len=*), dimension(:), intent(out) :: vec
     integer :: i, nw, nt, n
-    character(len=50), dimension(50) :: words, tokens
+    character(len=STRLEN), dimension(50) :: words, tokens
 
     call parse(cmd," ",words,nw)
     n=size(vec)

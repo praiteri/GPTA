@@ -61,6 +61,7 @@ module moduleExtractSystemProperties
   logical, pointer :: dumpProperty         ! Output dump
   logical, pointer :: averageMultiProperty ! Average
   logical, pointer :: distProperty         ! Distribution
+  integer, pointer :: distributionType
 
   integer, pointer :: numberOfProperties
   real(8), pointer, dimension(:) :: localProperty
@@ -110,12 +111,11 @@ contains
           call createSelectionList(a,1)
           numberOfSelectedAtoms = count(a % isSelected(:,1))
         end if
-        
+               ! get the number of properties computed and initialise the working arrays
+        call initialiseCompute(a)
+ 
         call checkUsedFlags(actionCommand)
         firstAction = .false.
-
-        ! get the number of properties computed and initialise the working arrays
-        call initialiseCompute(a)
 
       else
 
@@ -137,22 +137,124 @@ contains
       if (outputFile % fname /= "NULL") call message(0,"......Output file",str=outputFile % fname)
       if (dumpCoordinates     ) call message(0,"......Output file for scaled coordinates",str=coordinatesFile % fname)
       if (averageMultiProperty) call message(0,"......Average(s) and standard deviation(s)")
-      if (distProperty        ) call message(0,"......Distribution")
-      call finaliseAction()
+      if (distProperty        ) then
+        if (distributionType == 1) then 
+          call message(0,"......Computing histogram")
+        else if (distributionType == 2) then 
+          call message(0,"......Computing probability")
+        else if (distributionType == 3) then 
+          call message(0,"......Computing scaled distributino")
+        else if (distributionType == 4) then 
+          call message(0,"......Kernel based histogram")
+        end if
+      end if
+
+      call finaliseAction(a)
       call message(2)
     end if
 
   end subroutine extractSystemProperties
 
-  subroutine finaliseAction()
+  subroutine initialiseAction(a)
+    implicit none
+    type(actionTypeDef), target :: a
+    integer :: i
+    logical, dimension(4) :: lflag = .false.
+
+    a % actionInitialisation = .false.
+    a % requiresNeighboursList = .false.
+
+    ! Local pointers
+    actionCommand           => a % actionDetails
+    firstAction             => a % firstAction
+    outputFile              => a % outputFile
+    
+    numberOfBins            => a % numberOfBins
+    numberOfBins2D(1:2)     => a % numberOfBins2D
+    
+    ID                      => a % integerVariables(1)
+    numberOfProperties      => a % integerVariables(2)
+    numberOfSelectedAtoms   => a % integerVariables(3)
+    distributionType        => a % integerVariables(4)
+
+    distributionLimits(1:2) => a % doubleVariables(1:2)
+    localProperty(1:)       => a % doubleVariables(3:)
+
+    atomSelection           => a % logicalVariables(1) ! Atoms selection for property
+    dumpProperty            => a % logicalVariables(2) ! Output dump
+    averageMultiProperty    => a % logicalVariables(3) ! Average more than one property
+    distProperty            => a % logicalVariables(4) ! Distribution
+
+    dumpCoordinates         => a % logicalVariables(5) 
+    coordinatesFile         => a % auxiliaryFile 
+
+    numberOfSelectedAtoms = 0
+    atomSelection = .false. 
+    distProperty = .false.
+    
+    call getPropertyType(a)
+
+    ! Extract to do with the properties
+    if (.not. averageMultiProperty) then
+      call assignFlagValue(actionCommand,"+avg " ,averageMultiProperty, .false.) ! Average
+      call assignFlagValue(actionCommand,"+dump ",dumpProperty,         .false.) ! Dump on same line
+
+      call assignFlagValue(actionCommand,"+histo "  ,lflag(1), .false.) ! Histogram - non-normalised
+      call assignFlagValue(actionCommand,"+prob "  ,lflag(2), .false.) ! Probability distribution - normalised to 1
+      call assignFlagValue(actionCommand,"+kernel",lflag(4), .false.) ! Probability with Gaussian Kernel
+      if (count(lflag) == 1) then
+        distProperty = .true.
+      else if (count(lflag) > 1) then
+        call message(-1,"Only one distribution can be computed") 
+      end if
+      distributionType = 0
+      do i=1,4
+        if (lflag(i)) distributionType = i
+      end do
+    end if
+
+    if ( count([distProperty,averageMultiProperty]) == 0 ) dumpProperty = .true.
+
+    call assignFlagValue(actionCommand,"+out",outputFile % fname,"NULL")
+    if (outputFile % fname /= "NULL") then
+      call initialiseFile(outputFile, outputFile % fname)
+      write(outputFile % funit,"(a)")"#System property"
+      write(outputFile % funit,'(a)')"#...Extracting "//trim(a % sysprop % name)
+      if (averageMultiProperty) write(outputFile % funit,'(a)')"#......Average and standard deviation"
+      if (distProperty        ) write(outputFile % funit,'(a)')"#......Distribution"
+    else
+      outputFile % funit = 6
+    end if
+    
+  end subroutine initialiseAction
+
+  subroutine finaliseAction(a)
     use moduleDistances
     use moduleFiles
     use moduleMessages
-
+    
     implicit none
+    type(actionTypeDef), target :: a
     real(8), allocatable, dimension(:) :: cell
+    real(8) :: rtmp
+    character(len=30) :: str
 
-    call workData % dump(ID, outputFile % funit)
+    if (distProperty) then
+      select case (distributionType)
+        case (1)
+          str = 'none'
+        case (2)
+          str = 'probability'
+        case (4)
+          call assignFlagValue(actionCommand,"+sigma ",rtmp,-1.d0) ! Probability with Gaussian Kernel
+          if (rtmp < 0) call message(-1,"Kernel sigma must be greater than zero")
+          write(str,'("kernel=",e20.15)') rtmp
+      end select
+      call workData % dump(ID, outputFile % funit, normalisation=str)
+
+    else
+      call workData % dump(ID, outputFile % funit)
+    end if
     call message(4)
 
     if (dumpCoordinates) then
@@ -187,67 +289,10 @@ contains
 
   end subroutine computeAction
 
-  subroutine initialiseAction(a)
-    implicit none
-    type(actionTypeDef), target :: a
-
-    a % actionInitialisation = .false.
-    a % requiresNeighboursList = .false.
-
-    ! Local pointers
-    actionCommand           => a % actionDetails
-    firstAction             => a % firstAction
-    outputFile              => a % outputFile
-    
-    numberOfBins            => a % numberOfBins
-    numberOfBins2D(1:2)     => a % numberOfBins2D
-    
-    ID                      => a % integerVariables(1)
-    numberOfProperties      => a % integerVariables(2)
-    numberOfSelectedAtoms   => a % integerVariables(3)
-
-    distributionLimits(1:2) => a % doubleVariables(1:2)
-    localProperty(1:)       => a % doubleVariables(3:)
-
-    atomSelection           => a % logicalVariables(1) ! Atoms selection for property
-    dumpProperty            => a % logicalVariables(2) ! Output dump
-    averageMultiProperty    => a % logicalVariables(3) ! Average more than one property
-    distProperty            => a % logicalVariables(4) ! Distribution
-
-    dumpCoordinates         => a % logicalVariables(5) 
-    coordinatesFile         => a % auxiliaryFile 
-
-    numberOfSelectedAtoms = 0
-    atomSelection = .false. 
-    
-    call getPropertyType(a)
-
-    ! Extract to do with the properties
-    if (.not. averageMultiProperty) then
-      call assignFlagValue(actionCommand,"+avg " ,averageMultiProperty, .false.) ! Average
-      call assignFlagValue(actionCommand,"+dist ",distProperty,         .false.) ! Distribution
-      call assignFlagValue(actionCommand,"+dump ",dumpProperty,         .false.) ! Dump on same line
-    end if
-
-    if ( count([distProperty,averageMultiProperty]) == 0 ) dumpProperty = .true.
-
-    call assignFlagValue(actionCommand,"+out",outputFile % fname,"NULL")
-    if (outputFile % fname /= "NULL") then
-      call initialiseFile(outputFile, outputFile % fname)
-      write(outputFile % funit,"(a)")"#System property"
-      write(outputFile % funit,'(a)')"#...Extracting "//trim(a % sysprop % name)
-      if (averageMultiProperty) write(outputFile % funit,'(a)')"#......Average and standard deviation"
-      if (distProperty        ) write(outputFile % funit,'(a)')"#......Distribution"
-    else
-      outputFile % funit = 6
-    end if
-    
-  end subroutine initialiseAction
-
   subroutine initialiseCompute(a)
     implicit none
     type(actionTypeDef), target :: a
-
+    character(len=30) :: str
     numberOfProperties = -1
     call computeAction(numberOfProperties, a)
 
@@ -258,9 +303,18 @@ contains
       call workData % initialise(ID, "multiAverage", numberOfValues=numberOfProperties)
 
     else if (distProperty) then
-      call assignFlagValue(actionCommand,"+nbin",numberOfBins,100)
-      call assignFlagValue(actionCommand,"+dist ", distributionLimits(1:2),[1.d0,2.d0])
-      call workData % initialise(ID, "prob1D", numberOfBins=[numberOfBins], lowerLimits=[distributionLimits(1)], upperLimits=[distributionLimits(2)])
+      call assignFlagValue(actionCommand,"+nbin ",numberOfBins,100)
+
+      if (distributionType == 1) then
+        str="hist "
+      else if (distributionType == 2) then
+        str="prob "
+      else if (distributionType == 4) then
+        str="kernel "
+      end if
+
+      call assignFlagValue(actionCommand,"+"//trim(str), distributionLimits(1:2),[1.d0,2.d0])
+      call workData % initialise(ID, "histogram", numberOfBins=[numberOfBins], lowerLimits=[distributionLimits(1)], upperLimits=[distributionLimits(2)])
     end if
 
   end subroutine initialiseCompute
@@ -488,7 +542,7 @@ subroutine position(n, val, nat, l)
 
   ! set the number of properties computed
   if (n < 0) then
-    n = nat*3
+    n = nat *3
     return
   end if
   

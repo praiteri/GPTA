@@ -153,7 +153,7 @@ $(MPIEXE): $(OBJECTS)
 #
 obj/actionModule.o: ./src/actionModule.F90 obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/actionModule.F90 -c -o $@
-obj/actions.o: ./src/actions.F90 obj/actionModule.o  obj/addAtoms.o  obj/amoeba.o  obj/setAtomAttributes.o  obj/createSurface.o  obj/deleteAtoms.o  obj/densityMap2D.o  obj/densityMap3D.o  obj/densityProfile.o  obj/writeCoordinates.o  obj/extractClusters.o  obj/extractProperties.o  obj/meanSquareDisplacement.o  obj/messagesModule.o  obj/changeCoordinates.o  obj/molecularProperties.o  obj/topology.o  obj/openMM.o  obj/plumed.o  obj/radialPairDistributionFunction.o  obj/replaceMolecules.o  obj/residenceTime.o  obj/stringsModule.o  obj/systemModule.o  obj/testTemplate.o  obj/variablesModule.o  obj/xray.o 
+obj/actions.o: ./src/actions.F90 obj/actionModule.o  obj/addAtoms.o  obj/amoeba.o  obj/setAtomAttributes.o  obj/createSurface.o  obj/deleteAtoms.o  obj/densityMap2D.o  obj/densityMap3D.o  obj/densityMap1D.o  obj/writeCoordinates.o  obj/extractClusters.o  obj/extractProperties.o  obj/meanSquareDisplacement.o  obj/messagesModule.o  obj/changeCoordinates.o  obj/molecularProperties.o  obj/topology.o  obj/openMM.o  obj/plumed.o  obj/radialPairDistributionFunction.o  obj/replaceMolecules.o  obj/residenceTime.o  obj/stringsModule.o  obj/systemModule.o  obj/testTemplate.o  obj/variablesModule.o  obj/xray.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/actions.F90 -c -o $@
 obj/addAtoms.o: ./src/addAtoms.F90 obj/distances.o  obj/elementsModule.o  obj/filesModule.o  obj/messagesModule.o  obj/neighboursModule.o  obj/random_module.o  obj/readCoordinatesModule.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/addAtoms.F90 -c -o $@
@@ -169,12 +169,12 @@ obj/defineVariables.o: ./src/defineVariables.F90 obj/elementsModule.o  obj/messa
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/defineVariables.F90 -c -o $@
 obj/deleteAtoms.o: ./src/deleteAtoms.F90 obj/messagesModule.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/deleteAtoms.F90 -c -o $@
+obj/densityMap1D.o: ./src/densityMap1D.F90 obj/distances.o  obj/filesModule.o  obj/messagesModule.o  obj/property.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
+	$(FC) $(CPPFLAGS) $(F90FLAGS) src/densityMap1D.F90 -c -o $@
 obj/densityMap2D.o: ./src/densityMap2D.F90 obj/distances.o  obj/filesModule.o  obj/messagesModule.o  obj/property.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/densityMap2D.F90 -c -o $@
 obj/densityMap3D.o: ./src/densityMap3D.F90 obj/distances.o  obj/filesModule.o  obj/messagesModule.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/densityMap3D.F90 -c -o $@
-obj/densityProfile.o: ./src/densityProfile.F90 obj/distances.o  obj/filesModule.o  obj/messagesModule.o  obj/property.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
-	$(FC) $(CPPFLAGS) $(F90FLAGS) src/densityProfile.F90 -c -o $@
 obj/distances.o: ./src/distances.F90 obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/distances.F90 -c -o $@
 obj/dumpCoordinates.o: ./src/dumpCoordinates.F90 obj/elementsModule.o  obj/messagesModule.o  obj/variablesModule.o 
@@ -293,7 +293,7 @@ obj/xdrfile_xtc.o: ./src/xdr/xdrfile_xtc.c
 	$(CC) $(CFLAGS) src/xdr/xdrfile_xtc.c -c -I. -o $@
 obj_mpi/actionModule.o: ./src/actionModule.F90 obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/actionModule.F90 -c -o $@
-obj_mpi/actions.o: ./src/actions.F90 obj_mpi/actionModule.o  obj_mpi/addAtoms.o  obj_mpi/amoeba.o  obj_mpi/setAtomAttributes.o  obj_mpi/createSurface.o  obj_mpi/deleteAtoms.o  obj_mpi/densityMap2D.o  obj_mpi/densityMap3D.o  obj_mpi/densityProfile.o  obj_mpi/writeCoordinates.o  obj_mpi/extractClusters.o  obj_mpi/extractProperties.o  obj_mpi/meanSquareDisplacement.o  obj_mpi/messagesModule.o  obj_mpi/changeCoordinates.o  obj_mpi/molecularProperties.o  obj_mpi/topology.o  obj_mpi/openMM.o  obj_mpi/plumed.o  obj_mpi/radialPairDistributionFunction.o  obj_mpi/replaceMolecules.o  obj_mpi/residenceTime.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/testTemplate.o  obj_mpi/variablesModule.o  obj_mpi/xray.o 
+obj_mpi/actions.o: ./src/actions.F90 obj_mpi/actionModule.o  obj_mpi/addAtoms.o  obj_mpi/amoeba.o  obj_mpi/setAtomAttributes.o  obj_mpi/createSurface.o  obj_mpi/deleteAtoms.o  obj_mpi/densityMap2D.o  obj_mpi/densityMap3D.o  obj_mpi/densityMap1D.o  obj_mpi/writeCoordinates.o  obj_mpi/extractClusters.o  obj_mpi/extractProperties.o  obj_mpi/meanSquareDisplacement.o  obj_mpi/messagesModule.o  obj_mpi/changeCoordinates.o  obj_mpi/molecularProperties.o  obj_mpi/topology.o  obj_mpi/openMM.o  obj_mpi/plumed.o  obj_mpi/radialPairDistributionFunction.o  obj_mpi/replaceMolecules.o  obj_mpi/residenceTime.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/testTemplate.o  obj_mpi/variablesModule.o  obj_mpi/xray.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/actions.F90 -c -o $@
 obj_mpi/addAtoms.o: ./src/addAtoms.F90 obj_mpi/distances.o  obj_mpi/elementsModule.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/neighboursModule.o  obj_mpi/random_module.o  obj_mpi/readCoordinatesModule.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/addAtoms.F90 -c -o $@
@@ -309,12 +309,12 @@ obj_mpi/defineVariables.o: ./src/defineVariables.F90 obj_mpi/elementsModule.o  o
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/defineVariables.F90 -c -o $@
 obj_mpi/deleteAtoms.o: ./src/deleteAtoms.F90 obj_mpi/messagesModule.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/deleteAtoms.F90 -c -o $@
+obj_mpi/densityMap1D.o: ./src/densityMap1D.F90 obj_mpi/distances.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/property.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
+	$(FC) $(CPPFLAGS) $(F90FLAGS) src/densityMap1D.F90 -c -o $@
 obj_mpi/densityMap2D.o: ./src/densityMap2D.F90 obj_mpi/distances.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/property.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/densityMap2D.F90 -c -o $@
 obj_mpi/densityMap3D.o: ./src/densityMap3D.F90 obj_mpi/distances.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/densityMap3D.F90 -c -o $@
-obj_mpi/densityProfile.o: ./src/densityProfile.F90 obj_mpi/distances.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/property.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
-	$(FC) $(CPPFLAGS) $(F90FLAGS) src/densityProfile.F90 -c -o $@
 obj_mpi/distances.o: ./src/distances.F90 obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/distances.F90 -c -o $@
 obj_mpi/dumpCoordinates.o: ./src/dumpCoordinates.F90 obj_mpi/elementsModule.o  obj_mpi/messagesModule.o  obj_mpi/variablesModule.o 

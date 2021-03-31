@@ -89,7 +89,7 @@ contains
     call assignFlagValue(actionCommand,"+nbin",numberOfBins,100)
     
     ! Initiliase container for the 1D distribution
-    call workData % initialise(ID, "dist1D ", numberOfBins=[numberOfBins], lowerLimits=[0.d0], upperLimits=[cutoffRadius])
+    call workData % initialise(ID, "probability", numberOfBins=[numberOfBins], lowerLimits=[0.d0], upperLimits=[cutoffRadius])
     
     maxNeigh = 0
     tallyExecutions = 0
@@ -104,7 +104,7 @@ contains
     call initialiseFile(outputFile,outputFile % fname)
     
     ! thi routine will write the average number of neighbours vs distance
-    call workData % dump(ID, outputFile % funit, normalisation=dble(tallyExecutions))
+    call workData % dump(ID, outputFile % funit, normalisation='none')
 
     ! this routine extracts the distribution, which could the be used to normalise the g(r) properly
     ! call workData % extract(ID, localDistribution, numberOfCounts=ntmp)

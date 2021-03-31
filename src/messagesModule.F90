@@ -35,7 +35,7 @@ module moduleMessages
   implicit none
 
   private
-  public :: message, swear
+  public :: message
 
   interface message_int
     subroutine message(istop,comment,icol,i,r,iv,rv,str,l)
@@ -51,18 +51,6 @@ module moduleMessages
       logical, intent(in), optional :: l
     end subroutine message      
   end interface message_int
-
-  interface
-    subroutine swear(i,r,iv,rv,str,l)
-      implicit none
-      integer, intent(in), optional :: i
-      real(8), intent(in), optional :: r
-      integer, dimension(:), intent(in), optional :: iv
-      real(8), dimension(:), intent(in), optional :: rv
-      character(len=*), intent(in), optional :: str
-      logical, intent(in), optional :: l
-    end subroutine swear      
-  end interface
 
 end module moduleMessages 
 
@@ -102,8 +90,11 @@ subroutine message(istop,comment,icol,i,r,iv,rv,str,l)
 
   logical, save :: lastDash = .false.
   logical, save :: lastFrame = .false.
+  logical :: commentOnly
 
   if (me /= 0) return
+
+  commentOnly = .false.
 
 !!!!
   ndashes = line_length
@@ -156,11 +147,12 @@ subroutine message(istop,comment,icol,i,r,iv,rv,str,l)
   if (istop==2 .or. istop==4) then
     write(io,fmtdash)("_",idx=1,ndashes)
     return
+
   else if (istop==3) then
     write(io,fmtdash1)("-",idx=1,72)
     return
+    
   else
-
     line(1:cpos-1)  = trim(comment)
     line(cpos:cpos+1) = ": "
     if (present(icol)) then
@@ -215,10 +207,11 @@ subroutine message(istop,comment,icol,i,r,iv,rv,str,l)
       end if
         
     else
+      commentOnly = .true.
       line(cpos:cpos) = " "
     end if
     
-    if (line(cpos:cpos)==":") then
+    if (line(cpos:cpos) == ":") then
       n = len_trim(line(1:cpos-1))
       do idx=n+1,cpos-1
         line(idx:idx)="."
@@ -236,7 +229,11 @@ subroutine message(istop,comment,icol,i,r,iv,rv,str,l)
           write(io,fmtdash)("_",idx=1,ndashes)
         end if
       end if
-      write(io,'(a)') trim(line)
+      if (commentOnly) then
+        write(io,'(a)') trim(comment)
+      else
+        write(io,'(a)') trim(line)
+      endif
       lastFrame = .false.
     end if
     

@@ -489,6 +489,8 @@ subroutine readCellFreeFormat(string, hmat)
   real(8), dimension(6) :: cell
 
   call parse(string,",",listOfWords,numberOfWords)
+  write(0,*)"#"//trim(string)//"#"
+  write(0,*)numberOfWords
   if (numberOfWords == 1) then
     read(listOfWords(1),*) hmat(1,1)
     hmat(2,2) = hmat(1,1)
@@ -771,3 +773,13 @@ subroutine defineSurfaceVectors(imiller, hmat, hsurf)
   deallocate(dist,hkl,order)
 
 end subroutine defineSurfaceVectors
+
+logical function integer2logical(i)
+  implicit none
+  integer, intent(in) :: i
+  if (i>0) then
+    integer2logical = .true.
+  else
+    integer2logical = .false.
+  end if
+end function integer2logical

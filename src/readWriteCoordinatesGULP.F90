@@ -171,7 +171,7 @@ subroutine getNumberOfAtomsGULP(uinp,natoms,hmat)
 
 end subroutine getNumberOfAtomsGULP
 
-subroutine readCoordinatesGULP(uinp,natoms,pos,label,hmat,chg,go)
+subroutine readCoordinatesGULP(uinp,natoms,pos,label,chg,hmat,go)
   use moduleVariables
   use moduleMessages 
   use moduleSymmetry , only : rot, sgnops_tot, sgncen, cen, get_spg_name
@@ -211,11 +211,10 @@ subroutine readCoordinatesGULP(uinp,natoms,pos,label,hmat,chg,go)
   label1=''
   allocate(chg1(natoms))
   chg1=0.0d0
-
-  hmat=0.0d0
-  pos=0.0d0
+  ! pos=0.0d0
   allocate(dij(3,natoms))
 
+  icoord = -1
   do
     call readline(uinp,line,ierr)
     if (ierr<0) goto 547
@@ -231,9 +230,6 @@ subroutine readCoordinatesGULP(uinp,natoms,pos,label,hmat,chg,go)
       cell(5) = cell(5) * pi / 180.0d0
       cell(6) = cell(6) * pi / 180.0d0
       call cell2hmat(cell,hmat)
-
-      call getInverseCellMatrix(hmat,hinv,volume)
-
     end if
 
     if (str(1)(1:4)=='vect') then
@@ -249,15 +245,17 @@ subroutine readCoordinatesGULP(uinp,natoms,pos,label,hmat,chg,go)
       hmat(2,2)=abs(hmat(2,2))
     end if
 
+    call getInverseCellMatrix(hmat,hinv,volume)
+
     if (str(1)(1:4)=='frac' .or. str(1)(1:4)=='sfra' .or. str(1)(1:4)=='cart') then
-      icoord=0
+      if (str(1)(1:4)=='cart') icoord = 0
       if (str(1)(1:4)=='frac') icoord = 1
       if (str(1)(1:4)=='sfra') icoord = 2
       do
         call readline(uinp,line,ierr)
         if (ierr/=0) goto 547
         call parseGulpCoordinates(line,ctmp,rtmp,lerr,rqq)
-        if (lerr) exit
+        if (lerr) goto 547
         go=.true.
         nasym=nasym+1
         dij(1:3,nasym) = rtmp
@@ -269,6 +267,11 @@ subroutine readCoordinatesGULP(uinp,natoms,pos,label,hmat,chg,go)
   enddo
 
 547 continue
+
+  if (icoord < 0) then
+    go =.false.
+    return
+  end if
 
   iatm = 0
   do idx=1,nasym
@@ -466,14 +469,14 @@ subroutine writeGulpCoordinates(uout)
   integer :: iatom, imol
 
   write(uout,'("vectors")')
-  write(uout,'(3f20.6)') frame % hmat(:,1)
-  write(uout,'(3f20.6)') frame % hmat(:,2)
-  write(uout,'(3f20.6)') frame % hmat(:,3)
+  write(uout,'(3f22.8)') frame % hmat(:,1)
+  write(uout,'(3f22.8)') frame % hmat(:,2)
+  write(uout,'(3f22.8)') frame % hmat(:,3)
 
   write(uout,'("cartesian")')
 
   do iatom=1,frame % natoms
-    write(uout,'(a8,3f20.6)') adjustl(trim(frame % lab(iatom))),frame % pos(1:3,iatom)
+    write(uout,'(a8,3f22.8)') adjustl(trim(frame % lab(iatom))),frame % pos(1:3,iatom)
   enddo
 
   if (numberOfMolecules < numberOfAtoms) then
@@ -500,14 +503,14 @@ subroutine writeGulpCoordinatesFractional(uout)
   integer :: iatom, imol
 
   write(uout,'("vectors")')
-  write(uout,'(3f20.6)') frame % hmat(:,1)
-  write(uout,'(3f20.6)') frame % hmat(:,2)
-  write(uout,'(3f20.6)') frame % hmat(:,3)
+  write(uout,'(3f22.8)') frame % hmat(:,1)
+  write(uout,'(3f22.8)') frame % hmat(:,2)
+  write(uout,'(3f22.8)') frame % hmat(:,3)
 
   write(uout,'("fractional")')
 
   do iatom=1,frame % natoms
-    write(uout,'(a8,3f20.6)') adjustl(trim(frame % lab(iatom))),frame % frac(1:3,iatom)
+    write(uout,'(a8,3f22.8)') adjustl(trim(frame % lab(iatom))),frame % frac(1:3,iatom)
   enddo
 
   if (numberOfMolecules < numberOfAtoms) then

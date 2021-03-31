@@ -217,18 +217,19 @@ contains
 
 #ifdef GPTA_XDR
       else if (outputFile % ftype == "xtc") then
-          xtc_out % natoms = frame % natoms
-          xtc_out % step   = frame % nframe
-          xtc_out % time   = real(frame % nframe)
-          xtc_out % box    = real(frame % hmat / 10.d0)
-          xtc_out % pos    = real(frame % pos / 10.d0)
-          xtc_out % prec   = 1000.
-          call xtc_out % write(xtc_out % natoms, &
-                               xtc_out % step,   &
-                               xtc_out % time,   &
-                               xtc_out % box,    &
-                               xtc_out % pos,    &
-                               xtc_out % prec)
+          ! this breaks the read xtc
+          ! xtc_out % natoms = frame % natoms
+          ! xtc_out % step   = frame % nframe
+          ! xtc_out % time   = real(frame % nframe)
+          ! xtc_out % box    = real(frame % hmat / 10.d0)
+          ! xtc_out % pos    = real(frame % pos / 10.d0)
+          ! xtc_out % prec   = 1000.
+          call xtc_out % write(frame % natoms, &
+                               frame % nframe,   &
+                               real(frame % nframe),   &
+                               real(frame % hmat / 10.d0),    &
+                               real(frame % pos / 10.d0),    &
+                               1000.e0)
 #endif
       else
         call message(-1,"--o : unknown file format "//trim(outputFile % ftype)//" for file "//trim(outputFile % fname))

@@ -153,14 +153,14 @@ subroutine dumpGULP(uout, natoms, pos, lab, hmat)
   integer :: iatom
 
   write(uout,'("vectors")')
-  write(uout,'(3f20.6)') hmat(:,1)
-  write(uout,'(3f20.6)') hmat(:,2)
-  write(uout,'(3f20.6)') hmat(:,3)
+  write(uout,'(3f22.8)') hmat(:,1)
+  write(uout,'(3f22.8)') hmat(:,2)
+  write(uout,'(3f22.8)') hmat(:,3)
 
   write(uout,'("cartesian")')
 
   do iatom=1,natoms
-    write(uout,'(a8,3f20.6)') adjustl(trim(lab(iatom))), pos(1:3,iatom)
+    write(uout,'(a8,3f22.8)') adjustl(trim(lab(iatom))), pos(1:3,iatom)
   enddo
 
 end subroutine dumpGULP

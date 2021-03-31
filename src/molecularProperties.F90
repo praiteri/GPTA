@@ -198,21 +198,21 @@ contains
     call assignFlagValue(actionCommand,"+out",outputFile % fname,'molprop.out')
     call initialiseFile(outputFile,outputFile % fname)
     
-    if (flagExists(actionCommand,"+dipole")) then
+    if (flagExists(actionCommand,"+dipole ")) then
       n = n + 1
       a % molprop % command  = "+dipole"
       a % molprop % name     = "Molecular dipoles"
       a % molprop % property => computeMolecularDipoles
     end if
     
-    if (flagExists(actionCommand,"+dipoleZ")) then
+    if (flagExists(actionCommand,"+dipoleZ ")) then
       n = n + 1
       a % molprop % command  = "+dipoleZ"
       a % molprop % name     = "Molecular dipoles (polar angle)"
       a % molprop % property => computeMolecularDipolesProjection
     end if
     
-    if (flagExists(actionCommand,"+normalZ")) then
+    if (flagExists(actionCommand,"+normalZ ")) then
       n = n + 1
       a % molprop % command  = "+normalZ"
       a % molprop % name     =  "Normal vector (polar angle)"
@@ -220,7 +220,7 @@ contains
       call assignFlagValue(actionCommand,"+normal",normalIndices(1:3),[0,0,0])
     end if
     
-    if (flagExists(actionCommand,"+torsion")) then
+    if (flagExists(actionCommand,"+torsion ")) then
       n = n + 1
       a % molprop % command  = "+torsion"
       a % molprop % name     = "Torsional angle"
@@ -228,7 +228,7 @@ contains
       call assignFlagValue(actionCommand,"+torsion",torsionIndices(1:4),[0,0,0,0])
     end if
     
-    if (flagExists(actionCommand,"+angle")) then
+    if (flagExists(actionCommand,"+angle ")) then
       n = n + 1
       a % molprop % command  = "+angle"
       a % molprop % name     =  "Covalent angle"
@@ -236,7 +236,7 @@ contains
       call assignFlagValue(actionCommand,"+angle",angleIndices(1:3),[0,0,0])
     end if
   
-    if (flagExists(actionCommand,"+rgyr")) then
+    if (flagExists(actionCommand,"+rgyr" )) then
       n = n + 1
       a % molprop % command  = "+rgyr"
       a % molprop % name     = "Radius Of Gyration"
@@ -268,7 +268,7 @@ contains
     else if (distProperty) then
       call assignFlagValue(actionCommand,"+nbin ",numberOfBins,100)
       call assignFlagValue(actionCommand,"+dist ", distributionLimits(1:2),[1.d0,2.d0])
-      call workData % initialise(ID, "prob1D", numberOfBins=[numberOfBins], lowerLimits=[distributionLimits(1)], upperLimits=[distributionLimits(2)])
+      call workData % initialise(ID, "histogram", numberOfBins=[numberOfBins], lowerLimits=[distributionLimits(1)], upperLimits=[distributionLimits(2)])
 
     else if (distZProperty) then
       call assignFlagValue(actionCommand,"+nbin ",numberOfBins,100)
@@ -340,7 +340,7 @@ contains
     else if (distZProperty) then
       call workData % dump(ID, outputFile % funit, upperLimits=[frame % hmat(3,3)])
     else 
-      call workData % dump(ID, outputFile % funit)
+      call workData % dump(ID, outputFile % funit, normalisation="probability")
     end if
     close(outputFile % funit)
 

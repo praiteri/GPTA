@@ -373,7 +373,9 @@ contains
         call message(1,"Processing only the last frame")
       else
         call message(0,"First frame to process",i=first_frame)
-        call message(0,"Last frame to process",i=last_frame)
+        if (last_frame /= huge(1)) then
+          call message(0,"Last frame to process",i=last_frame)
+        end if
         call message(1,"Stride for processing frames",i=stride_frame)
       end if
       

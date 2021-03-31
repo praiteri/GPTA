@@ -179,6 +179,9 @@ module moduleRead
       case ("gro")  
         call getNumberOfAtomsGromacs(f % funit, n, hmat)
 
+      case ("lmp")  
+        call getNumberOfAtomsLammps(f % funit, n, hmat)
+
       end select
       rewind(f % funit)
       
@@ -226,7 +229,7 @@ module moduleRead
       now = 0
       next_frame = 1
 
-      numberOfAtomsLocal = localFrame % natoms
+      numberOfAtomsLocal = size(localFrame % pos)/3
 
     ! Read frames for general processing
     else
@@ -268,14 +271,17 @@ module moduleRead
           end if
 
         case("gin")
-          call readCoordinatesGULP(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % hmat, localFrame % chg, go)
+          call readCoordinatesGULP(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
         
         case("gau")
           call readCoordinatesGaussian(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, go)
    
         case("gro")
-          call readCoordinatesGromacs(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % hmat, localFrame % chg, go)
+          call readCoordinatesGromacs(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
    
+        case("lmp")
+          call readCoordinatesLammps(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
+
 #ifdef GPTA_XDR
         case("xtc")
           if (inputFileNames(numberInputFiles) % first_access) then
@@ -284,8 +290,8 @@ module moduleRead
           endif
 
           call xtcf % read
-          if (xtcf%NATOMS .ne. localFrame % natoms) &
-            call message(-1,"Wrong number of atoms in xtc file",xtcf % NATOMS)
+          if (xtcf%NATOMS .ne. size(localFrame % pos)/3) &
+            call message(-1,"Wrong number of atoms in XTC file",xtcf % NATOMS)
 
           if (xtcf % STAT ==0) then
             go = .true.
@@ -303,7 +309,7 @@ module moduleRead
 
           call trrf % read
           if (trrf%NATOMS .ne. localFrame % natoms) &
-            call message(-1,"Wrong number of atoms in xtc file",trrf % NATOMS)
+            call message(-1,"Wrong number of atoms in TRR file",trrf % NATOMS)
 
           if (xtcf % STAT ==0) then
             go = .true.

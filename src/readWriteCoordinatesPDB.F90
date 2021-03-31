@@ -126,7 +126,6 @@ subroutine readCoordinatesPDB(uinp,natoms,pos,label,charge,hmat,go)
     end if
   enddo
 
-  return
 end subroutine readCoordinatesPDB
 
 subroutine writeCoordinatesPDB(uout,lpdb2)

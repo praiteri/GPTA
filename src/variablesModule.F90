@@ -66,7 +66,7 @@ module moduleVariables
   logical :: forceVerletList = .false.
 
   ! String parsing
-  integer, parameter :: STRLEN   = 200
+  integer, parameter :: STRLEN   = 400
   integer, parameter :: MAXWORDS = 1000  ! Max words on a line
   integer, parameter :: MAXFILES = 100   ! Max words on a line
 

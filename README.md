@@ -24,5 +24,5 @@ If you want to report a bug please email the command used and a small input file
 <gpta.help@gmail.com>
 
 Although you are not required to do so, the author would consider it a courtesy if you submit to them any changes you consider to be worthwhile adding to the code. 
-The goal would be to keep the development of GPTA more or less centralized.
+The goal would be to keep the development of GDIS more or less centralized.
 

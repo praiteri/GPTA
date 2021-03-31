@@ -125,7 +125,7 @@
     real(8), dimension(3,3), intent(inout) :: hmat
     character(len=200) :: line
     character(len=100) :: cellString
-    integer :: ierr, i
+    integer :: ierr, i,j
     
     natoms = 0
 
@@ -136,8 +136,19 @@
     if (ierr/=0 .or. len_trim(line)==0) return
     
     i = index(line,"Lattice=")
-    read(line(i+8:),*)cellString
-    read(cellString,*)hmat(1:3,1), hmat(1:3,2), hmat(1:3,3)
+    if (i > 0) then
+      read(line(i+8:),'(a100)')cellString
+      j = len_trim(cellString)-1
+      read(cellString(2:j),*)hmat(1:3,1), hmat(1:3,2), hmat(1:3,3)
+    end if
+
+    i = index(line,"Cell=")
+    if (i > 0) then
+      read(line(i+5:),'(a100)')cellString
+      hmat = 0.d0
+      j = len_trim(cellString)-1
+      read(cellString(2:j),*)hmat(1,1), hmat(2,2), hmat(3,3)
+    end if
 
   end subroutine getNumberOfAtomsXYZ
 
@@ -180,17 +191,27 @@
     
     i = index(line,"Lattice=")
     if (i > 0) then
-      read(line(i+8:),*)cellString
-      read(cellString,*)hmat(1:3,1), hmat(1:3,2), hmat(1:3,3)
+      read(line(i+8:),'(a100)')cellString
+      j = len_trim(cellString)-1
+      read(cellString(2:j),*)hmat(1:3,1), hmat(1:3,2), hmat(1:3,3)
+    end if
+
+    i = index(line,"Cell=")
+    if (i > 0) then
+      read(line(i+5:),'(a100)')cellString
+      hmat = 0.d0
+      j = len_trim(cellString)-1
+      read(cellString(2:j),*)hmat(1,1), hmat(2,2), hmat(3,3)
     end if
 
     oldXYZ = .true.
     i = index(line,"Properties=")
     if (i > 0) then
       oldXYZ = .false.
-      read(line(i+11:),*)fieldString
+      read(line(i+11:),'(a100)')fieldString
       
-      call parse(fieldString, ":", fields, nfields)
+      j = len_trim(cellString)-1
+      call parse(fieldString(2:j), ":", fields, nfields)
       nf = 0
       do i=1,nfields,3
         select case (fields(i))

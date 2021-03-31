@@ -84,6 +84,7 @@ contains
     character(STRLEN), allocatable, dimension(:) :: tmpLabels
     character(STRLEN) :: flagString
     logical :: lflag
+    real(8) :: rcut
 
     a % actionInitialisation = .false.
     a % requiresNeighboursList = .true.
@@ -114,6 +115,9 @@ contains
       call extractFlag(actionCommand,"+def",flagString)
       call parse(flagString," ",moleculesLabels,numberOfUniqueMoleculeTypes)
     end if
+
+    call assignFlagValue(actionCommand,"+rcut",rcut,a % cutoffNeighboursList)
+    a % cutoffNeighboursList = rcut
 
     updateTopology = .true.
     tallyExecutions = 0

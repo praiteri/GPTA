@@ -104,7 +104,7 @@ contains
       property % numberOfValues = numberOfValues
       allocate(property(ID) % dist1D(2 * property(ID) % numberOfValues), source=0.d0)
 
-    else if (whatToDo == "dist1D" .or. whatToDo == "prob1D") then
+    else if (whatToDo == "histogram") then
       allocate(property(ID) % dist1D(numberOfBins(1)), source=0.d0)
       property(ID) % numberOfBins = numberOfBins(1)
       property(ID) % lowerLimit   = lowerLimits(1)
@@ -184,7 +184,7 @@ contains
         end do
         property(ID) % counter = property(ID) % counter + 1
 
-    else if (property(ID) % type == "dist1D" .or. property(ID) % type == "prob1D") then
+    else if (property(ID) % type == "histogram") then
       xmin = property(ID) % lowerLimit
       xmax = property(ID) % upperLimit
       nbin = property(ID) % numberOfBins
@@ -268,7 +268,7 @@ contains
         else if (property(ID) % type == "multiAverage") then
           call MPI_reduce(MPI_IN_PLACE, property(ID) % dist1D , 2 * property(ID) % numberOfValues, MPI_DOUBLE, MPI_SUM, 0, MPI_Working_Comm, ierr_mpi)
 
-        else if (property(ID) % type == "dist1D" .or. property(ID) % type == "prob1D") then
+        else if (property(ID) % type == "histogram") then
           call MPI_reduce(MPI_IN_PLACE, property(ID) % dist1D , property(ID) % numberOfBins, MPI_DOUBLE, MPI_SUM, 0, MPI_Working_Comm, ierr_mpi)
 
         else if (property(ID) % type == "dist2D" .or. property(ID) % type == "prob2D") then
@@ -291,7 +291,7 @@ contains
         else if (property(ID) % type == "multiAverage") then
           call MPI_reduce(property(ID) % dist1D, property(ID) % dist1D , 2 * property(ID) % numberOfValues, MPI_DOUBLE, MPI_SUM, 0, MPI_Working_Comm, ierr_mpi)
 
-        else if (property(ID) % type == "dist1D" .or. property(ID) % type == "prob1D") then
+        else if (property(ID) % type == "histogram") then
           call MPI_reduce(property(ID) % dist1D, property(ID) % dist1D, property(ID) % numberOfBins, MPI_DOUBLE, MPI_SUM, 0, MPI_Working_Comm, ierr_mpi)
 
         else if (property(ID) % type == "dist2D" .or. property(ID) % type == "prob2D") then
@@ -313,15 +313,19 @@ contains
     integer, intent(in) :: iounit
     real(8), dimension(:), intent(in), optional :: lowerLimits  
     real(8), dimension(:), intent(in), optional :: upperLimits  
-    real(8),               intent(in), optional :: normalisation  
+    character(len=*),      intent(in), optional :: normalisation  
     integer,               intent(in), optional :: columns 
 
-    integer :: i, idx, jdx
+    integer :: i, j, idx, jdx, kdx
     integer :: nbin, mbin
-    real(8) :: dx, xmin, xmax
+    real(8) :: dx, xmin, xmax, dx2
     real(8) :: dy, ymin, ymax
     real(8) :: factor, norm1, norm0, stdev
     integer :: ncols
+
+    integer :: normalisationType
+    real(8) :: sigma, rtmp, w
+    real(8), allocatable, dimension(:) :: tmpArray
 
 #ifdef GPTA_MPI
     call communicateProperty(ID)
@@ -329,7 +333,7 @@ contains
 #endif
 
     if (present(lowerLimits)) then
-      if (property(ID) % type == "dist1D" .or. property(ID) % type == "prob1D") then
+      if (property(ID) % type == "histogram") then
         property(ID) % lowerLimit   = lowerLimits(1)
       else if (property(ID) % type == "dist2D" .or. property(ID) % type == "prob2D") then
         property(ID) % lowerLimits(1:2) = lowerLimits(1:2)
@@ -339,7 +343,7 @@ contains
     end if
     
     if (present(upperLimits)) then
-      if (property(ID) % type == "dist1D" .or. property(ID) % type == "prob1D") then
+      if (property(ID) % type == "histogram") then
         property(ID) % upperLimit   = upperLimits(1)
       else if (property(ID) % type == "dist2D" .or. property(ID) % type == "prob2D") then
         property(ID) % upperLimits(1:2) = upperLimits(1:2)
@@ -347,26 +351,39 @@ contains
         property(ID) % upperLimit   = upperLimits(1)
       end if
     end if
-
+    
+    ! CHANGE HERE
     if (present(normalisation)) then
-      factor = normalisation
-    else
-      factor = 1.d0
+      if (index(normalisation,"none") > 0) then
+        normalisationType = 1
+      else if (index(normalisation,"probability") > 0) then
+        normalisationType = 2
+      else if (index(normalisation,"custom") > 0) then
+        normalisationType = 3
+        idx = index(normalisation,"=") + 1
+        read(normalisation(idx:),*) rtmp
+      else if (index(normalisation,"kernel") > 0) then
+        normalisationType = 4
+        idx = index(normalisation,"=") + 1
+        read(normalisation(idx:),*) sigma
+      else
+        normalisationType = 1
+      end if
     end if
-
+    
     if (present(columns)) then
       ncols = columns
     else
       ncols = 1
     end if
-
+    
     if (property(ID) % type == "store") then
       do idx=1,property(ID) % counter
         write(iounit,'(f20.10)',advance='no') property(ID) % dist1D(idx)
         if (mod(idx,ncols)==0) write(iounit,*)
       end do
       property(ID) % counter = 0
-
+    
     else if (property(ID) % type == "average") then
       norm0 = property(ID) % average  / property(ID) % counter
       norm1 = property(ID) % average2 / property(ID) % counter
@@ -377,7 +394,7 @@ contains
         stdev = sqrt(stdev)
       end if
       write(iounit,'(f20.10,1x,f20.10)') norm0 * factor , stdev
-
+    
     else if (property(ID) % type == "multiAverage") then
       idx = 0
       do i=1,property(ID) % numberOfValues
@@ -387,48 +404,57 @@ contains
         idx = idx + 2
       end do
 
-    else if (property(ID) % type == "prob1D") then
+    else if (property(ID) % type == "histogram") then
       xmin = property(ID) % lowerLimit
       xmax = property(ID) % upperLimit
       nbin = property(ID) % numberOfBins
       dx = (xmax-xmin) / dble(nbin)
-      
-      norm1 = integrate(property(ID) % numberOfBins, property(ID) % dist1D, dx)
+
+      if ( normalisationType == 1 ) then
+        norm1 = 1.d0
+      else if ( normalisationType == 2 ) then
+        norm1 = integrate(property(ID) % numberOfBins, property(ID) % dist1D, dx)
+      else if ( normalisationType == 3 ) then
+        norm1 = rtmp
+      else if ( normalisationType == 4 ) then
+        allocate(tmpArray(property(ID) % numberOfBins), source=0.d0)
+  
+        dx2 = -0.5d0 * dx**2 / sigma**2
+        idx = nint(5.d0*sigma / dx)
+
+        do i=1,property(ID) % numberOfBins
+          jdx=max(1,i-idx)
+          kdx=min(property(ID) % numberOfBins,i+idx)
+          do j=jdx,kdx
+            w = exp( dx2 * (i-j)**2) * property(ID) % dist1D(i)
+            tmpArray(j) = tmpArray(j) + w
+          end do
+        end do
+
+        property(ID) % dist1D = tmpArray
+        norm1 = integrate(property(ID) % numberOfBins, property(ID) % dist1D, dx)
+      end if
+
       do idx=1,property(ID) % numberOfBins
         write(iounit,'(2(e20.10,1x))',advance='no' ) xmin + dx*(idx-0.5)
         write(iounit,'(2(e20.10))'   ,advance='yes') property(ID) % dist1D(idx) / norm1
       enddo
-
-    else if (property(ID) % type == "dist1D") then
-      xmin = property(ID) % lowerLimit
-      xmax = property(ID) % upperLimit
-      nbin = property(ID) % numberOfBins
-      dx = (xmax-xmin) / dble(nbin)
-      
-      norm1 = integrate(property(ID) % numberOfBins, property(ID) % dist1D, dx)
-      do idx=1,property(ID) % numberOfBins
-        write(iounit,'(2(e20.10,1x))',advance='no' ) xmin + dx*(idx-0.5)
-        write(iounit,'(2(e20.10))'   ,advance='yes') property(ID) % dist1D(idx) / property(ID) % counter * factor
-      enddo
-
+        
     else if (property(ID) % type == "prob2D") then
       xmin = property(ID) % lowerLimits(1)
       xmax = property(ID) % upperLimits(1)
       nbin = property(ID) % numberOfBins2D(1)
       dx = (xmax-xmin) / dble(nbin)
-
       ymin = property(ID) % lowerLimits(2)
       ymax = property(ID) % upperLimits(2)
       mbin = property(ID) % numberOfBins2D(2)
       dy = (ymax-ymin) / dble(mbin)
-
       norm1 = sum(property(ID) % dist2D) * dx * dy 
       do jdx=1,property(ID) % numberOfBins2D(2)
         norm0 = integrate(property(ID) % numberOfBins2D(1), property(ID) % dist2D(:,jdx) , dx)
-
         do idx=1,property(ID) % numberOfBins2D(1)
           write(iounit,'(e20.10,1x)',advance='no' ) xmin + dx*(idx-0.5)
-          write(iounit,'(e20.10,1x)',advance='no' ) ymin + dy*(jdx-0.5)
+        write(iounit,'(e20.10,1x)',advance='no' ) ymin + dy*(jdx-0.5)
           write(iounit,'(e20.10,1x)',advance='no' ) property(ID) % dist2D(idx,jdx) / norm1
           if (norm0 > epsilon(1.d0)) then
             write(iounit,'(e20.10)',advance='yes') property(ID) % dist2D(idx,jdx) / norm0
@@ -438,21 +464,21 @@ contains
         enddo
         write(iounit,*)
       enddo
-
+        
     else if (property(ID) % type == "dist2D") then
       xmin = property(ID) % lowerLimits(1)
       xmax = property(ID) % upperLimits(1)
       nbin = property(ID) % numberOfBins2D(1)
       dx = (xmax-xmin) / dble(nbin)
-
+      
       ymin = property(ID) % lowerLimits(2)
       ymax = property(ID) % upperLimits(2)
       mbin = property(ID) % numberOfBins2D(2)
       dy = (ymax-ymin) / dble(mbin)
-
+      
       norm1 = sum(property(ID) % dist2D) * dx * dy
       do jdx=1,property(ID) % numberOfBins2D(2)
-
+        
         norm0 = integrate(property(ID) % numberOfBins2D(1), property(ID) % dist2D(:,jdx) , dx)
         do idx=1,property(ID) % numberOfBins2D(1)
           write(iounit,'(e20.10,1x)',advance='no' ) xmin + dx*(idx-0.5)
@@ -466,7 +492,7 @@ contains
         enddo
         write(iounit,*)
       enddo
-
+        
     else if (property(ID) % type == "avgDist") then
       xmin = property(ID) % lowerLimit
       xmax = property(ID) % upperLimit
@@ -475,28 +501,27 @@ contains
       do idx=1,property(ID) % numberOfBins
         if (property(ID) % tally(idx) == 0) then
           write(iounit,'(2(e20.10,1x),i0)') xmin + dx*(idx-0.5) &
-                                        , property(ID) % dist1D(idx) &
-                                        , property(ID) % tally(idx)
+          , property(ID) % dist1D(idx) &
+          , property(ID) % tally(idx)
         else
           write(iounit,'(2(e20.10,1x),i0)') xmin + dx*(idx-0.5) &
-                                        , property(ID) % dist1D(idx) / property(ID) % tally(idx) &
-                                        , property(ID) % tally(idx) 
+          , property(ID) % dist1D(idx) / property(ID) % tally(idx) &
+          , property(ID) % tally(idx) 
         end if
       end do
-
+        
     end if
-
   end subroutine dumpPropertyRoutine
-
+    
   subroutine extractPropertyRoutine(ID, values, tally, numberOfCounts)
     implicit none
     integer, intent(in) :: ID
     real(8), allocatable, dimension(:) :: values
     integer, allocatable, dimension(:), optional :: tally
     integer, optional :: numberOfCounts
-
+    
     integer :: nbin, mbin, i, j, k, idx
-
+      
 #ifdef GPTA_MPI
     call communicateProperty(ID)
     if (me /= 0) return
@@ -519,7 +544,7 @@ contains
         idx = idx + 2
       end do
 
-    else if (property(ID) % type == "dist1D") then
+    else if (property(ID) % type == "histogram") then
       nbin = property(ID) % numberOfBins
       allocate(values(nbin), source=property(ID) % dist1D)
 

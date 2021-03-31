@@ -39,6 +39,7 @@ module modulePlumedInterface
 
 #ifdef GPTA_PLUMED
   character(:), pointer :: actionCommand
+  logical, pointer :: firstAction
   character(len=STRLEN), pointer :: plumedInputFile
   character(len=STRLEN), pointer :: plumedOutputFile
 
@@ -60,6 +61,7 @@ contains
 
     ! Local pointers
     actionCommand        => a % actionDetails
+    firstAction          => a % firstAction
     tallyExecutions      => a % tallyExecutions
     plumedInputFile      => a % stringVariables(1)
     plumedOutputFile     => a % stringVariables(2)
@@ -78,7 +80,7 @@ contains
   subroutine dumpScreenInfo()
     use moduleMessages 
     implicit none
-    call message(0,"PLUMED interface")
+    call message(0,"Creating PLUMED interface")
   end subroutine dumpScreenInfo
 #endif
 
@@ -110,7 +112,7 @@ contains
 
         if (plumedInputFile=="NULL") call message(-1,"Plumed input file must be specified with +f")
         
-        call message(1,1,1,"creating plumed from GPTA")
+!        call message(1,"creating plumed from GPTA")
         call plumed_f_gcreate()
         call plumed_f_gcmd("setRealPrecision"//char(0),8)
         call plumed_f_gcmd("setMDEnergyUnits"//char(0),energyUnits)

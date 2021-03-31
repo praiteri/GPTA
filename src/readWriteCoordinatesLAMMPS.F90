@@ -570,7 +570,144 @@ contains
           write(0,*) "Reply yes or no"
       end select
     end do
-
+    
   end function stopForMissingForceField
-
+  
 end subroutine writeLammpsCoordinates
+
+!------ reading lammps coordinates ------!
+subroutine getNumberOfAtomsLammps(uinp, n, hmat)
+  implicit none
+  integer, intent(in)  :: uinp
+  integer, intent(out) :: n
+  real(8), dimension(3,3), intent(out) :: hmat
+  
+  integer :: ios
+  character(len=20)  :: line
+  real(8) :: rtmp(2)
+  
+  n = 0
+  do
+    read(uinp, '(a200)',iostat=ios)line
+    if (ios /= 0) exit
+    if (index(line, "atoms") >0 )then
+      read(line,*) n
+    end if
+    
+    if (index(line, "xlo xhi") >0 )then
+      read(line,*,iostat=ios) rtmp
+      if (ios == 0) then
+        hmat(1,1) = rtmp(2) - rtmp(1)
+      else
+        read(line,*,iostat=ios) hmat(1,1)
+      end if
+    end if
+    
+    if (index(line, "ylo yhi") >0 )then
+      read(line,*,iostat=ios) rtmp
+      if (ios == 0) then
+        hmat(2,2) = rtmp(2) - rtmp(1)
+      else
+        read(line,*,iostat=ios) hmat(2,2)
+      end if
+    end if
+    
+    if (index(line, "zlo zhi") >0 )then
+      read(line,*,iostat=ios) rtmp
+      if (ios == 0) then
+        hmat(3,3) = rtmp(2) - rtmp(1)
+      else
+        read(line,*,iostat=ios) hmat(3,3)
+      end if
+    end if
+    
+    if (index(line, "xy xz yz") >0 )then
+      read(line,*) hmat(1,2) , hmat(1,3) , hmat(2,3) 
+    end if
+    
+    if (index(line, "Atoms") >0 ) exit
+  end do
+  
+end subroutine getNumberOfAtomsLammps
+
+!          call readCoordinatesLammps(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % hmat, localFrame % chg, go)
+
+subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
+  use moduleMessages
+  implicit none
+  integer, intent(in) :: uinp
+  integer, intent(in) :: natoms
+  real(8), dimension(3,natoms), intent(inout) :: pos
+  character(*), dimension(natoms), intent(inout) :: label
+  real(8), dimension(natoms), intent(inout) :: charge
+  real(8), dimension(3,3), intent(inout) :: hmat
+  logical, intent(inout) :: go
+
+  character(len=200) :: line
+  integer :: ios
+  real(8) :: rtmp(2)
+  integer :: idx, iatm, itmp
+
+  go = .true.
+
+  do
+    read(uinp, '(a200)',iostat=ios)line
+    if (ios /= 0) exit
+
+    if (index(line, "xlo xhi") >0 )then
+      read(line,*,iostat=ios) rtmp
+      if (ios == 0) then
+        hmat(1,1) = rtmp(2) - rtmp(1)
+      else
+        read(line,*,iostat=ios) hmat(1,1)
+      end if
+    end if
+    
+    if (index(line, "ylo yhi") >0 )then
+      read(line,*,iostat=ios) rtmp
+      if (ios == 0) then
+        hmat(2,2) = rtmp(2) - rtmp(1)
+      else
+        read(line,*,iostat=ios) hmat(2,2)
+      end if
+    end if
+    
+    if (index(line, "zlo zhi") >0 )then
+      read(line,*,iostat=ios) rtmp
+      if (ios == 0) then
+        hmat(3,3) = rtmp(2) - rtmp(1)
+      else
+        read(line,*,iostat=ios) hmat(3,3)
+      end if
+    end if
+    
+    if (index(line, "xy xz yz") >0 )then
+      read(line,*) hmat(1,2) , hmat(1,3) , hmat(2,3) 
+    end if
+
+    if (index(line, "Atoms") > 0) then
+      read(uinp, '(a200)',iostat=ios)
+      if (ios /= 0) then
+        go = .false.
+        exit
+      end if
+
+      ! read all atoms
+      do idx=1,natoms
+        read(uinp, '(a200)',iostat=ios)line
+        if (ios /= 0) then
+          go = .false.
+          exit
+        end if
+        read(line,*) iatm, itmp, label(iatm), charge(iatm), pos(1:3,iatm)
+      end do
+      write(0,*) pos(1:3,1)
+      return
+    end if
+
+  end do
+
+  go = .false.
+
+end subroutine readCoordinatesLammps
+
