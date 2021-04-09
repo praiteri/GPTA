@@ -57,6 +57,7 @@ contains
     implicit none
     type(actionTypeDef), target :: a
 
+#ifdef GPTA_PLUMED
     actionCommand          => a % actionDetails
     firstAction            => a % firstAction
     tallyExecutions        => a % tallyExecutions
@@ -64,6 +65,7 @@ contains
     plumedOutputFile       => a % stringVariables(2)
     numberOfCVs            => a % integerVariables(1)
     collectiveVariables    => a % doubleVariables
+#endif
     
   end subroutine  
 
