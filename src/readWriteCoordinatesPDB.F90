@@ -186,7 +186,7 @@ subroutine writeCoordinatesPDB(uout,lpdb2)
     write(uout,'(a100)')line
   enddo
 
-  if (.not.lpdb2) then
+  if (.not. lpdb2) then
     write(uout,'("END")')
   else
     write(uout,'("ENDMDL")')

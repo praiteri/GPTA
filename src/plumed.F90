@@ -32,6 +32,7 @@
 ! 
 module modulePlumedInterface
   use moduleVariables
+  use moduleMessages
   implicit none
 
   public :: plumedInterface
@@ -42,6 +43,8 @@ module modulePlumedInterface
   logical, pointer :: firstAction
   character(len=STRLEN), pointer :: plumedInputFile
   character(len=STRLEN), pointer :: plumedOutputFile
+  integer, pointer :: numberOfCVs
+  real(8), pointer, dimension(:) :: collectiveVariables
 
   integer, pointer :: tallyExecutions
 
@@ -49,6 +52,21 @@ module modulePlumedInterface
 #endif
 
 contains
+
+  subroutine associatePointers(a)
+    implicit none
+    type(actionTypeDef), target :: a
+
+    actionCommand          => a % actionDetails
+    firstAction            => a % firstAction
+    tallyExecutions        => a % tallyExecutions
+    plumedInputFile        => a % stringVariables(1)
+    plumedOutputFile       => a % stringVariables(2)
+    numberOfCVs            => a % integerVariables(1)
+    collectiveVariables    => a % doubleVariables
+    
+  end subroutine  
+
 
   subroutine initialiseAction(a)
     use moduleStrings
@@ -58,13 +76,6 @@ contains
 
 #ifdef GPTA_PLUMED
     a % actionInitialisation = .false.
-
-    ! Local pointers
-    actionCommand        => a % actionDetails
-    firstAction          => a % firstAction
-    tallyExecutions      => a % tallyExecutions
-    plumedInputFile      => a % stringVariables(1)
-    plumedOutputFile     => a % stringVariables(2)
 
     call assignFlagValue(actionCommand,"+f",plumedInputFile,'NULL')
     call assignFlagValue(actionCommand,"+out",plumedOutputFile,'plumed_gpta.out')
@@ -98,21 +109,28 @@ contains
 
     integer :: i
     real(8) :: etot
+    
+    call associatePointers(a)
+    if (a % actionInitialisation) then
+      call initialiseAction(a)
+      return
+    end if
 
+    write(0,*)frameReadSuccessfully,firstAction,tallyExecutions
     if (frameReadSuccessfully) then
       tallyExecutions = tallyExecutions + 1
-
+      
       if (firstAction) then
         energyUnits = 96.48530749925792d0
         lengthUnits = 0.1d0
         timeUnits = 1.0d0
-
+        
         call plumed_f_installed(plumedVariable)
         if(plumedVariable<=0) call message(-1,"PLUMED 2 not available")
 
         if (plumedInputFile=="NULL") call message(-1,"Plumed input file must be specified with +f")
         
-!        call message(1,"creating plumed from GPTA")
+        call message(1,"creating plumed from GPTA")
         call plumed_f_gcreate()
         call plumed_f_gcmd("setRealPrecision"//char(0),8)
         call plumed_f_gcmd("setMDEnergyUnits"//char(0),energyUnits)
@@ -121,11 +139,9 @@ contains
         call plumed_f_gcmd("setNatoms"//char(0),frame % natoms)
         call plumed_f_gcmd("setPlumedDat"//char(0),trim(plumedInputFile)//char(0))
         call plumed_f_gcmd("setLogFile"//char(0),trim(plumedOutputFile)//char(0))
-        call plumed_f_gcmd("setMDEngine"//char(0),"driver");
-        call plumed_f_gcmd("setTimestep"//char(0),1.0d0);
-        call plumed_f_gcmd("init"//char(0),0);
-
-        call dumpScreenInfo()
+        call plumed_f_gcmd("setMDEngine"//char(0),"driver")
+        call plumed_f_gcmd("setTimestep"//char(0),1.0d0)
+        call plumed_f_gcmd("init"//char(0),0)
 
         call checkUsedFlags(actionCommand)
         firstAction = .false.
@@ -147,6 +163,7 @@ contains
       CALL plumed_f_gcmd("setVirial"//char(0),virial)
       CALL plumed_f_gcmd("setEnergy"//char(0),etot)
       CALL plumed_f_gcmd("calc"//char(0),0)
+
       deallocate(mass,force,virial)
 
     end if

@@ -216,6 +216,7 @@ contains
 !          write(0,'(a,i0,a)') " ",trj % natoms, " atoms present in system."
 !          write(0,*)
 
+        case ('a')
         case ('w')
 !          write(0,'(a)') " Open "//trim(filename)//" for writing."
 !          write(0,*)

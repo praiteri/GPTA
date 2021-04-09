@@ -93,7 +93,7 @@ program gpta
   numberOfActiveProcesses = 1
 #endif
 
-  nProgress = 100 * numberOfActiveProcesses
+  nProgress = 1000 * numberOfActiveProcesses
 
 ! Start timing
   startTimer = timing()
@@ -337,6 +337,9 @@ contains
     integer ( kind = 8 ) :: values(8)
     integer ( kind = 8 ) :: y
 
+    character(len=128) :: pwd
+    call get_environment_variable('PWD',pwd)
+
     call date_and_time ( values = values )
 
     y  = values(1) ! year
@@ -351,6 +354,7 @@ contains
       call message(-10)
       write(str, '("GPTA started on ",i2.2,1x,a,1x,i4," at ",i2,":",i2.2,":",i2.2)' ) d, trim ( month(m) ), y, h, n, s
       call message(0,str)
+      call message(0,"Working directory: "//trim(pwd))
       call message(2)
 
       call message(0,"Number of CPUs used",i=numberOfMpiProcesses*ompNumThreads)
