@@ -61,24 +61,25 @@ module moduleExtractSystemProperties
   logical, pointer :: dumpProperty         ! Output dump
   logical, pointer :: averageMultiProperty ! Average
   logical, pointer :: distProperty         ! Distribution
+  logical, pointer :: averagePositions
   integer, pointer :: distributionType
 
   integer, pointer :: numberOfProperties
   real(8), pointer, dimension(:) :: localProperty
 
-  interface
-    subroutine stuff(np, property, numberOfSelectedAtoms, selectionList)
-      integer, intent(inout) :: np
-      real(8), dimension(*), intent(out) :: property
-      integer, intent(in), optional :: numberOfSelectedAtoms
-      integer, dimension(:), intent(in), optional :: selectionList
-    end subroutine stuff
-  end interface
+!  interface
+!    subroutine stuff(np, property, numberOfSelectedAtoms, selectionList)
+!      integer, intent(inout) :: np
+!      real(8), dimension(*), intent(out) :: property
+!      integer, intent(in), optional :: numberOfSelectedAtoms
+!      integer, dimension(:), intent(in), optional :: selectionList
+!    end subroutine stuff
+!  end interface
   procedure(stuff) :: extractcell, extractHMatrix, extractVolume, extractDensity
   procedure(stuff) :: computeInertiaTensor
   procedure(stuff) :: dielectricConstant
   procedure(stuff) :: bondLength
-  procedure(stuff) :: position
+  procedure(stuff) :: position, averageSystem
   procedure(stuff) :: test
 
 contains
@@ -111,7 +112,8 @@ contains
           call createSelectionList(a,1)
           numberOfSelectedAtoms = count(a % isSelected(:,1))
         end if
-               ! get the number of properties computed and initialise the working arrays
+        
+        ! get the number of properties computed and initialise the working arrays
         call initialiseCompute(a)
  
         call checkUsedFlags(actionCommand)
@@ -128,14 +130,19 @@ contains
         end if
 
       end if
+      localProperty => a % array1D       
 
       call computeAction(numberOfProperties, a)
     end if
 
     ! Normal processing of the frame - finalise calculation and write output
     if (endOfCoordinatesFiles) then
-      if (outputFile % fname /= "NULL") call message(0,"......Output file",str=outputFile % fname)
-      if (dumpCoordinates     ) call message(0,"......Output file for scaled coordinates",str=coordinatesFile % fname)
+      if (dumpCoordinates) then
+        call message(0,"......Output file for coordinates",str=coordinatesFile % fname)
+      else if (outputFile % fname /= "NULL") then
+        call message(0,"......Output file",str=outputFile % fname)
+      end if
+
       if (averageMultiProperty) call message(0,"......Average(s) and standard deviation(s)")
       if (distProperty        ) then
         if (distributionType == 1) then 
@@ -178,7 +185,7 @@ contains
     distributionType        => a % integerVariables(4)
 
     distributionLimits(1:2) => a % doubleVariables(1:2)
-    localProperty(1:)       => a % doubleVariables(3:)
+    ! localProperty(1:)       => a % doubleVariables(3:)
 
     atomSelection           => a % logicalVariables(1) ! Atoms selection for property
     dumpProperty            => a % logicalVariables(2) ! Output dump
@@ -186,6 +193,7 @@ contains
     distProperty            => a % logicalVariables(4) ! Distribution
 
     dumpCoordinates         => a % logicalVariables(5) 
+    averagePositions        => a % logicalVariables(6) 
     coordinatesFile         => a % auxiliaryFile 
 
     numberOfSelectedAtoms = 0
@@ -216,14 +224,16 @@ contains
     if ( count([distProperty,averageMultiProperty]) == 0 ) dumpProperty = .true.
 
     call assignFlagValue(actionCommand,"+out",outputFile % fname,"NULL")
-    if (outputFile % fname /= "NULL") then
-      call initialiseFile(outputFile, outputFile % fname)
-      write(outputFile % funit,"(a)")"#System property"
-      write(outputFile % funit,'(a)')"#...Extracting "//trim(a % sysprop % name)
-      if (averageMultiProperty) write(outputFile % funit,'(a)')"#......Average and standard deviation"
-      if (distProperty        ) write(outputFile % funit,'(a)')"#......Distribution"
-    else
-      outputFile % funit = 6
+    if (.not. dumpCoordinates) then
+      if (outputFile % fname /= "NULL") then
+        call initialiseFile(outputFile, outputFile % fname)
+        write(outputFile % funit,"(a)")"#System property"
+        write(outputFile % funit,'(a)')"#...Extracting "//trim(a % sysprop % name)
+        if (averageMultiProperty) write(outputFile % funit,'(a)')"#......Average and standard deviation"
+        if (distProperty        ) write(outputFile % funit,'(a)')"#......Distribution"
+      else
+        outputFile % funit = 6
+      end if
     end if
     
   end subroutine initialiseAction
@@ -235,9 +245,27 @@ contains
     
     implicit none
     type(actionTypeDef), target :: a
-    real(8), allocatable, dimension(:) :: cell
+    real(8), allocatable, dimension(:) :: data
     real(8) :: rtmp
     character(len=30) :: str
+
+    if (dumpCoordinates) then
+      call workData % extract(ID, data)
+      frame % hmat = reshape(data(1:9),[3,3])
+
+      if (averagePositions) then
+        frame % frac = reshape(data(10:),[3,frame % natoms])
+      end if
+
+      ! scale the coordinated to the average cell
+      call fractionalToCartesian(frame % natoms, frame % frac, frame % pos)
+      if (numberOfMolecules > 0) call reassembleAllMolecules()
+
+      call runInternalAction("dump",trim(coordinatesFile % fname)//" +internal")
+
+      close (coordinatesFile % funit)
+      return
+    end if
 
     if (distProperty) then
       select case (distributionType)
@@ -257,17 +285,6 @@ contains
     end if
     call message(4)
 
-    if (dumpCoordinates) then
-      call workData % extract(ID, cell)
-      frame % hmat = reshape(cell,[3,3])
-      call fractionalToCartesian(frame % natoms, frame % frac, frame % pos)
-      if (numberOfMolecules > 0) call reassembleAllMolecules()
-
-      call runInternalAction("dump",trim(coordinatesFile % fname)//" +internal")
-
-      close (coordinatesFile % funit)
-    end if
-
   end subroutine finaliseAction
 
   subroutine computeAction(n, a)
@@ -285,7 +302,11 @@ contains
       call a % sysprop % property(numberOfProperties, localProperty)
     end if
 
-    if (ntmp>0) call workData % compute(ID, numberOfValues=numberOfProperties, xValues=localProperty)
+    if (ntmp>0) then
+      call workData % compute(ID, numberOfValues=numberOfProperties, xValues=localProperty)
+    else
+      allocate(a % array1D(numberOfProperties), source=0.d0)
+    end if
 
   end subroutine computeAction
 
@@ -326,70 +347,73 @@ contains
     integer :: n
          
     if (flagExists(actionCommand,"+test")) then
-      n = n +1
+      n = n + 1
       atomSelection = .true.
       a % sysprop % property => test
       a % sysprop % name = "Test Extract Routine"
     end if
          
     if (flagExists(actionCommand,"+pos")) then
-      n = n +1
+      n = n + 1
       atomSelection = .true.
       a % sysprop % property => position
       a % sysprop % name = "Atoms Positions"
     end if
 
     if (flagExists(actionCommand,"+cell")) then
-      n = n +1
+      n = n + 1
       a % sysprop % property => extractCell
       a % sysprop % name = "Cell Parameters"
     end if
     
     if (flagExists(actionCommand,"+hmat")) then
-      n = n +1
+      n = n + 1
       a % sysprop % property => extractHMatrix
       a % sysprop % name = "Cell Matrix"
     end if
     
     if (flagExists(actionCommand,"+system")) then
-      n = n +1
+      n = n + 1
+      atomSelection = .true.
       averageMultiProperty = .true.
       dumpCoordinates = .true.
-      a % sysprop % property => extractHMatrix
+      a % sysprop % property => averageSystem
       a % sysprop % name = "Average cell and scaled coordinates"
-      if (countFlagArguments(actionCommand,"+system") == 0) then
-        coordinatesFile % fname = "averageSystem.pdb"
-      else 
-        call assignFlagValue(actionCommand,"+system",coordinatesFile % fname,"NULL")
-      end if
+      ! if (countFlagArguments(actionCommand,"+system") == 0) then
+      !   coordinatesFile % fname = "averageSystem.pdb"
+      ! else 
+      !   call assignFlagValue(actionCommand,"+system",coordinatesFile % fname,"NULL")
+      ! end if
+      call assignFlagValue(actionCommand,"+out",coordinatesFile % fname,"averageSystem.pdb")
+      call assignFlagValue(actionCommand,"+avg",averagePositions,.false.)
     end if
     
     if (flagExists(actionCommand,"+volume")) then
-      n = n +1
+      n = n + 1
       a % sysprop % property => extractVolume
       a % sysprop % name = "Cell Volume"
     end if
     
     if (flagExists(actionCommand,"+inertia")) then
-      n = n +1
+      n = n + 1
       a % sysprop % property => computeInertiaTensor
       a % sysprop % name = "Intertia tensor (eigenvalues)"
     end if
 
     if (flagExists(actionCommand,"+diel")) then
-      n = n +1
+      n = n + 1
       a % sysprop % property => dielectricConstant
       a % sysprop % name = "Dielectric constant"
     end if
     
     if (flagExists(actionCommand,"+density")) then
-      n = n +1
+      n = n + 1
       a % sysprop % property => extractDensity
       a % sysprop % name = "Density"
     end if
 
     if (flagExists(actionCommand,"+distance")) then
-      n = n +1
+      n = n + 1
       atomSelection = .true.
       a % sysprop % property => bondLength
       a % sysprop % name = "Distance between atoms"
@@ -553,7 +577,38 @@ subroutine position(n, val, nat, l)
   end do
   
 end subroutine position
+
+subroutine averageSystem(n, val, nat, l)
+  use moduleSystem
+  use moduleDistances
+  implicit none
+  integer, intent(inout) :: n
+  real(8), dimension(*), intent(out) :: val
+  integer, intent(in), optional :: nat
+  integer, dimension(:), intent(in) :: l
   
+  integer :: i, ntmp
+
+  ! set the number of properties computed
+  if (n < 0) then
+    n = nat *3 + 9
+    return
+  end if
+  
+  ntmp = 0
+
+  do i=1,3
+    val(ntmp+1:ntmp+3) = frame % hmat(:,i)
+    ntmp = ntmp + 3
+  end do
+
+  do i=1,nat
+    val(ntmp+1:ntmp+3) = frame % frac(:,l(i))
+    ntmp = ntmp + 3
+  end do
+  
+end subroutine averageSystem
+
 subroutine test(n, val, nat, l)
   use moduleSystem
   use moduleDistances

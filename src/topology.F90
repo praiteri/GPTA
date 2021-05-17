@@ -595,14 +595,11 @@ contains
         foundPerm = checkPermutations(listOfMolecules(imol) % numberOfAtoms, &
                                       listOfMolecules(imol) % listOfLabels,  &
                                       listOfMolecules(jmol) % listOfLabels,  &
-                                      newOrder(1:listOfMolecules(imol) % numberOfAtoms) )
+                                      newOrderAll(1:listOfMolecules(imol) % numberOfAtoms,jdx))
 
         if (foundPerm) then
           removeMoleculeType(jdx) = .true.
           newMoleculeType(jdx) = idx
-          do itmp=1,listOfMolecules(jmol) % numberOfAtoms
-            newOrderAll(itmp,jdx) = listOfMolecules(jmol) % listOfAtoms(newOrder(itmp))
-          end do
         end if
         
       end  do 
@@ -615,7 +612,11 @@ contains
           listOfMolecules(imol) % ID = newMoleculeType(idx)
           write(str,'(i0)') listOfMolecules(imol) % ID
           listOfMolecules(imol) % resname = "M"//trim(str) 
-          listOfMolecules(imol) % listOfAtoms = newOrderAll(1:listOfMolecules(imol) % numberOfAtoms,idx)
+          do itmp=1,listOfMolecules(imol) % numberOfAtoms
+            newOrder(itmp) = listOfMolecules(imol) % listOfAtoms(newOrderAll(itmp,idx))
+          end do
+
+          listOfMolecules(imol) % listOfAtoms = newOrder(1:listOfMolecules(imol) % numberOfAtoms)
         end if
       end do
     end if

@@ -164,8 +164,8 @@ subroutine setAtomAttributes(a)
       if (renameAtoms) then
         allocate(a % localLabels(frame % natoms))
         call assignFlagValue(actionCommand,"+l",newLabels)
-        if (size(newLabels) /= maxval(atomFlag)) then
-          if (size(newLabels) /= 1) call message(-1,"select +s and +l have different number of elements",i=size(newLabels))
+        if (size(newLabels) /= size(oldLabels)) then
+          if (size(newLabels) /= 1) call message(-1,"select +s and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
           ctmp = newLabels(1)
           deallocate(newLabels)
           allocate(newLabels(size(oldLabels)), source=ctmp)

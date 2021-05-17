@@ -48,7 +48,7 @@ subroutine defineVariables(cmd)
   character(len=STRLEN), dimension(100) :: listOfWords, words
 
   character(len=STRLEN) :: wstr
-  character(len=STRLEN), external :: lowercase
+  ! character(len=STRLEN), external :: lowercase
 
   call parse(cmd, " ", listOfWords, numberOfWords)
 
@@ -56,7 +56,7 @@ subroutine defineVariables(cmd)
   do while (iword < numberOfWords)
     iword = iword + 1
     i = len_trim(listOfWords(iword)) + 1
-    wstr = lowercase(listOfWords(iword))
+    call lowercase(listOfWords(iword),wstr)
     wstr(i:) = ""
     select case(wstr)
       case default

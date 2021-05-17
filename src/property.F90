@@ -320,7 +320,7 @@ contains
     integer :: nbin, mbin
     real(8) :: dx, xmin, xmax, dx2
     real(8) :: dy, ymin, ymax
-    real(8) :: factor, norm1, norm0, stdev
+    real(8) :: norm1, norm0, stdev
     integer :: ncols
 
     integer :: normalisationType
@@ -393,14 +393,20 @@ contains
       else
         stdev = sqrt(stdev)
       end if
-      write(iounit,'(f20.10,1x,f20.10)') norm0 * factor , stdev
+      write(iounit,'(f20.10,1x,f20.10)') norm0, stdev
     
     else if (property(ID) % type == "multiAverage") then
       idx = 0
       do i=1,property(ID) % numberOfValues
         norm0 = property(ID) % dist1D(idx+1) / property(ID) % counter
         norm1 = property(ID) % dist1D(idx+2) / property(ID) % counter
-        write(iounit,'(f20.10,1x,f20.10)') norm0 * factor , sqrt(norm1 - norm0*norm0)
+        stdev = norm1 - norm0*norm0
+        if (stdev < 0.d0) then
+          stdev = 0.d0
+        else
+          stdev = sqrt(stdev)
+        end if
+        write(iounit,'(f20.10,1x,f20.10)') norm0, stdev
         idx = idx + 2
       end do
 
@@ -483,9 +489,9 @@ contains
         do idx=1,property(ID) % numberOfBins2D(1)
           write(iounit,'(e20.10,1x)',advance='no' ) xmin + dx*(idx-0.5)
           write(iounit,'(e20.10,1x)',advance='no' ) ymin + dy*(jdx-0.5)
-          write(iounit,'(e20.10,1x)',advance='no') property(ID) % dist2D(idx,jdx) / property(ID) % counter / norm1 * factor
+          write(iounit,'(e20.10,1x)',advance='no') property(ID) % dist2D(idx,jdx) / property(ID) % counter / norm1 
           if (norm0 > epsilon(1.d0)) then
-            write(iounit,'(e20.10,1x)',advance='yes') property(ID) % dist2D(idx,jdx) / norm0 * factor
+            write(iounit,'(e20.10,1x)',advance='yes') property(ID) % dist2D(idx,jdx) / norm0
           else 
             write(iounit,'(e20.10,1x)',advance='yes') -tiny(1.d0)
           end if

@@ -167,7 +167,7 @@ end function uppercase
 
 ! end function uppercase
 
-function lowercase(str) result(lcstr)
+subroutine lowercase(str,lcstr)
 
 ! convert string to lower case
 
@@ -197,7 +197,7 @@ do i=1,ilen
   end if
 end do
 
-end function lowercase
+end subroutine lowercase
 
 subroutine cell2hmat(cell,h)
   use moduleVariables, only : pi, pih

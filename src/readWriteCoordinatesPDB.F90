@@ -89,6 +89,7 @@ subroutine readCoordinatesPDB(uinp,natoms,pos,label,charge,hmat,go)
   do
     read(uinp,'(a100)',iostat=ios)line
     if (ios/=0) then
+      if (is_iostat_end(ios) .and. iatom==natoms) return 
       go=.false.
       return
     end if
@@ -186,7 +187,7 @@ subroutine writeCoordinatesPDB(uout,lpdb2)
     write(uout,'(a100)')line
   enddo
 
-  if (.not. lpdb2) then
+  if (.not.lpdb2) then
     write(uout,'("END")')
   else
     write(uout,'("ENDMDL")')

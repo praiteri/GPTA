@@ -107,6 +107,15 @@ module moduleSystem
   real(8), dimension(MAXBOND)                      :: sbond_d
   character(len=cp), dimension(2,MAXBOND)          :: sbond_l
 
+  interface
+    subroutine stuff(np, property, numberOfSelectedAtoms, selectionList)
+      integer, intent(inout) :: np
+      real(8), dimension(*), intent(out) :: property
+      integer, intent(in), optional :: numberOfSelectedAtoms
+      integer, dimension(:), intent(in), optional :: selectionList
+    end subroutine stuff
+  end interface
+
 end module moduleSystem 
 
 subroutine createSystemArrays(localFrame, numberOfAtoms)

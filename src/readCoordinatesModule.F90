@@ -87,11 +87,11 @@ module moduleRead
       numberOfActions = jcmd
       
       if (numberInputFiles == 0) return
-      call message(0,"Opening input coordinates files")
-      do i=1,numberInputFiles
-        call message(0,"..."//trim(ftype(i))//" file",str=fname(i))
-      enddo
-      call message(2)
+      ! call message(0,"Opening input coordinates files")
+      ! do i=1,numberInputFiles
+      !   call message(0,"..."//trim(ftype(i))//" file",str=fname(i))
+      ! enddo
+      ! call message(2)
 
       return
       
@@ -114,13 +114,13 @@ module moduleRead
           ! file type from extension
           if (len_trim(actionType(iact)) > 3) inputFileNames(numberInputFiles) % ftype = actionType(iact)(4:3+fp)
 
-#ifdef GPTA_XDR
-          if ( inputFileNames(numberInputFiles) % ftype == "xtc") then
-            close(inputFileNames(numberInputFiles) % funit)
-          else if ( inputFileNames(numberInputFiles) % ftype == "trr") then
-            close(inputFileNames(numberInputFiles) % funit)
-          end if
-#endif
+! #ifdef GPTA_XDR
+!           if ( inputFileNames(numberInputFiles) % ftype == "xtc") then
+!             close(inputFileNames(numberInputFiles) % funit)
+!           else if ( inputFileNames(numberInputFiles) % ftype == "trr") then
+!             close(inputFileNames(numberInputFiles) % funit)
+!           end if
+! #endif
         enddo
  
         call assignFlagValue(actionDetails(iact),"+nm ",inputCoordInNM,.false.)
@@ -142,6 +142,11 @@ module moduleRead
       end if
 
     enddo
+    call message(0,"Opening input coordinates files")
+    do i=1,numberInputFiles
+      call message(0,"..."//trim(inputFileNames(i) % ftype)//" file",str=inputFileNames(i) % fname)
+    enddo
+    call message(2)
 
     numberOfActions = jcmd
 
@@ -284,9 +289,9 @@ module moduleRead
 
 #ifdef GPTA_XDR
         case("xtc")
-          if (inputFileNames(numberInputFiles) % first_access) then
-            inputFileNames(numberInputFiles) % first_access = .false.
-            call xtcf % init(trim(inputFileNames(numberInputFiles) % fname))
+          if (inputFileNames(currentInputFile) % first_access) then
+            inputFileNames(currentInputFile) % first_access = .false.
+            call xtcf % init(trim(inputFileNames(currentInputFile) % fname))
           endif
 
           call xtcf % read

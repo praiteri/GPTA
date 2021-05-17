@@ -358,6 +358,14 @@ module moduleModifyCoordinates
       call setUpNeigboursList()
       call updateNeighboursList(.true.)
       
+      call message(0,"New cell")
+      call message(0,"...Cell vector A",rv=frame % hmat(1:3,1))
+      call message(0,"...Cell vector B",rv=frame % hmat(1:3,2))
+      call message(0,"...Cell vector C",rv=frame % hmat(1:3,3))
+      call message(0,"...Cell lengths",rv=frame % cell(1:3))
+      call message(0,"...Cell angles",rv=frame % cell(4:6))
+      call message(1,"...Volume",r=frame % volume)
+
       if (numberOfMolecules > 0) call runInternalAction("topology","+update +reorder +rebuild")
 
     end if

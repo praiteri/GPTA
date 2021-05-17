@@ -46,7 +46,7 @@ subroutine getNumberOfAtomsGULP(uinp,natoms,hmat)
   real(8) :: rqq, cell(6)
   character(cp) :: ctmp
 
-  character(len=20)  :: str
+  character(len=20)  :: str, str0
   integer :: i, j, k, l, ierr
   logical :: lerr
 
@@ -73,7 +73,8 @@ subroutine getNumberOfAtomsGULP(uinp,natoms,hmat)
     if (len_trim(line)==0) cycle
     if ( line(1:1) == "#") cycle
 
-    read(line,*)str
+    read(line,*)str0
+    call lowercase(str0,str)
     if (str(1:4)=='cell') then
       ! read(uinp,'(a100)',end=547)line
       call readline(uinp,line,ierr)
@@ -109,7 +110,8 @@ subroutine getNumberOfAtomsGULP(uinp,natoms,hmat)
       enddo
       natoms = nasym
     end if
-    read(line,*)str
+    read(line,*)str0
+    call lowercase(str0,str)
 
     if (str(1:4) == "spac") then
       do
@@ -189,7 +191,7 @@ subroutine readCoordinatesGULP(uinp,natoms,pos,label,chg,hmat,go)
   real(8) :: cell(6)
   integer :: iatm, nasym
   character(len=100)  :: line
-  character(len=16)  :: str(10)
+  character(len=16)  :: str(10), str0
   integer :: icoord = 0
   real(8) :: sij(3), ptmp(3)
   real(8), allocatable, dimension(:,:) :: dij
@@ -220,7 +222,8 @@ subroutine readCoordinatesGULP(uinp,natoms,pos,label,chg,hmat,go)
     if (ierr<0) goto 547
     if (ierr>0) goto 548
 
-    read(line,*)str(1)
+    read(line,*)str0
+    call lowercase(str0,str(1))
     if (str(1)(1:4)=='cell') then
       call readline(uinp,line,ierr)
       if (ierr/=0) goto 547

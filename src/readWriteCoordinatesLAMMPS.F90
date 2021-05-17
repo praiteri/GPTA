@@ -583,18 +583,19 @@ subroutine getNumberOfAtomsLammps(uinp, n, hmat)
   real(8), dimension(3,3), intent(out) :: hmat
   
   integer :: ios
-  character(len=20)  :: line
+  character(len=200)  :: line
   real(8) :: rtmp(2)
   
   n = 0
   do
     read(uinp, '(a200)',iostat=ios)line
+
     if (ios /= 0) exit
     if (index(line, "atoms") >0 )then
       read(line,*) n
     end if
     
-    if (index(line, "xlo xhi") >0 )then
+    if (index(line, "xlo xhi") > 0 )then
       read(line,*,iostat=ios) rtmp
       if (ios == 0) then
         hmat(1,1) = rtmp(2) - rtmp(1)
@@ -624,8 +625,8 @@ subroutine getNumberOfAtomsLammps(uinp, n, hmat)
     if (index(line, "xy xz yz") >0 )then
       read(line,*) hmat(1,2) , hmat(1,3) , hmat(2,3) 
     end if
-    
-    if (index(line, "Atoms") >0 ) exit
+
+    if (index(line, "Atoms") > 0) exit
   end do
   
 end subroutine getNumberOfAtomsLammps
@@ -701,7 +702,6 @@ subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
         end if
         read(line,*) iatm, itmp, label(iatm), charge(iatm), pos(1:3,iatm)
       end do
-      write(0,*) pos(1:3,1)
       return
     end if
 
