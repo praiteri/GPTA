@@ -154,6 +154,18 @@ contains
         end do
       end if
 
+      if (outputFile % ftype == "lmptrj") then
+        call assignFlagValue(actionCommand,"+map ",lmpMap,.false.)
+        if (lmpMap) then
+          block
+            character(STRLEN) :: flagString
+            call extractFlag(actionCommand,"+map",flagString)
+            call parse(flagString," ",mapLabelsTypes,numberOfLammpsTypes)
+          end block
+        end if
+
+      end if
+
       call assignFlagValue(actionCommand,"+bohr ",outputCoordInBohr,.false.)
 
       ! The neigbours' list is require for the topology
@@ -200,10 +212,6 @@ contains
       else if (outputFile % ftype == "pdb2") then
         call writeCoordinatesPDB(outputFile % funit,.true.)
 
-      else if (outputFile % ftype == "lmp") then
-        call readLammpsForcefieldFile(forcefieldFile)
-        call writeLammpsCoordinates(outputFile % funit)
-
       else if (outputFile % ftype == "gin") then
         call writeGulpCoordinates(outputFile % funit)
 
@@ -219,8 +227,12 @@ contains
       else if (outputFile % ftype == "arc") then
         call writeCoordinatesARC(outputFile % funit)
 
-      else if (outputFile % ftype == "trj") then
-        call writeCoordinatesTRJ(outputFile % funit)
+      else if (outputFile % ftype == "lmp") then
+        call readLammpsForcefieldFile(forcefieldFile)
+        call writeLammpsCoordinates(outputFile % funit)
+
+      else if (outputFile % ftype == "lmptrj") then
+        call writeCoordinatesLammpsTrajectory(outputFile % funit)
 
 #ifdef GPTA_XDR
       else if (outputFile % ftype == "xtc") then
@@ -300,63 +312,3 @@ subroutine writeCoordinatesXYZ(io)
 
 end subroutine writeCoordinatesXYZ
 
-subroutine writeCoordinatesTRJ(io)
-  use moduleVariables, only : cp
-  use moduleSystem, only : frame
-  implicit none
-  integer, intent(in) :: io
-
-  integer :: nTypes
-  character(len=cp), dimension(100), save :: uniqueTypes
-  integer, allocatable, dimension(:), save :: atomTypes
-  logical, save :: firstTimeIn = .true.
-! ITEM: TIMESTEP
-! 100000
-! ITEM: NUMBER OF ATOMS
-! 3360
-! ITEM: BOX BOUNDS pp pp pp
-! 0.0000000000000000e+00 3.4527000000000001e+01
-! 0.0000000000000000e+00 3.4232999999999997e+01
-! 0.0000000000000000e+00 3.4454999999999998e+01
-! ITEM: ATOMS id type x y z
-! 1 5 0.238477 0.129618 34.392
-  if (firstTimeIn) then
-    firstTimeIn = .false.
-    nTypes = 0
-    allocate(atomTypes(frame % natoms), source=0)
-    block
-      integer :: i, j
-      do i=1,frame % natoms
-        do j=1,nTypes
-          if (uniqueTypes(j) == frame % lab(i)) exit
-        end do
-        if (j > nTypes) then
-          nTypes = nTypes + 1
-          uniqueTypes(nTypes) = frame % lab(i)
-          j = nTypes
-        end if
-        atomTypes(i) = j
-      end do
-    end block
-  end if
-
-  write(io,'("ITEM: TIMESTEP")')
-  write(io,'(i0)') frame % nframe
-  
-  write(io,'("ITEM: NUMBER OF ATOMS")')
-  write(io,'(i0)') frame % natoms
-  
-  write(io,'("ITEM: BOX BOUNDS pp pp pp")')
-  write(io,'(2(e20.15,1x))') 0.d0, frame % hmat(1,1)
-  write(io,'(2(e20.15,1x))') 0.d0, frame % hmat(2,2)
-  write(io,'(2(e20.15,1x))') 0.d0, frame % hmat(3,3)
-
-  write(io,'("ITEM: ATOMS id type x y z")')
-  block
-    integer :: i
-    do i=1,frame % natoms
-      write(io,'(2(i0,1x),3(f15.10,1x))')i,atomTypes(i),frame % pos(:,i)
-    end do
-  end block
-
-end subroutine writeCoordinatesTRJ

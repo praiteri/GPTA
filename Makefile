@@ -249,7 +249,7 @@ obj/systemComposition.o: ./src/systemComposition.F90 obj/messagesModule.o  obj/s
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/systemComposition.F90 -c -o $@
 obj/systemModule.o: ./src/systemModule.F90 obj/messagesModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/systemModule.F90 -c -o $@
-obj/testTemplate.o: ./src/testTemplate.F90 obj/distances.o  obj/filesModule.o  obj/messagesModule.o  obj/property.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
+obj/testTemplate.o: ./src/testTemplate.F90 obj/distances.o  obj/filesModule.o  obj/messagesModule.o  obj/property.o  obj/random_module.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/testTemplate.F90 -c -o $@
 obj/tools.o: ./src/tools.F90 obj/ranking_module.o  obj/messagesModule.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/tools.F90 -c -o $@
@@ -259,8 +259,8 @@ obj/variablesModule.o: ./src/variablesModule.F90
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/variablesModule.F90 -c -o $@
 obj/writeCoordinates.o: ./src/writeCoordinates.F90 obj/filesModule.o  obj/readWriteCoordinatesLAMMPS.o  obj/messagesModule.o  obj/neighboursModule.o  obj/openMM.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o  obj/xdr.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/writeCoordinates.F90 -c -o $@
-obj/writeCoordinatesPSF.o: ./src/writeCoordinatesPSF.F90 obj/elementsModule.o  obj/systemModule.o  obj/variablesModule.o 
-	$(FC) $(CPPFLAGS) $(F90FLAGS) src/writeCoordinatesPSF.F90 -c -o $@
+obj/writeTopologyPSF.o: ./src/writeTopologyPSF.F90 obj/elementsModule.o  obj/systemModule.o  obj/variablesModule.o 
+	$(FC) $(CPPFLAGS) $(F90FLAGS) src/writeTopologyPSF.F90 -c -o $@
 obj/xdr.o: ./src/xdr.F90 obj/messagesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/xdr.F90 -c -o $@
 obj/xray.o: ./src/xray.F90 obj/ranking_module.o  obj/elementsModule.o  obj/filesModule.o  obj/messagesModule.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o  obj/scattering_factors.o 
@@ -389,7 +389,7 @@ obj_mpi/systemComposition.o: ./src/systemComposition.F90 obj_mpi/messagesModule.
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/systemComposition.F90 -c -o $@
 obj_mpi/systemModule.o: ./src/systemModule.F90 obj_mpi/messagesModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/systemModule.F90 -c -o $@
-obj_mpi/testTemplate.o: ./src/testTemplate.F90 obj_mpi/distances.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/property.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
+obj_mpi/testTemplate.o: ./src/testTemplate.F90 obj_mpi/distances.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/property.o  obj_mpi/random_module.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/testTemplate.F90 -c -o $@
 obj_mpi/tools.o: ./src/tools.F90 obj_mpi/ranking_module.o  obj_mpi/messagesModule.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/tools.F90 -c -o $@
@@ -399,8 +399,8 @@ obj_mpi/variablesModule.o: ./src/variablesModule.F90
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/variablesModule.F90 -c -o $@
 obj_mpi/writeCoordinates.o: ./src/writeCoordinates.F90 obj_mpi/filesModule.o  obj_mpi/readWriteCoordinatesLAMMPS.o  obj_mpi/messagesModule.o  obj_mpi/neighboursModule.o  obj_mpi/openMM.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o  obj_mpi/xdr.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/writeCoordinates.F90 -c -o $@
-obj_mpi/writeCoordinatesPSF.o: ./src/writeCoordinatesPSF.F90 obj_mpi/elementsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
-	$(FC) $(CPPFLAGS) $(F90FLAGS) src/writeCoordinatesPSF.F90 -c -o $@
+obj_mpi/writeTopologyPSF.o: ./src/writeTopologyPSF.F90 obj_mpi/elementsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
+	$(FC) $(CPPFLAGS) $(F90FLAGS) src/writeTopologyPSF.F90 -c -o $@
 obj_mpi/xdr.o: ./src/xdr.F90 obj_mpi/messagesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/xdr.F90 -c -o $@
 obj_mpi/xray.o: ./src/xray.F90 obj_mpi/ranking_module.o  obj_mpi/elementsModule.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o  obj_mpi/scattering_factors.o 

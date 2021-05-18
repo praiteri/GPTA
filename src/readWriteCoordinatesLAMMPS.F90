@@ -31,8 +31,13 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! 
 module moduleLammps 
+
   use moduleVariables, only : cp
   implicit none
+
+  logical :: lmpMap = .false.
+  integer :: numberOfLammpsTypes
+  character(len=100), dimension(100) :: mapLabelsTypes
 
   integer :: lammpsNumberOfAtoms = 0
   integer :: lammpsNumberOfBonds = 0
@@ -583,19 +588,18 @@ subroutine getNumberOfAtomsLammps(uinp, n, hmat)
   real(8), dimension(3,3), intent(out) :: hmat
   
   integer :: ios
-  character(len=200)  :: line
+  character(len=20)  :: line
   real(8) :: rtmp(2)
   
   n = 0
   do
     read(uinp, '(a200)',iostat=ios)line
-
     if (ios /= 0) exit
     if (index(line, "atoms") >0 )then
       read(line,*) n
     end if
     
-    if (index(line, "xlo xhi") > 0 )then
+    if (index(line, "xlo xhi") >0 )then
       read(line,*,iostat=ios) rtmp
       if (ios == 0) then
         hmat(1,1) = rtmp(2) - rtmp(1)
@@ -625,16 +629,15 @@ subroutine getNumberOfAtomsLammps(uinp, n, hmat)
     if (index(line, "xy xz yz") >0 )then
       read(line,*) hmat(1,2) , hmat(1,3) , hmat(2,3) 
     end if
-
-    if (index(line, "Atoms") > 0) exit
+    
+    if (index(line, "Atoms") >0 ) exit
   end do
   
 end subroutine getNumberOfAtomsLammps
 
-!          call readCoordinatesLammps(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % hmat, localFrame % chg, go)
-
 subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
   use moduleMessages
+  use moduleLammps
   implicit none
   integer, intent(in) :: uinp
   integer, intent(in) :: natoms
@@ -644,15 +647,20 @@ subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
   real(8), dimension(3,3), intent(inout) :: hmat
   logical, intent(inout) :: go
 
-  character(len=200) :: line
+  character(len=10) :: fmtline
+  integer, parameter :: maxCharacters = 200
+  character(len=maxCharacters)  :: line
+
   integer :: ios
   real(8) :: rtmp(2)
   integer :: idx, iatm, itmp
 
+  write(fmtline,'("(a",i0,")")') maxCharacters
+
   go = .true.
 
   do
-    read(uinp, '(a200)',iostat=ios)line
+    read(uinp, fmtline,iostat=ios)line
     if (ios /= 0) exit
 
     if (index(line, "xlo xhi") >0 )then
@@ -687,7 +695,7 @@ subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
     end if
 
     if (index(line, "Atoms") > 0) then
-      read(uinp, '(a200)',iostat=ios)
+      read(uinp, fmtline,iostat=ios)
       if (ios /= 0) then
         go = .false.
         exit
@@ -695,13 +703,14 @@ subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
 
       ! read all atoms
       do idx=1,natoms
-        read(uinp, '(a200)',iostat=ios)line
+        read(uinp, fmtline,iostat=ios)line
         if (ios /= 0) then
           go = .false.
           exit
         end if
         read(line,*) iatm, itmp, label(iatm), charge(iatm), pos(1:3,iatm)
       end do
+      write(0,*) pos(1:3,1)
       return
     end if
 
@@ -711,3 +720,295 @@ subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
 
 end subroutine readCoordinatesLammps
 
+! ---------------- LAMMPS trajectory files ----------------
+subroutine getNumberOfAtomsLammpsTrajectory(uinp, n, hmat)
+  implicit none
+  integer, intent(in)  :: uinp
+  integer, intent(out) :: n
+  real(8), dimension(3,3), intent(out) :: hmat
+  
+  integer :: ios
+  character(len=10) :: fmtline
+  integer, parameter :: maxCharacters = 200
+  character(len=maxCharacters)  :: line
+  real(8) :: rtmp(2)
+  
+  write(fmtline,'("(a",i0,")")') maxCharacters
+  do
+    read(uinp,fmtline,iostat=ios)line
+    if (ios /= 0) return
+
+    if (index(line,"ITEM: NUMBER OF ATOMS") > 0) then
+      read(uinp,*)n
+      return
+    end if
+  end do
+  
+end subroutine getNumberOfAtomsLammpsTrajectory
+
+subroutine readCoordinatesLammpsTrajectory(uinp,natoms,pos,label,charge,hmat,go)
+  use moduleMessages
+  use moduleStrings
+  use moduleVariables, only : MAXWORDS
+
+  implicit none
+  integer, intent(in) :: uinp
+  integer, intent(in) :: natoms
+  real(8), dimension(3,natoms), intent(inout) :: pos
+  character(*), dimension(natoms), intent(inout) :: label
+  real(8), dimension(natoms), intent(inout) :: charge
+  real(8), dimension(3,3), intent(inout) :: hmat
+  logical, intent(inout) :: go
+
+  integer :: ios
+  character(len=10) :: fmtline
+  integer, parameter :: maxCharacters = 200
+  character(len=maxCharacters)  :: line
+
+  integer :: pbcType, n
+  real(8) :: rtmp(2)
+
+  write(fmtline,'("(a",i0,")")') maxCharacters
+  go = .true.
+
+  main : do
+    read(uinp,fmtline, iostat=ios) line 
+    if (ios /= 0) then
+      go = .false.
+      exit main
+    end if
+
+    if (index(line, "ITEM:") > 0) then
+      if (index(line,"ITEM: NUMBER OF ATOMS") > 0) then
+        read(uinp,*)n
+        if ( n /= natoms ) call message(0,"Wrong number of atoms in LAMMPS trajectory file")
+      end if
+
+      ! read the cell
+      if (index(line,"ITEM: BOX BOUNDS") > 0) then
+
+        if ( index(line,"ITEM: BOX BOUNDS pp pp pp") > 0 ) then
+          pbcType = 1
+        else if ( index(line,"ITEM: BOX BOUNDS xy xz yz pp pp pp") > 0 ) then
+          pbcType = 2
+        else
+          pbcType = 0
+        end if
+
+        ! read an orthorhombic cell
+        if (pbcType == 1) then
+          block
+            integer :: idx
+            do idx=1,3
+              read(uinp,fmtline, iostat=ios) line 
+              if (ios /= 0) then
+                go = .false.
+                exit main
+              end if
+              read(line,*) rtmp
+              hmat (idx, idx) = rtmp(2) - rtmp(1)
+            end do
+          end block
+
+        ! read a triclinic cell
+        else if (pbcType == 2) then
+          block
+            integer :: idx
+            real(8) :: xlo_bound, xhi_bound, xy
+            real(8) :: ylo_bound, yhi_bound, xz
+            real(8) :: zlo_bound, zhi_bound, yz
+            real(8) :: xlo, xhi
+            real(8) :: ylo, yhi
+            real(8) :: zlo, zhi
+            
+            read(uinp,*) xlo_bound, xhi_bound, xy
+            read(uinp,*) ylo_bound, yhi_bound, xz
+            read(uinp,*) zlo_bound, zhi_bound, yz
+
+            xlo = xlo_bound - MIN(0.0,xy,xz,xy+xz)
+            xhi = xhi_bound - MAX(0.0,xy,xz,xy+xz)
+            ylo = ylo_bound - MIN(0.0,yz)
+            yhi = yhi_bound - MAX(0.0,yz)
+            zlo = zlo_bound
+            zhi = zhi_bound
+
+            hmat(1,1) = xhi - xlo
+            hmat(2,2) = yhi - ylo
+            hmat(3,3) = zhi - zlo
+            hmat(1,2) = xy
+            hmat(1,3) = xz
+            hmat(2,3) = yz
+
+          end block
+        end if
+      end if
+
+      ! read the atoms' coordinated
+      if (index(line,"ITEM: ATOMS") > 0) then
+        block
+          integer :: numberOfFields
+          character(len=STRLEN), dimension(100) :: fields
+          integer :: idx, iatm, ilab, ix, iy, iz, i
+          
+          call parse(line," ",fields,numberOfFields)
+          do idx=1,numberOfFields
+            if (index(fields(idx), "id")   > 0) iatm = idx - 2
+            if (index(fields(idx), "type") > 0) ilab = idx - 2
+            if (index(fields(idx), "x")    > 0) ix   = idx - 2
+            if (index(fields(idx), "y")    > 0) iy   = idx - 2
+            if (index(fields(idx), "z")    > 0) iz   = idx - 2
+          end do
+
+          do idx=1,natoms
+            read(uinp,fmtline, iostat=ios) line 
+            if (ios /= 0) then
+              go = .false.
+              exit main
+            end if
+            call parse(line," ",fields,numberOfFields)
+            read(fields(iatm),*) i
+            read(fields(ilab),*) label(i)
+            read(fields(ix),*) pos(1,i)
+            read(fields(iy),*) pos(2,i)
+            read(fields(iz),*) pos(3,i)
+          end do
+          
+        end block
+        return
+      end if
+
+    end if
+
+  end do main
+
+  go = .false.
+
+end subroutine readCoordinatesLammpsTrajectory
+
+subroutine writeCoordinatesLammpsTrajectory(io)
+  use moduleVariables, only : cp
+  use moduleSystem, only : frame
+  use moduleLammps
+  use moduleMessages
+  use moduleStrings
+  implicit none
+  integer, intent(in) :: io
+
+  integer :: nTypes
+  character(len=cp), dimension(100), save :: uniqueTypes
+  integer, allocatable, dimension(:), save :: atomTypes
+  logical, save :: firstTimeIn = .true.
+! ITEM: TIMESTEP
+! 100000
+! ITEM: NUMBER OF ATOMS
+! 3360
+! ITEM: BOX BOUNDS pp pp pp
+! 0.0000000000000000e+00 3.4527000000000001e+01
+! 0.0000000000000000e+00 3.4232999999999997e+01
+! 0.0000000000000000e+00 3.4454999999999998e+01
+! ITEM: ATOMS id type x y z
+! 1 5 0.238477 0.129618 34.392
+
+  if (firstTimeIn) then
+    firstTimeIn = .false.
+
+    allocate(atomTypes(frame % natoms), source=0)
+
+    ! if (.false.) then
+    if (lmpMap) then
+      block
+        integer :: idx, iatm
+        integer :: nlab, mlab
+        character(cp), dimension(50) :: li, lo
+
+        call parse(mapLabelsTypes(1),",",li,nlab)
+        call parse(mapLabelsTypes(2),",",lo,mlab)
+        if (nlab /= mlab) call message(0,'Inconsistent number of labels for the lmptrj map',iv=[nlab,mlab])
+
+        do iatm=1,frame % natoms
+          do idx=1,nlab
+            if (frame % lab(iatm) == li(idx)) then
+              read(lo(idx),*) atomTypes(iatm) 
+              exit
+            end if
+          end do
+        end do
+      end block
+
+    else
+      nTypes = 0
+      block
+        integer :: i, j
+        do i=1,frame % natoms
+          do j=1,nTypes
+            if (uniqueTypes(j) == frame % lab(i)) exit
+          end do
+          if (j > nTypes) then
+            nTypes = nTypes + 1
+            uniqueTypes(nTypes) = frame % lab(i)
+            j = nTypes
+          end if
+          atomTypes(i) = j
+        end do
+      end block
+    end if
+
+  end if
+
+  write(io,'("ITEM: TIMESTEP")')
+  write(io,'(i0)') frame % nframe
+  
+  write(io,'("ITEM: NUMBER OF ATOMS")')
+  write(io,'(i0)') frame % natoms
+  
+  if (abs(frame % hmat(2,1)) + abs(frame % hmat(3,1)) + abs(frame % hmat(3,2)) .gt. 1.0d-6) then
+    block
+      real(8) :: xlo_bound, xhi_bound, xy
+      real(8) :: ylo_bound, yhi_bound, xz
+      real(8) :: zlo_bound, zhi_bound, yz
+      real(8) :: xlo, xhi
+      real(8) :: ylo, yhi
+      real(8) :: zlo, zhi
+
+      xlo = 0.d0
+      ylo = 0.d0
+      zlo = 0.d0
+      xhi = frame % hmat(1,1)
+      yhi = frame % hmat(2,2)
+      zhi = frame % hmat(3,3)
+      xy = frame % hmat(1,2)
+      xz = frame % hmat(2,3)
+      yz = frame % hmat(3,3)
+
+      xlo_bound = xlo + MIN(0.d0,xy,xz,xy+xz)
+      xhi_bound = xhi + MAX(0.d0,xy,xz,xy+xz)
+      ylo_bound = ylo + MIN(0.d0,yz)
+      yhi_bound = yhi + MAX(0.d0,yz)
+      zlo_bound = zlo
+      zhi_bound = zhi
+
+      write(io,'(3(e20.15,1x))') xlo_bound, xhi_bound, xy
+      write(io,'(3(e20.15,1x))') ylo_bound, yhi_bound, xz
+      write(io,'(3(e20.15,1x))') zlo_bound, zhi_bound, yz
+    end block      
+
+  else
+    write(io,'("ITEM: BOX BOUNDS pp pp pp")')
+    write(io,'(2(e20.15,1x))') 0.d0, frame % hmat(1,1)
+    write(io,'(2(e20.15,1x))') 0.d0, frame % hmat(2,2)
+    write(io,'(2(e20.15,1x))') 0.d0, frame % hmat(3,3)
+  end if
+
+
+  write(io,'("ITEM: ATOMS id type x y z")')
+  block
+    integer :: i
+    character(len=200) :: str
+    do i=1,frame % natoms
+      write(str,'(2(i0,1x),3(f13.6,1x))')i, atomTypes(i), frame % pos(:,i)
+      call compact(str)
+      write(io,'(a)')trim(str)
+    end do
+  end block
+
+end subroutine writeCoordinatesLammpsTrajectory

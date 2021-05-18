@@ -72,7 +72,7 @@ module moduleVariables
 
   ! Precision
   integer, parameter :: cp       = 4  ! character type for atoms' names
-  integer, parameter :: fp       = 5  ! file type
+  integer, parameter :: fp       = 6  ! file type
 
   ! Pi and friends
   real(8), parameter :: pi       = 3.1415926535898d0

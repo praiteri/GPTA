@@ -93,7 +93,7 @@ program gpta
   numberOfActiveProcesses = 1
 #endif
 
-  nProgress = 1000 * numberOfActiveProcesses
+  nProgress = 100 * numberOfActiveProcesses
 
 ! Start timing
   startTimer = timing()

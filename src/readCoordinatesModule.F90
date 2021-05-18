@@ -187,6 +187,9 @@ module moduleRead
       case ("lmp")  
         call getNumberOfAtomsLammps(f % funit, n, hmat)
 
+      case ("lmptrj")  
+        call getNumberOfAtomsLammpsTrajectory(f % funit, n, hmat)
+
       end select
       rewind(f % funit)
       
@@ -286,6 +289,9 @@ module moduleRead
    
         case("lmp")
           call readCoordinatesLammps(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
+
+        case("lmptrj")
+          call readCoordinatesLammpsTrajectory(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
 
 #ifdef GPTA_XDR
         case("xtc")
