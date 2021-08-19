@@ -195,7 +195,7 @@ contains
 
         ! update selection if "reactive" trajectory
         ! i.e. if the atom may change name 
-        if (keepFrameLabels) then
+        if (resetFrameLabels) then
           a % updateAtomsSelection = .false.
         else
           a % updateAtomsSelection = .true.

@@ -277,7 +277,6 @@ contains
           call readCoordinatesPDB(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, localFrame % element, go)
         
         case ("dcd2")
-          call swear()
           block 
             use dcdfort_common
             use dcdfort_reader, only: dcdfile
