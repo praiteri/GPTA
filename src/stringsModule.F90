@@ -356,7 +356,7 @@ contains
     character(len=STRLEN), dimension(50) :: words
 
     call parse(cmd," ",words,nw)
-    if (nw/=2) call message(-1,"Wrong number of arguments for POO +"//trim(cmd))
+    if (nw/=2) call message(-1,"Wrong number of arguments for +"//trim(cmd))
     vec = trim(words(2))
 
     return
