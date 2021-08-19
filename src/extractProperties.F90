@@ -40,7 +40,7 @@ module moduleExtractSystemProperties
 
   implicit none
 
-  public :: extractSystemProperties
+  public :: extractSystemProperties, extractSystemPropertiesHelp
   private
 
   character(:), pointer :: actionCommand
@@ -79,15 +79,31 @@ module moduleExtractSystemProperties
   procedure(stuff) :: computeInertiaTensor
   procedure(stuff) :: dielectricConstant
   procedure(stuff) :: bondLength
-  procedure(stuff) :: position, averageSystem
+  procedure(stuff) :: position, averageSystem, averageSystemCell
   procedure(stuff) :: test
 
 contains
+
+
+  subroutine extractSystemPropertiesHelp()
+    implicit none
+    call message(0,"This action extracts a property of the system, which can then be written to a file (+dump),")
+    call message(0,"averaged (+avg) or used to compute its distribution (+dist).")
+    call message(0,"Examples:")
+    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +vol +dist +out volume.dist")
+    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +system")
+    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +system +s Na,Cl")
+    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +inertia +dump +out inertia.dat")
+    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +diel +out diel.dat")
+    call message(0,"gpta.x --i coord.pdb traj.dcd --frames 1000:2000 --extract +system +out averageSystem.pdb")
+  end subroutine extractSystemPropertiesHelp
 
   subroutine extractSystemProperties(a)
     implicit none
     type(actionTypeDef), target :: a
 
+    call associatePointers(a)
+    
     if (a % actionInitialisation) then
       call initialiseAction(a)
       return
@@ -100,9 +116,14 @@ contains
 
         call message(0,"System property")
         call message(0,"...Extracting "//trim(a % sysprop % name))
-        
+        if (dumpCoordinates) then
+          call message(0,"......Output file for coordinates",str=coordinatesFile % fname)
+        else if (outputFile % fname /= "NULL") then
+          call message(0,"......Output file",str=outputFile % fname)
+        end if
+  
         if (atomSelection) then
-          if (keepFrameLabels) then
+          if (resetFrameLabels) then
             a % updateAtomsSelection = .false.
           else
             a % updateAtomsSelection = .true.
@@ -137,22 +158,19 @@ contains
 
     ! Normal processing of the frame - finalise calculation and write output
     if (endOfCoordinatesFiles) then
-      if (dumpCoordinates) then
-        call message(0,"......Output file for coordinates",str=coordinatesFile % fname)
-      else if (outputFile % fname /= "NULL") then
-        call message(0,"......Output file",str=outputFile % fname)
-      end if
 
-      if (averageMultiProperty) call message(0,"......Average(s) and standard deviation(s)")
-      if (distProperty        ) then
-        if (distributionType == 1) then 
-          call message(0,"......Computing histogram")
-        else if (distributionType == 2) then 
-          call message(0,"......Computing probability")
-        else if (distributionType == 3) then 
-          call message(0,"......Computing scaled distributino")
-        else if (distributionType == 4) then 
-          call message(0,"......Kernel based histogram")
+      if (.not. dumpCoordinates) then
+        if (averageMultiProperty) call message(0,"......Average(s) and standard deviation(s)")
+        if (distProperty        ) then
+          if (distributionType == 1) then 
+            call message(0,"......Computing histogram")
+          else if (distributionType == 2) then 
+            call message(0,"......Computing probability")
+          else if (distributionType == 3) then 
+            call message(0,"......Computing scaled distributino")
+          else if (distributionType == 4) then 
+            call message(0,"......Kernel based histogram")
+          end if
         end if
       end if
 
@@ -162,14 +180,9 @@ contains
 
   end subroutine extractSystemProperties
 
-  subroutine initialiseAction(a)
+  subroutine associatePointers(a)
     implicit none
     type(actionTypeDef), target :: a
-    integer :: i
-    logical, dimension(4) :: lflag = .false.
-
-    a % actionInitialisation = .false.
-    a % requiresNeighboursList = .false.
 
     ! Local pointers
     actionCommand           => a % actionDetails
@@ -195,6 +208,17 @@ contains
     dumpCoordinates         => a % logicalVariables(5) 
     averagePositions        => a % logicalVariables(6) 
     coordinatesFile         => a % auxiliaryFile 
+
+  end subroutine associatePointers
+
+  subroutine initialiseAction(a)
+    implicit none
+    type(actionTypeDef), target :: a
+    integer :: i
+    logical, dimension(4) :: lflag = .false.
+
+    a % actionInitialisation = .false.
+    a % requiresNeighboursList = .false.
 
     numberOfSelectedAtoms = 0
     atomSelection = .false. 
@@ -235,7 +259,7 @@ contains
         outputFile % funit = 6
       end if
     end if
-    
+
   end subroutine initialiseAction
 
   subroutine finaliseAction(a)
@@ -245,16 +269,26 @@ contains
     
     implicit none
     type(actionTypeDef), target :: a
-    real(8), allocatable, dimension(:) :: data
+    real(8), allocatable, dimension(:) :: avgValues
     real(8) :: rtmp
     character(len=30) :: str
 
     if (dumpCoordinates) then
-      call workData % extract(ID, data)
-      frame % hmat = reshape(data(1:9),[3,3])
+      call workData % extract(ID, avgValues)
+      frame % hmat = reshape(avgValues(1:9),[3,3])
+      call hmat2cell (frame % hmat, frame % cell, "DEG")
 
       if (averagePositions) then
-        frame % frac = reshape(data(10:),[3,frame % natoms])
+        block 
+          integer :: iatm, idx
+          idx = 9
+          do iatm=1,frame % natoms
+            if (a % isSelected(iatm,1)) then
+              frame % frac(1:3,iatm) = avgValues(idx+1:idx+3)
+              idx = idx + 3
+            end if
+          end do
+        end block
       end if
 
       ! scale the coordinated to the average cell
@@ -343,7 +377,6 @@ contains
   subroutine getPropertyType(a)
     implicit none
     type(actionTypeDef), target :: a
-
     integer :: n
          
     if (flagExists(actionCommand,"+test")) then
@@ -374,18 +407,33 @@ contains
     
     if (flagExists(actionCommand,"+system")) then
       n = n + 1
-      atomSelection = .true.
       averageMultiProperty = .true.
       dumpCoordinates = .true.
-      a % sysprop % property => averageSystem
-      a % sysprop % name = "Average cell and scaled coordinates"
-      ! if (countFlagArguments(actionCommand,"+system") == 0) then
-      !   coordinatesFile % fname = "averageSystem.pdb"
-      ! else 
-      !   call assignFlagValue(actionCommand,"+system",coordinatesFile % fname,"NULL")
-      ! end if
+
       call assignFlagValue(actionCommand,"+out",coordinatesFile % fname,"averageSystem.pdb")
-      call assignFlagValue(actionCommand,"+avg",averagePositions,.false.)
+!      call assignFlagValue(actionCommand,"+avg",averagePositions,.false.)
+!      if (averagePositions) then
+!        block 
+!          integer :: iarg
+!          iarg = countFlagArguments(actionCommand,"+avg")
+!          if (iarg == 0) then
+!            str = "all"
+!          else
+!            call assignFlagValue(actionCommand,"+avg",str,'none')
+!          end if
+!          actionCommand = trim(actionCommand) // " +s " // trim(str)
+!        end block
+      call assignFlagValue(actionCommand,"+s ",averagePositions,.false.)
+      if (averagePositions) then
+        atomSelection = .true.
+        a % sysprop % property => averageSystem
+        a % sysprop % name = "Average cell and average coordinates"
+      else
+        atomSelection = .false.
+        a % sysprop % property => averageSystemCell
+        a % sysprop % name = "Average cell and scaled last coordinates"
+      end if
+
     end if
     
     if (flagExists(actionCommand,"+volume")) then
@@ -588,13 +636,13 @@ subroutine averageSystem(n, val, nat, l)
   integer, dimension(:), intent(in) :: l
   
   integer :: i, ntmp
+  real(8), allocatable, dimension(:,:) :: localPositions
 
   ! set the number of properties computed
   if (n < 0) then
-    n = nat *3 + 9
+    n = 9 + nat *3
     return
   end if
-  
   ntmp = 0
 
   do i=1,3
@@ -602,12 +650,39 @@ subroutine averageSystem(n, val, nat, l)
     ntmp = ntmp + 3
   end do
 
-  do i=1,nat
-    val(ntmp+1:ntmp+3) = frame % frac(:,l(i))
+!  if (n>9) then
+    allocate(localPositions(3,frame % natoms))
+    call cartesianToFractionalNoWrap(frame % natoms, frame % pos, localPositions)
+    do i=1,nat
+      val(ntmp+1:ntmp+3) = localPositions(:,l(i))
+      ntmp = ntmp + 3
+    end do
+!  end if
+  
+end subroutine averageSystem
+
+subroutine averageSystemCell(n, val)
+  use moduleSystem
+  use moduleDistances
+  implicit none
+  integer, intent(inout) :: n
+  real(8), dimension(*), intent(out) :: val
+  
+  integer :: i, ntmp
+
+  ! set the number of properties computed
+  if (n < 0) then
+    n = 9
+    return
+  end if
+  ntmp = 0
+
+  do i=1,3
+    val(ntmp+1:ntmp+3) = frame % hmat(:,i)
     ntmp = ntmp + 3
   end do
   
-end subroutine averageSystem
+end subroutine averageSystemCell
 
 subroutine test(n, val, nat, l)
   use moduleSystem

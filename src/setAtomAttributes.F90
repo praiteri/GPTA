@@ -31,230 +31,253 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! 
 module moduleAtomsAttributes
-  
-  contains
-
-subroutine setAtomAttributes(a)
-  use moduleVariables
-  use moduleStrings
-  use moduleSystem 
   use moduleMessages 
-  use moduleOpenMM, only : qType
-
-  implicit none
-  type(actionTypeDef), target :: a
-  character(:), pointer :: actionCommand
-
-  logical, pointer :: actionInitialisation
-  logical, pointer :: firstAction
-
-  logical, pointer :: labelSelection
-  logical, pointer :: indexSelection
-  logical, pointer :: moleculeSelection
-  logical, pointer :: renameAtoms
-  logical, pointer :: rechargeAtoms
-  logical, pointer :: tinkerAtoms
-
-  integer :: iatm, natoms, idx, imol, itmp, jdx
-  integer :: indices(3)
-  integer, allocatable, dimension(:) :: atomFlag
-  character(cp), allocatable, dimension(:) :: oldLabels, moleculeLabels
-  character(len=40), allocatable, dimension(:) :: newLabels
-  character(len=40) :: ctmp 
-  character(len=STRLEN) :: str
-
-  actionCommand        => a % actionDetails
   
-  ! Associate variables
-  actionInitialisation => a % actionInitialisation
-  firstAction          => a % firstAction
+contains
 
-  labelSelection       => a % logicalVariables(1)
-  indexSelection       => a % logicalVariables(2)
-  moleculeSelection    => a % logicalVariables(3)
-  renameAtoms          => a % logicalVariables(5)
-  rechargeAtoms        => a % logicalVariables(6)
-  tinkerAtoms          => a % logicalVariables(7)
-   
-  if (actionInitialisation) then
-    actionInitialisation = .false.
-    a % requiresNeighboursList = .false.
+  subroutine setAtomAttributesHelp()
+    implicit none
+    call message(0,"This action overrides some of the basic properties of the atoms in the system that can be used by other actions.")
+    call message(0,"Examples:")
+    call message(0,"gpta.x --i coord.pdb --top --set +s O2,H2 +l OW,HW")
+    call message(0,"gpta.x --i coord.pdb --top --set +i 1:300:3 +l OW")
+    call message(0,"gpta.x --i coord.pdb --top --set +mol M1 +l OW,HW,HW")
+    call message(0,"gpta.x --i coord.pdb --top --set +s O2,H2 +tq 1,2")
+  end subroutine setAtomAttributesHelp
 
-    call assignFlagValue(actionCommand,"+l",renameAtoms,.false.)
-    call assignFlagValue(actionCommand,"+q",rechargeAtoms,.false.)
-    call assignFlagValue(actionCommand,"+tq",tinkerAtoms,.false.)
+  subroutine setAtomAttributes(a)
+    use moduleVariables
+    use moduleStrings
+    use moduleSystem 
+    use moduleElements
+    use moduleOpenMM, only : qType
 
-    call assignFlagValue(actionCommand,"+s",labelSelection,.false.)
-    call assignFlagValue(actionCommand,"+i",indexSelection,.false.)
-    call assignFlagValue(actionCommand,"+mol",moleculeSelection,.false.)
-    if ( count([labelSelection,indexSelection,moleculeSelection]) /= 1) call message(-1,"--set | mixed selection not available")
+    implicit none
+    type(actionTypeDef), target :: a
+    character(:), pointer :: actionCommand
 
-    call checkUsedFlags(actionCommand)
-    return
-  end if
-  
-  if (frameReadSuccessfully) then
+    logical, pointer :: actionInitialisation
+    logical, pointer :: firstAction
 
-    if (firstAction) then
-      allocate(atomFlag(frame % natoms), source=0)
-      
-      if (labelSelection) then
-        call assignFlagValue(actionCommand,"+s",oldLabels)
-        do iatm=1,frame % natoms
-          do idx=1,size(oldLabels)
-            if (frame % lab(iatm) == oldLabels(idx)) atomFlag(iatm) = idx
-          enddo
-        enddo
-        
-      else if (moleculeSelection) then
-        call assignFlagValue(actionCommand,"+mol",moleculeLabels)
-        idx = 0
-        do itmp=1,size(moleculeLabels)
-          do imol=1,numberOfMolecules
-            if (listOfMolecules(imol) % resname == moleculeLabels(itmp)) then
-              natoms = listOfMolecules(imol) % numberOfAtoms
-              do iatm=1,natoms
-                jdx = listOfMolecules(imol) % listOfAtoms(iatm)
-                atomFlag(jdx) = idx + iatm
-              end do
-            end if
-          end do
-          idx = idx + natoms
-        end do
+    logical, pointer :: labelSelection
+    logical, pointer :: indexSelection
+    logical, pointer :: moleculeSelection
+    logical, pointer :: renameAtoms
+    logical, pointer :: rechargeAtoms
+    logical, pointer :: tinkerAtoms
 
-      else if (indexSelection) then
-        call assignFlagValue(actionCommand,"+i",newLabels)
-        do idx=1,size(newLabels)
-          indices = extractSelectionIndices(newLabels(idx))
-          do jdx=indices(1),indices(2),indices(3)
-            atomFlag(jdx) = 1
-          end do
-        end do
-        
-      else 
-        call message(-1,"--set | Unknown selection")
-      end if
-      
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      call message(0,"Modify atoms' Attributes")
-      if (labelSelection) then
-        str = trim(oldLabels(1))
-        do idx=2,size(oldLabels)
-          str = trim(str)//" "//trim(oldLabels(idx))
-        end do
-        call message(0,"...Atoms selected by label",str=str)
+    integer :: iatm, natoms, idx, imol, itmp, jdx
+    integer :: indices(3)
+    integer, allocatable, dimension(:) :: atomFlag
+    character(cp), allocatable, dimension(:) :: oldLabels, moleculeLabels
+    character(len=40), allocatable, dimension(:) :: newLabels
+    character(len=40) :: ctmp 
+    character(len=STRLEN) :: str
 
-      else if (indexSelection) then
-        str = trim(newLabels(1))
-        do idx=2,size(newLabels)
-          str = trim(str)//" "//trim(newLabels(idx))
-        end do
-        call message(0,"...Atoms selected by index",str=str)
+    actionCommand        => a % actionDetails
 
-      else if (moleculeSelection) then
-        str = trim(moleculeLabels(1))
-        do idx=2,size(moleculeLabels)
-          str = trim(str)//" "//trim(moleculeLabels(idx))
-        end do
-        call message(0,"...Atoms selected by molecule",str=str)
+    ! Associate variables
+    actionInitialisation => a % actionInitialisation
+    firstAction          => a % firstAction
 
-      end if
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    labelSelection       => a % logicalVariables(1)
+    indexSelection       => a % logicalVariables(2)
+    moleculeSelection    => a % logicalVariables(3)
+    renameAtoms          => a % logicalVariables(5)
+    rechargeAtoms        => a % logicalVariables(6)
+    tinkerAtoms          => a % logicalVariables(7)
 
-      if (renameAtoms) then
-        allocate(a % localLabels(frame % natoms))
-        call assignFlagValue(actionCommand,"+l",newLabels)
-        if (size(newLabels) /= size(oldLabels)) then
-          if (size(newLabels) /= 1) call message(-1,"select +s and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
-          ctmp = newLabels(1)
-          deallocate(newLabels)
-          allocate(newLabels(size(oldLabels)), source=ctmp)
-        end if
-        
-        do iatm=1,frame % natoms
-          if (atomFlag(iatm)==0) then
-            a % localLabels(iatm) = frame % lab(iatm)
-          else
-            a % localLabels(iatm) = newLabels(atomFlag(iatm))(1:4)
-          end if
-        enddo
+    if (actionInitialisation) then
+      actionInitialisation = .false.
+      a % requiresNeighboursList = .false.
 
-        str = trim(newLabels(1))
-        do idx=2,size(newLabels)
-          str = trim(str)//" "//trim(newLabels(idx))
-        enddo
-        call message(0,"...Renaming selected atoms as",str=str)
-      end if
-      
-      if (rechargeAtoms) then
-        allocate(a % localCharges(frame % natoms))
-        call assignFlagValue(actionCommand,"+q",newLabels)
-        if (size(newLabels) /= maxval(atomFlag)) then
-          if (size(newLabels) /= 1) call message(-1,"select +s and +q have different number of elements")
-          ctmp = newLabels(1)
-          deallocate(newLabels)
-          allocate(newLabels(size(oldLabels)), source=ctmp)
-        end if
-        
-        do iatm=1,frame % natoms
-          if (atomFlag(iatm)==0) then
-            a % localCharges(iatm) = frame % chg(iatm)
-          else
-            read(newLabels(atomFlag(iatm)),*) a % localCharges(iatm) 
-          end if
-        enddo
-        
-        str = trim(newLabels(1))
-        do idx=2,size(newLabels)
-          str = trim(str)//" "//trim(newLabels(idx))
-        enddo
-        call message(0,"...Setting atomic charges to",str=str)
-      end if
-      
-      if (tinkerAtoms) then
-        allocate(qType(frame % natoms))
-        allocate(a % localIndices(frame % natoms))
-        call assignFlagValue(actionCommand,"+tq",newLabels)
-        if (size(newLabels) /= maxval(atomFlag)) then
-          if (size(newLabels) /= 1) call message(-1,"select +s and +tq have different number of elements",iv=[size(oldLabels),size(newLabels),maxval(atomFlag)])
-          ctmp = newLabels(1)
-          deallocate(newLabels)
-          allocate(newLabels(size(oldLabels)), source=ctmp)
-        end if
-        
-        do iatm=1,frame % natoms
-          if (atomFlag(iatm)==0) then
-            call message(-1,"All atoms must have a TINKER type")
-          else
-            read(newLabels(atomFlag(iatm)),*) a % localIndices(iatm) 
-          end if
-        enddo
-        
-        str = trim(newLabels(1))
-        do idx=2,size(newLabels)
-          str = trim(str)//" "//trim(newLabels(idx))
-        enddo
-        call message(0,"...Setting TINKER types to",str=str)
+      call assignFlagValue(actionCommand,"+l",renameAtoms,.false.)
+      call assignFlagValue(actionCommand,"+q",rechargeAtoms,.false.)
+      call assignFlagValue(actionCommand,"+tq",tinkerAtoms,.false.)
 
-      end if
-
-      call message(2)
+      call assignFlagValue(actionCommand,"+s",labelSelection,.false.)
+      call assignFlagValue(actionCommand,"+i",indexSelection,.false.)
+      call assignFlagValue(actionCommand,"+mol",moleculeSelection,.false.)
+      if ( count([labelSelection,indexSelection,moleculeSelection]) /= 1) call message(-1,"--set | mixed selection not available")
 
       call checkUsedFlags(actionCommand)
-      firstAction = .false.
- 
+      return
     end if
 
-    if (renameAtoms) frame % lab = a % localLabels
-    
-    if (rechargeAtoms) frame % chg = a % localCharges
-    
-    if (tinkerAtoms) qType = a % localIndices
+    if (frameReadSuccessfully) then
 
-  end if
+      if (firstAction) then
+        allocate(atomFlag(frame % natoms), source=0)
 
-  if (endOfCoordinatesFiles) return
+        if (labelSelection) then
+          call assignFlagValue(actionCommand,"+s",oldLabels)
+          if (oldLabels(1) == "all") then
+            deallocate(oldLabels)
+            allocate(oldLabels(numberOfUniqueLabels), source=listOfUniqueLabels)
+          end if
+          do iatm=1,frame % natoms
+            do idx=1,size(oldLabels)
+              if (frame % lab(iatm) == oldLabels(idx)) atomFlag(iatm) = idx
+            enddo
+          enddo
 
-end subroutine setAtomAttributes
+        else if (moleculeSelection) then
+          call assignFlagValue(actionCommand,"+mol",moleculeLabels)
+          idx = 0
+          do itmp=1,size(moleculeLabels)
+            do imol=1,numberOfMolecules
+              if (listOfMolecules(imol) % resname == moleculeLabels(itmp)) then
+                natoms = listOfMolecules(imol) % numberOfAtoms
+                do iatm=1,natoms
+                  jdx = listOfMolecules(imol) % listOfAtoms(iatm)
+                  atomFlag(jdx) = idx + iatm
+                end do
+              end if
+            end do
+            idx = idx + natoms
+          end do
+
+        else if (indexSelection) then
+          call assignFlagValue(actionCommand,"+i",newLabels)
+          do idx=1,size(newLabels)
+            indices = extractSelectionIndices(newLabels(idx))
+            do jdx=indices(1),indices(2),indices(3)
+              atomFlag(jdx) = 1
+            end do
+          end do
+
+        else 
+          call message(-1,"--set | Unknown selection")
+        end if
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! call message(0,"Modify atoms' Attributes")
+        if (labelSelection) then
+          str = trim(oldLabels(1))
+          do idx=2,size(oldLabels)
+            str = trim(str)//" "//trim(oldLabels(idx))
+          end do
+          call message(0,"...Atoms selected by label",str=str)
+
+        else if (indexSelection) then
+          str = trim(newLabels(1))
+          do idx=2,size(newLabels)
+            str = trim(str)//" "//trim(newLabels(idx))
+          end do
+          call message(0,"...Atoms selected by index",str=str)
+
+        else if (moleculeSelection) then
+          str = trim(moleculeLabels(1))
+          do idx=2,size(moleculeLabels)
+            str = trim(str)//" "//trim(moleculeLabels(idx))
+          end do
+          call message(0,"...Atoms selected by molecule",str=str)
+
+        end if
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        if (renameAtoms) then
+          allocate(a % localLabels(frame % natoms))
+          call assignFlagValue(actionCommand,"+l",newLabels)
+          if (index(newLabels(1),"elem") > 0) then
+            deallocate(newLabels)
+            allocate(newLabels(numberOfUniqueLabels))
+            newLabels = " "
+            do idx=1,numberOfUniqueLabels
+              newLabels(idx)(1:2) = listOfElements(idx)
+            end do
+          else
+            if (size(newLabels) /= size(oldLabels)) then
+              if (size(newLabels) /= 1) call message(-1,"select +s and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
+              ctmp = newLabels(1)
+              deallocate(newLabels)
+              allocate(newLabels(size(oldLabels)), source=ctmp)
+            end if
+          end if
+
+          do iatm=1,frame % natoms
+            if (atomFlag(iatm)==0) then
+              a % localLabels(iatm) = frame % lab(iatm)
+            else
+              a % localLabels(iatm) = newLabels(atomFlag(iatm))(1:4)
+            end if
+          enddo
+          str = trim(newLabels(1))
+          do idx=2,size(newLabels)
+            str = trim(str)//" "//trim(newLabels(idx))
+          enddo
+          call message(0,"...Renaming selected atoms as",str=str)
+        end if
+
+        if (rechargeAtoms) then
+          allocate(a % localCharges(frame % natoms))
+          call assignFlagValue(actionCommand,"+q",newLabels)
+          if (size(newLabels) /= maxval(atomFlag)) then
+            if (size(newLabels) /= 1) call message(-1,"select +s and +q have different number of elements")
+            ctmp = newLabels(1)
+            deallocate(newLabels)
+            allocate(newLabels(size(oldLabels)), source=ctmp)
+          end if
+
+          do iatm=1,frame % natoms
+            if (atomFlag(iatm)==0) then
+              a % localCharges(iatm) = frame % chg(iatm)
+            else
+              read(newLabels(atomFlag(iatm)),*) a % localCharges(iatm) 
+            end if
+          enddo
+
+          str = trim(newLabels(1))
+          do idx=2,size(newLabels)
+            str = trim(str)//" "//trim(newLabels(idx))
+          enddo
+          call message(0,"...Setting atomic charges to",str=str)
+        end if
+
+        if (tinkerAtoms) then
+          allocate(qType(frame % natoms))
+          allocate(a % localIndices(frame % natoms))
+          call assignFlagValue(actionCommand,"+tq",newLabels)
+          if (size(newLabels) /= maxval(atomFlag)) then
+            if (size(newLabels) /= 1) call message(-1,"select +s and +tq have different number of elements",iv=[size(oldLabels),size(newLabels),maxval(atomFlag)])
+            ctmp = newLabels(1)
+            deallocate(newLabels)
+            allocate(newLabels(size(oldLabels)), source=ctmp)
+          end if
+
+          do iatm=1,frame % natoms
+            if (atomFlag(iatm)==0) then
+              call message(-1,"All atoms must have a TINKER type")
+            else
+              read(newLabels(atomFlag(iatm)),*) a % localIndices(iatm) 
+            end if
+          enddo
+
+          str = trim(newLabels(1))
+          do idx=2,size(newLabels)
+            str = trim(str)//" "//trim(newLabels(idx))
+          enddo
+          call message(0,"...Setting TINKER types to",str=str)
+
+        end if
+
+        call message(2)
+
+        call checkUsedFlags(actionCommand)
+        firstAction = .false.
+      
+      end if
+
+      if (renameAtoms) frame % lab = a % localLabels
+
+      if (rechargeAtoms) frame % chg = a % localCharges
+
+      if (tinkerAtoms) qType = a % localIndices
+
+    end if
+
+    if (endOfCoordinatesFiles) return
+
+  end subroutine setAtomAttributes
 
 end module moduleAtomsAttributes

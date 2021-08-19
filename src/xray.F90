@@ -37,7 +37,7 @@ module moduleXrayAction
   use scattering_factors, only : SF_Library_dim, SF_Library
   implicit none
   
-  public :: xrayAction
+  public :: computeXrayPowder, computeXrayPowderHelp
   private
   
   ! real(8), parameter  :: acclat   = 0.000001d0
@@ -68,7 +68,15 @@ module moduleXrayAction
 
 contains
 
-  subroutine xrayAction(a)
+subroutine computeXrayPowderHelp()
+    implicit none
+    call message(0,"This action computes the X-ray powder diffraction spectrum for the input structure.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --xray +lambda 1.54056")
+  end subroutine computeXrayPowderHelp
+
+
+  subroutine computeXrayPowder(a)
     ! use moduleVariables
     use moduleSystem
     use moduleElements
@@ -109,7 +117,7 @@ contains
     if (endOfCoordinatesFiles) then
       call finaliseAction()
     end if 
-  end subroutine xrayAction
+  end subroutine computeXrayPowder
 
   subroutine initialiseAction(a)
     use moduleSystem

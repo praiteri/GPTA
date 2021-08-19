@@ -39,7 +39,7 @@ module moduleSymmetry
 
   integer(4) :: sgnops, sgncen, sgnops_tot
   real(4) :: cen(3,4)
-  real(8) :: rot(3,4,24)
+  real(8) :: rot(3,4,48)
 
 contains  
 

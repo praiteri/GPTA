@@ -45,6 +45,7 @@ contains
     use moduleSystem 
     use moduleNeighbours 
     use moduleFiles
+    use moduleGULP
 
     use moduleLammps
 
@@ -271,12 +272,12 @@ end module moduleDumpCoordinates
 
 subroutine writeCoordinatesARC(io)
   use moduleOpenMM, only : qType
-  use moduleSystem, only : numberOfAtoms, frame, numberOfCovalentBondsPerAtom, listOfCovalentBondsPerAtom
+  use moduleSystem, only : frame, numberOfCovalentBondsPerAtom, listOfCovalentBondsPerAtom
   implicit none
   integer, intent(in) :: io
   integer :: i, itmp
-  write(io,*)numberOfAtoms
-  do i=1,numberOfAtoms
+  write(io,*)frame % natoms
+  do i=1,frame % natoms
     itmp = numberOfCovalentBondsPerAtom(i)
     write(io,'(i5,2x,a4,2x,3(f8.3,2x),6(i7,2x))') i \
       , frame % lab(i) \

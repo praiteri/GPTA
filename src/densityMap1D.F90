@@ -38,7 +38,7 @@ module moduleDensityProfile
 
   implicit none
 
-  public :: computeDensityProfile
+  public :: computeDensityProfile, computeDensityProfileHelp
   private
 
   character(:), pointer :: actionCommand
@@ -53,7 +53,17 @@ module moduleDensityProfile
 
   real(8), pointer :: averageSize, averageVolume
 
-  contains
+contains
+
+  subroutine computeDensityProfileHelp()
+    implicit none
+    call message(0,"This action computes the 1D density profile along one of the crystallographic directions.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --dmap1D +x +s O")
+    call message(0,"  gpta.x --i coord.pdb --dmap1D +z +s O +out dmap.out")
+    call message(0,"  gpta.x --i coord.pdb --dmap1D +z +s Ca +nbin 200 +out dmap.out")
+    call message(0,"  gpta.x --i coord.pdb --dmap1D +z +i 1:300:3 +out dmap.out")
+  end subroutine computeDensityProfileHelp
 
   subroutine associatePointers(a)
     implicit none
@@ -180,7 +190,7 @@ module moduleDensityProfile
       if (firstAction) then
         call dumpScreenInfo()
 
-        if (keepFrameLabels) then
+        if (resetFrameLabels) then
           a % updateAtomsSelection = .false.
         else
           a % updateAtomsSelection = .true.

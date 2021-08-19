@@ -53,9 +53,12 @@ module moduleSystem
 #endif
 
   ! Global system properties  
-  integer                                         :: numberOfAtoms
+  integer                                         :: inputNumberOfAtoms
   real(8)                                         :: totalMass
   real(8)                                         :: totalCharge
+  integer                                         :: numberOfUniqueLabels
+  character(len=cp), allocatable, dimension(:)    :: listOfUniqueLabels
+  character(len=2), allocatable, dimension(:)     :: listOfElements
 
   logical                                         :: userDefinedCell = .false.
   real(8), dimension(3,3)                         :: userDefinedHMatrix
@@ -127,6 +130,8 @@ subroutine createSystemArrays(localFrame, numberOfAtoms)
   
   localFrame % natoms = numberOfAtoms
   allocate(localFrame % lab(numberOfAtoms))
+  allocate(localFrame % element(numberOfAtoms))
+  allocate(localFrame % mass(numberOfAtoms))
   allocate(localFrame % pos(3,numberOfAtoms))
   allocate(localFrame % frac(3,numberOfAtoms))
   allocate(localFrame % chg(numberOfAtoms) , source=0.d0)
@@ -141,94 +146,145 @@ subroutine deleteSystemArrays(localFrame)
   
   localFrame % natoms = 0
   deallocate(localFrame % lab)
+  deallocate(localFrame % element)
+  deallocate(localFrame % mass)
   deallocate(localFrame % pos)
   deallocate(localFrame % frac)
   deallocate(localFrame % chg)
   
 end subroutine deleteSystemArrays
 
-subroutine extendFrame(f,n)
-  use moduleSystem, only : frameTypeDef
-  type(frameTypeDef), intent(inout) :: f
+subroutine extendFrame(n)
+  use moduleSystem, only : frameTypeDef, frame, atomToMoleculeIndex
   integer, intent(in) :: n
 
   integer :: n0, nnew
   type(frameTypeDef) :: newFrame
+  integer, allocatable, dimension(:) :: tmpIndices
 
-  n0 = f % natoms
+  n0 = frame % natoms
   nnew = n0 + n
 
   if (n0 == 0) then
-    call createSystemArrays(f, nnew)
-    f % natoms = 0
+    if (allocated(frame % lab)) call deleteSystemArrays(frame)
+    call createSystemArrays(frame, nnew)
+    allocate(atomToMoleculeIndex(nnew))
+    frame % natoms = 0
     return
   end if
 
   call createSystemArrays(newFrame, n0)
 
-  newFrame % natoms         = f % natoms 
-  newFrame % lab (    1:n0) = f % lab (    1:n0) 
-  newFrame % pos (1:3,1:n0) = f % pos (1:3,1:n0) 
-  newFrame % frac(1:3,1:n0) = f % frac(1:3,1:n0) 
-  newFrame % chg (    1:n0) = f % chg (    1:n0) 
+  newFrame % natoms         = frame % natoms 
+  newFrame % lab (    1:n0) = frame % lab (    1:n0) 
+  newFrame % pos (1:3,1:n0) = frame % pos (1:3,1:n0) 
+  newFrame % frac(1:3,1:n0) = frame % frac(1:3,1:n0) 
+  newFrame % chg (    1:n0) = frame % chg (    1:n0) 
 
-  call deleteSystemArrays(f)
-  call createSystemArrays(f, nnew)
+  call deleteSystemArrays(frame)
+  call createSystemArrays(frame, nnew)
 
-  f % natoms         = newFrame % natoms 
-  f % lab (    1:n0) = newFrame % lab (    1:n0) 
-  f % pos (1:3,1:n0) = newFrame % pos (1:3,1:n0) 
-  f % frac(1:3,1:n0) = newFrame % frac(1:3,1:n0) 
-  f % chg (    1:n0) = newFrame % chg (    1:n0) 
+  frame % natoms         = newFrame % natoms 
+  frame % lab (    1:n0) = newFrame % lab (    1:n0) 
+  frame % pos (1:3,1:n0) = newFrame % pos (1:3,1:n0) 
+  frame % frac(1:3,1:n0) = newFrame % frac(1:3,1:n0) 
+  frame % chg (    1:n0) = newFrame % chg (    1:n0) 
 
+  allocate(tmpIndices(nnew))
+  tmpIndices(1:n0) = atomToMoleculeIndex
+  call move_alloc(tmpIndices, atomToMoleculeIndex)
+  
 end subroutine extendFrame
+
+subroutine extendMolecules(n)
+  use moduleSystem, only : moleculeTypeDef, listOfMolecules, numberOfMolecules!, atomToMoleculeIndex
+  implicit none
+  integer, intent(in) :: n
+  type(moleculeTypeDef), allocatable, dimension(:) :: newMols
+  integer :: n0, nnew
+  integer :: imol
+
+  n0 = numberOfMolecules
+  nnew = n0 + n
+
+  allocate(newMols(nnew))
+  do imol=1,n0
+    newMols(imol) % ID            = listOfMolecules(imol) % ID           
+    newMols(imol) % resname       = listOfMolecules(imol) % resname      
+    newMols(imol) % numberOfAtoms = listOfMolecules(imol) % numberOfAtoms
+    newMols(imol) % centreOfMass  = listOfMolecules(imol) % centreOfMass 
+    newMols(imol) % brokenBonds   = listOfMolecules(imol) % brokenBonds
+!    allocate(newMols(imol) % listOfAtoms, source=listOfMolecules(imol) % listOfAtoms)
+!    allocate(newMols(imol) % listOfLabels, source=listOfMolecules(imol) % listOfLabels)
+    allocate(newMols(imol) % listOfAtoms(newMols(imol) % numberOfAtoms))
+    allocate(newMols(imol) % listOfLabels(newMols(imol) % numberOfAtoms))
+    newMols(imol) % listOfAtoms  = listOfMolecules(imol) % listOfAtoms
+    newMols(imol) % listOfLabels = listOfMolecules(imol) % listOfLabels
+  end do
+
+  call move_alloc(newMols, listOfMolecules)
+end subroutine extendMolecules
 
 #ifdef GPTA_MPI
 subroutine sendFrameToProcessor(f,idx)
   use moduleVariables
-  use moduleSystem, only : numberOfAtoms
   implicit none
   type(frameTypeDef), intent(in) :: f 
   integer, intent(in) :: idx
   logical, save :: firstTimeIn(0:128) = .true.
+  integer :: numberOfAtoms
 
+  numberOfAtoms = f % natoms
   call MPI_Send(f % nframe, 1               , MPI_INT       , idx, 0, MPI_COMM_WORLD, ierr_mpi)
   call MPI_Send(f % hmat  , 9               , MPI_DOUBLE    , idx, 0, MPI_COMM_WORLD, ierr_mpi)
   call MPI_Send(f % pos   , numberOfAtoms*3 , MPI_DOUBLE    , idx, 0, MPI_COMM_WORLD, ierr_mpi)
   if (firstTimeIn(idx)) then
     firstTimeIn(idx) = .false.
-    call MPI_Send(f % lab   , numberOfAtoms*cp, MPI_CHARACTER , idx, 0, MPI_COMM_WORLD, ierr_mpi)
-    call MPI_Send(f % chg   , numberOfAtoms   , MPI_DOUBLE    , idx, 0, MPI_COMM_WORLD, ierr_mpi)
+    call MPI_Send(f % lab    , numberOfAtoms*cp, MPI_CHARACTER , idx, 0, MPI_COMM_WORLD, ierr_mpi)
+    call MPI_Send(f % chg    , numberOfAtoms   , MPI_DOUBLE    , idx, 0, MPI_COMM_WORLD, ierr_mpi)
+    call MPI_Send(f % element, numberOfAtoms*2 , MPI_CHARACTER , idx, 0, MPI_COMM_WORLD, ierr_mpi)
   end if
   return
 end subroutine sendFrameToProcessor
 
 subroutine receiveFrameFromMaster(f)
   use moduleVariables
-  use moduleSystem, only : numberOfAtoms
   implicit none
   type(frameTypeDef), intent(inout) :: f 
   logical, save :: firstTimeIn = .true.
   character(cp), allocatable, dimension(:), save :: savedLabels
   real(8), allocatable, dimension(:), save :: savedCharges
+  character(2), allocatable, dimension(:), save :: savedElements
+
+  integer, save :: numberOfAtoms
+
+  ! this is required becase atoms might be deleted by an action
+  if (firstTimeIn) then
+    numberOfAtoms = f % natoms
+  else
+    f % natoms = numberOfAtoms
+  end if 
 
   call MPI_Recv(f % nframe, 1               , MPI_INT       , readingCPU, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr_mpi)
   call MPI_Recv(f % hmat  , 9               , MPI_DOUBLE    , readingCPU, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr_mpi)
   call MPI_Recv(f % pos   , numberOfAtoms*3 , MPI_DOUBLE    , readingCPU, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr_mpi)
   if (firstTimeIn) then
     firstTimeIn = .false.
-    call MPI_Recv(f % lab   , numberOfAtoms*cp, MPI_CHARACTER , readingCPU, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr_mpi)
-    call MPI_Recv(f % chg   , numberOfAtoms   , MPI_DOUBLE    , readingCPU, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr_mpi)
+    call MPI_Recv(f % lab    , numberOfAtoms*cp, MPI_CHARACTER , readingCPU, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr_mpi)
+    call MPI_Recv(f % chg    , numberOfAtoms   , MPI_DOUBLE    , readingCPU, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr_mpi)
+    call MPI_Recv(f % element, numberOfAtoms*2 , MPI_CHARACTER , readingCPU, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr_mpi)
 
     allocate(savedLabels(numberOfAtoms))
     allocate(savedCharges(numberOfAtoms))
     savedLabels = f % lab
     savedCharges = f % chg
+    savedElements = f % element
 
   else
 
     f % lab = savedLabels
     f % chg = savedCharges
+    f % element = savedElements
 
   end if
 

@@ -31,440 +31,178 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! 
 module moduleAddAtoms
-  use moduleSystem
-  use moduleVariables
-  use moduleStrings
-  use moduleRead
-  use moduleFiles
-  use moduleRandomNumbers
-  use moduleDistances
-  use moduleNeighbours
-  use moduleElements
+  use moduleActions 
   use moduleMessages
-
+  
   implicit none
 
-  public :: addAtoms
+  public :: addAtoms, addAtomsHelp
   private
 
-  character(:), pointer :: actionCommand
-  logical, pointer :: firstAction
-  type(fileTypeDef), pointer :: inputFile
-  integer, pointer :: numberOfNewMolecules
-  real(8), pointer :: minimumDistance
+  type :: localWorkProcedure
+    procedure (command), pointer, nopass :: work => null ()
+  end type localWorkProcedure
+  type(localWorkProcedure) :: addVirtualSite(100)
 
-  logical, pointer :: frameRead
-
-  integer :: numberOfCreatedPositions = 0
-  integer :: numberOfAddedMolecules = 0
-  real(8), allocatable, dimension(:,:) :: newPositions
-
-  real(8), pointer, dimension(:) :: localOrigin
-  real(8), pointer, dimension(:) :: localCell
-
-  integer :: numberOfAdditions = 0
-  integer, pointer :: iAdd
-  integer :: originalSize
-  integer, allocatable, dimension(:,:) :: addedRegister
 contains
 
+  subroutine addAtomsHelp()
+    implicit none
+    call message(0,"This action adds new particles to a frame.")
+    call message(0,"It can be used to add solute/solvent atoms or molecules, or to add dummy particles to the system.")
+    call message(0,"The new species are added randomly to the cell.")
+    call message(0,"This action is a wrapper for different actions (solute, solvent, centre, dummy), which work in slightly different ways.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --rescale +cell 10")
+    call message(0,"  gpta.x --i coord.pdb --top --add solute +atom Na,Cl +n 2,2 +rmin 4.0")
+    call message(0,"  gpta.x --i coord.pdb --top --add solvent +mol benzene.pdb +n 5 +rmin 5.0 --o new.pdb")
+    call message(0,"  gpta.x --add solvent +mol h2o.pdb +box 12. +n 57 +rmin 2 --top --o water.pdb")
+    call message(0,"  gpta.x --i coord.pdb --top --add centre +mol M1")
+    call message(0,"  gpta.x --i benzene.pdb --top --add centre +mol M1 +i 1,3,5,7,9,11")
+    call message(0,"  gpta.x --i water.pdb --top --add dummy +i 1,2,3 +dist 0.1577 --o tip4p_ice.pdb")
+  end subroutine addAtomsHelp
+  
   subroutine addAtoms(a)
-    use moduleVariables
-    use moduleSystem 
+    use moduleStrings
+    use moduleSystem
+    use moduleDistances
+    use moduleNeighbours
+
+    use addDummyModule
+    use addMoleculesModule
+    use addElementsModule
+    use addCentresModule
+
     implicit none
     type(actionTypeDef), target :: a
+    character(len=10) :: option
+    integer :: removeOverlap ! (0=no, 1=initial, 2=added)
+    integer :: originalNumberOfAtoms
+    integer :: originalNumberOfMolecules
+    logical :: updateTopology
 
-    call associatePointers(a)
+    read(a % actionDetails,*) option
 
-    if (a % actionInitialisation) then
-      a % actionInitialisation = .false.
-      numberOfAdditions = numberOfAdditions + 1
-      if (numberOfAdditions == 1) numberOfAddedMolecules = 0
-      call initialiseAction(a)
-      iAdd = numberOfAdditions
-      return
-    end if
+    removeOverlap = 0
+    select case (option)
+      case default
+        call message(-1,"--add - nothing to do")
 
-    ! Normal processing of the frame
+      case("solute" , "solvent")
+        updateTopology = .false.
+        if (index(a % actionDetails,"+atom") > 0) then
+          addVirtualSite(1) % work => addElements
+
+        else if (index(a % actionDetails,"+mol") > 0) then
+          addVirtualSite(1) % work => addMoleculesFromFile
+        end if
+
+        if (option == "solute") then
+          removeOverlap = 1
+        else if (option == "solvent") then
+          removeOverlap = 2
+        end if
+
+      case("dummy")
+        updateTopology = .true.
+        addVirtualSite(1) % work => addDummyParticles
+
+      case("centre")
+        updateTopology = .true.
+        addVirtualSite(1) % work => addCentresParticles
+
+    end select
+    
+    originalNumberOfAtoms = frame % natoms
+    originalNumberOfMolecules = numberOfMolecules
+    
+    call addVirtualSite(1) % work(a)
+
     if (frameReadSuccessfully) then
-      if (firstAction) then
-
-        if (frame % natoms > 0) then
-          if (numberOfMolecules == 0) call runInternalAction("topology","NULL")
-        end if
-
-        call dumpScreenInfo(a)
-        call extendFrame(frame, a % localFrame % natoms * numberOfNewMolecules)
-        
-        call checkUsedFlags(actionCommand)
-        firstAction = .false.
-        
-        if (iAdd == 1) then
-          allocate(addedRegister(2,numberOfAddedMolecules) , source=0)
-          numberOfAddedMolecules = 0
-        end if
-        
-      end if
+      call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
+      call updateNeighboursList(.true.)
+      !      if (updateTopology) call runInternalAction("topology","+update +reorder")
       
-      call computeAction(a)
-
+      !call computeMoleculesCOM(originalNumberOfMolecules)
+      if (removeOverlap /= 0) call removeClashes(frame,originalNumberOfMolecules,removeOverlap)
     end if
 
   end subroutine addAtoms
 
-  subroutine associatePointers(a)
+  !!!!!!!!!!!!!
+  subroutine removeClashes(f,originalNumberOfMolecules,iType)
+    use moduleSystem
+    use moduleDistances
     implicit none
-    type(actionTypeDef), target :: a
-
-    ! Local pointers
-    actionCommand        => a % actionDetails
-    firstAction          => a % firstAction
-    inputFile            => a % inputFile
-    frameRead            => a % logicalVariables(1)
-    iAdd                 => a % integerVariables(1)
-    minimumDistance      => a % doubleVariables(1)
-    numberOfNewMolecules => a % integerVariables(2)
-
-    localCell(1:9)       => a % doubleVariables(2:10)
-    localOrigin(1:3)     => a % doubleVariables(11:13)
-
-  end subroutine associatePointers
-
-  subroutine initialiseAction(a)
-
-    implicit none
-    type(actionTypeDef), target :: a
-    integer :: i, n
-    real(8), dimension(3,3) :: hmat
-    real(8), dimension(3) :: dij
-    character(cp) :: atomName
-
-    logical :: inputCell
-    character(len=STRLEN) :: stringCell
-    real(8), dimension(3,3) :: hnew
-
-    a % actionInitialisation = .false.
-    a % requiresNeighboursList = .true.
-    a % requiresNeighboursListUpdates = .false.
-    a % requiresNeighboursListDouble = .false.
-    a % cutoffNeighboursList = 3.0d0
-
-    call assignFlagValue(actionCommand,"+cell",inputCell,.false.)
-    if (inputCell) then
-      call assignFlagValue(actionCommand,"+cell ", stringCell, "NONE")
-      call readCellFreeFormat(stringCell, hnew)
-      call hmat2cell(hnew, localCell, "DEG")
-    else 
-      call hmat2cell(frame % hmat, localCell, "DEG")
-    end if
-    
-    ! Create a new cell if no coordinates had been read
-    call getInverseCellMatrix(frame % hmat, frame % hinv, frame % volume)
-    if (frame % volume < 1.1d0) then
-      frame % hmat = hnew
-      call getInverseCellMatrix(frame % hmat, frame % hinv, frame % volume)
-      if (abs(frame % hmat(1,2)) + abs(frame % hmat(1,3)) + abs(frame % hmat(2,3)) .lt. 1.0d-6) then
-        pbc_type = "ortho"
-      else
-        pbc_type = "tri"
-      end if
-      call hmat2cell(frame % hmat, frame % cell, "DEG")
-      call initialisePBC(pbc_type)
-      call initialiseNeighboursList()
-    end if
-
-    call assignFlagValue(actionCommand,"+origin",localOrigin,[0.d0,0.d0,0.d0])
-
-    ! -> open file with coordinates
-    call assignFlagValue(actionCommand,"+f",inputFile % fname,'NULL')
-    
-    ! -> or add an atom
-    call assignFlagValue(actionCommand,"+atom",atomName,'NULL')
-    
-    if (inputFile % fname /= 'NULL') then
-      call initialiseFile(inputFile, inputFile % fname)
-
-      ! -> get number of atoms
-      call getNumberOfAtoms(inputFile, n, hmat)
-      rewind(inputFile % funit)
-
-      call createSystemArrays(a % localFrame, n)
-
-      call readCoordinates(frameRead, a % localFrame, inputFile)
-      if (.not. frameRead) call message(-1,"--add | cannot read coordinates file")
-
-    else if (atomName /= 'NULL') then
-      call createSystemArrays(a % localFrame, 1)
-      a % localFrame % lab(1) = atomName
-      a % localFrame % pos = 0.d0
-    
-    else
-      call message(-1,"--add | no atoms/molecule to add")
-    endif
-
-    ! translete com to the origin
-    dij = a % localFrame % pos(:,1)
-    do i=2,a % localFrame % natoms
-      dij = dij + a % localFrame % pos(:,i)
-    end do
-    dij = dij / dble(a % localFrame % natoms)
-    do i=1,a % localFrame % natoms
-      a % localFrame % pos(1:3,i) = a % localFrame % pos(1:3,i) - dij(1:3)
-    end do
-
-    call assignFlagValue(actionCommand,"+n",numberOfNewMolecules,1)
-
-    call assignFlagValue(actionCommand,"+rmin",minimumDistance,3.d0)
-
-    numberOfAddedMolecules = numberOfAddedMolecules + numberOfNewMolecules
-
-  end subroutine initialiseAction
-
-  subroutine createRandomPositions()
-    implicit none
-    integer :: i, j, n
-    real(8), dimension(3) :: rpos, dij
-    real(8) :: rtmp, dmin
-    real(8), allocatable, dimension(:,:) :: localPositions
-    real(8), dimension(3,3) :: hmat
-
-    dmin = minimumDistance**2
-    call cell2hmat(localCell, hmat)
-    if (numberOfCreatedPositions == 0) then
-      allocate(newPositions(3,numberOfNewMolecules))
-    else
-      allocate(localPositions(3,numberOfCreatedPositions + numberOfNewMolecules))
-      localPositions(:,1:numberOfCreatedPositions) = newPositions(:,1:numberOfCreatedPositions)
-      call move_alloc(localPositions,newPositions)
-    end if
-
-    n = numberOfCreatedPositions
-    do i=1,numberOfNewMolecules
-
-      newpos : do 
-        rpos(1:3) = localOrigin(1:3) + grnd() * hmat(:,1) + grnd() * hmat(:,2) + grnd() * hmat(:,3)
-
-        do j=1,n
-          dij = rpos(:) - newPositions(:,j)
-          rtmp = computeDistanceSquaredPBC(dij)
-          if (rtmp < dmin) cycle newpos
-        end do
-
-        n = n + 1
-        newPositions(:,n) = rpos(:)
-        exit
-      end do newpos
-
-    end do
-    numberOfCreatedPositions = numberOfCreatedPositions + numberOfNewMolecules
-
-  end subroutine createRandomPositions
-
-  subroutine dumpScreenInfo(a)
-    use moduleMessages     
-    implicit none
-    type(actionTypeDef), target :: a
-    
-    call message(0,"Add Atoms")
-    call message(0,"...Size of the box to be filled",rv=localCell(1:3))
-    call message(0,"...Angles of the box to be filled",rv=localCell(4:6))
-    call message(0,"...Origin of the box to be filled",rv=localOrigin)
-    if (inputFile % fname /= 'NULL') then
-      call message(0,"...New moleculed from file",str=inputFile % fname)
-      call message(0,"...Number of molcules to add",i=numberOfNewMolecules)
-      call message(0,"...Minimum distance between the molecules",r=minimumDistance)
-    else
-      call message(0,"...New atom name",str=a % localFrame % lab(1))
-      call message(0,"...Number of atoms to add",i=numberOfNewMolecules)
-      call message(0,"...Minimum distance between the atoms",r=minimumDistance)
-    end if
-
-    call message(2)
-
-  end subroutine dumpScreenInfo
-
-  subroutine computeAction(a)
-    implicit none
-    type(actionTypeDef), target :: a
-    integer :: initialAtoms
-    integer :: i, n0, n
-    real(8) :: dij(3), rtmp, rmax
-    real(8) :: theta, phi, vec(3)
-    real(8), allocatable, dimension(:,:) :: pos_tmp
-
-    integer :: imol, idx, iatm, jatm
-    logical, allocatable, dimension(:) :: ldelete
-    logical :: newSystem = .false.
-
-    call createRandomPositions()
-
-    initialAtoms = frame % natoms
-    if (initialAtoms == 0) newSystem = .true.
-
-    ! Array for the new molecules/atoms
-    allocate(pos_tmp(3,a % localFrame % natoms), source=a % localFrame % pos)
-
-    n = initialAtoms
-    do imol=1,numberOfNewMolecules
-      
-      ! Random rotation around the origin
-      if (a % localFrame % natoms > 1)then
-        theta  = grnd() * pi
-        phi    = grnd() * twopi
-        vec(1) = sin(theta) * cos(phi)
-        vec(2) = sin(theta) * sin(phi)
-        vec(3) = cos(theta)
-        theta  = grnd() * twopi
-        call rotateMolecule(vec(1:3), theta, a % localFrame % natoms, pos_tmp,-1)
-      endif
-
-      ! Add new molecules to the frame
-      do i=1,a % localFrame % natoms
-        frame % lab(n+i) = a % localFrame % lab(i)
-        frame % pos(1:3,n+i) = pos_tmp(1:3,i) + newPositions(:,numberOfAddedMolecules + imol)
-        frame % chg(n+i) = a % localFrame % chg(i) 
-      end do
-      
-      addedRegister(1,numberOfAddedMolecules+imol) = n + 1
-      n = n + a % localFrame % natoms
-      addedRegister(2,numberOfAddedMolecules+imol) = n 
-
-    enddo
-    numberOfAddedMolecules = numberOfAddedMolecules + numberOfNewMolecules
-    frame % natoms = n
-
-    if (iAdd == 1) originalSize = initialAtoms
-    
-    if (iAdd == numberOfAdditions) then
-      
-      ! Setup the neighbours' list
-      if (newSystem) then
-        call setUpNeigboursList()
-      
-        ! Removing overlaps
-      else
-        ! Remove initial
-        call removeInitial(frame,originalSize)
-        ! Remove added
-      end if
-
-      call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
-      call updateNeighboursList(.true.)
-      !if (.not. newSystem) &
-      call runInternalAction("topology","+update")
-    end if
-
-  end subroutine computeAction
-
-  subroutine removeInitial(f,initialNumberOfAtoms)
     type(frameTypeDef), intent(inout) :: f
-    integer, intent(in) :: initialNumberOfAtoms
-    integer :: imol, iatm, jatm, idx, n0
-    real(8) :: rmax, rtmp, dij(3)
+    integer, intent(in) :: originalNumberOfMolecules
+    integer, intent(in) :: iType
+
+    integer :: imol, jmol, idx, jdx, iatm, jatm
+    real(8) :: rmax, distanceCOM, dij(3), rtmp
     logical, allocatable, dimension(:) :: ldelete
+    integer :: n0
+    real(8), allocatable, dimension(:,:) :: xx
+
+    integer :: nMol1, nMol2, nMol3, nMol4
 
     allocate(ldelete(numberOfMolecules),source=.false.)
-    rmax = (2.d0)**2
-    m1 : do imol=1,numberOfMolecules
+    n0 = maxval(listOfMolecules(1:numberOfMolecules) % numberOfAtoms)
+    rmax = (1.5d0)**2
+
+    allocate(xx(3,n0))
+    
+    if (iType == 1) then
+      nMol1 = 1
+      nMol2 = originalNumberOfMolecules
+      nMol3 = originalNumberOfMolecules + 1
+      nMol4 = numberOfMolecules
+    else if (iType == 2) then
+      nMol1 = originalNumberOfMolecules + 1
+      nMol2 = numberOfMolecules
+      nMol3 = 1
+      nMol4 = originalNumberOfMolecules
+    end if
+
+    toDelete : do imol=nMol1,nMol2
       do idx=1,listOfMolecules(imol) % numberOfAtoms
         iatm = listOfMolecules(imol) % listOfAtoms(idx)
-        
-        do jatm=initialNumberOfAtoms+1,frame % natoms
-          dij = frame % pos(1:3,iatm) - frame % pos(1:3,jatm)
-          rtmp = computeDistanceSquaredPBC(dij)
-          if (rtmp < rmax) then
-            ldelete(imol) = .true.
-            cycle m1
-          end if
-        end do
+        xx(1:3,idx) = f % pos(1:3,iatm)
       end do
-    end do m1
+
+      do jmol=nMol3,nMol4
+        dij(1:3) = listOfMolecules(jmol) % centreOfMass - listOfMolecules(imol) % centreOfMass
+        distanceCOM = computeDistanceSquaredPBC(dij)
+        if (distanceCOM < 100.d0) then
+          do idx=1,listOfMolecules(imol) % numberOfAtoms
+            do jdx=1,listOfMolecules(jmol) % numberOfAtoms
+              jatm = listOfMolecules(jmol) % listOfAtoms(jdx)
+              dij(1:3) = xx(1:3,idx) - f % pos(1:3,jatm)
+              rtmp = computeDistanceSquaredPBC(dij)
+              if (rtmp < rmax) then
+                ldelete(imol) = .true.
+                cycle toDelete
+              end if
+            end do
+          end do
+        end if
+      end do
+    end do toDelete
 
     n0 = 0
-    ! Remove the initial molecules that overlap with the solute
+    ! Remove molecules 
     do imol=1,numberOfMolecules
       if (ldelete(imol)) cycle
       do idx=1,listOfMolecules(imol) % numberOfAtoms
         iatm = listOfMolecules(imol) % listOfAtoms(idx)
         n0 = n0 + 1
-        frame % lab(n0) = frame % lab(iatm)
-        frame % chg(n0) = frame % chg(iatm)
-        frame % pos(:,n0) = frame % pos(:,iatm)
+        f % lab(n0) = f % lab(iatm)
+        f % chg(n0) = f % chg(iatm)
+        f % pos(:,n0) = f % pos(:,iatm)
       end do
     end do
+    f % natoms = n0
 
-    ! Add the new molecules to the frame
-    do iatm=initialNumberOfAtoms+1,frame % natoms
-      n0 = n0 + 1
-      frame % lab(n0) = frame % lab(iatm)
-      frame % chg(n0) = frame % chg(iatm)
-      frame % pos(:,n0) = frame % pos(:,iatm)
-    end do
-    frame % natoms = n0
-
-  end subroutine removeInitial
-
-  subroutine removeAdded(f,initialNumberOfAtoms)
-    type(frameTypeDef), intent(inout) :: f
-    integer, intent(in) :: initialNumberOfAtoms
-    integer :: imol, iatm, jatm, idx, n0, idel
-    real(8) :: rmax, rtmp, dij(3)
-    logical, allocatable, dimension(:) :: lDelete
-
-    allocate(lDelete(frame % natoms),source=.false.)
-    rmax = (2.d0)**2
-    m1 : do imol=1,numberOfMolecules
-      do idx=1,listOfMolecules(imol) % numberOfAtoms
-        iatm = listOfMolecules(imol) % listOfAtoms(idx)
-        
-        do jatm=initialNumberOfAtoms+1,frame % natoms
-          dij = frame % pos(1:3,iatm) - frame % pos(1:3,jatm)
-          rtmp = computeDistanceSquaredPBC(dij)
-          if (rtmp < rmax) then
-            ldelete(jatm) = .true.
-          end if
-        end do
-      end do
-    end do m1
-
-    ! remove entire molecule
-    idx = 0
-    idel = 1
-    do while (idx < frame % natoms)
-      idx = idx + 1
-      if (idx == addedRegister(1,idel)) then
-        iatm = addedRegister(1,idel)
-        jatm = addedRegister(2,idel)
-        lDelete(iatm:jatm) = .true.
-        idx = jatm
-      end if
-    end do
-
-    n0 = 0
-    ! Add the initial molecules that overlap with the solute
-    do imol=1,numberOfMolecules
-      do idx=1,listOfMolecules(imol) % numberOfAtoms
-        iatm = listOfMolecules(imol) % listOfAtoms(idx)
-        n0 = n0 + 1
-        frame % lab(n0) = frame % lab(iatm)
-        frame % chg(n0) = frame % chg(iatm)
-        frame % pos(:,n0) = frame % pos(:,iatm)
-      end do
-    end do
-
-    ! Remove the new molecules from the frame
-    idel = 1
-    do iatm=initialNumberOfAtoms+1,frame % natoms
-      if (lDelete(iatm)) cycle
-      n0 = n0 + 1
-      frame % lab(n0) = frame % lab(iatm)
-      frame % chg(n0) = frame % chg(iatm)
-      frame % pos(:,n0) = frame % pos(:,iatm)
-    end do
-    frame % natoms = n0
-
-    ! (addedRegister)
-  end subroutine removeAdded
+  end subroutine removeClashes
 
 end module moduleAddAtoms
-

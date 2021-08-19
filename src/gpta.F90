@@ -149,11 +149,11 @@ program gpta
 
     ! Get number of atoms from first file
     if (me == readingCPU) then
-      call getNumberOfAtoms(inputFileNames(currentInputFile), numberOfAtoms, frame % hmat)
+      call getNumberOfAtoms(inputFileNames(currentInputFile), inputNumberOfAtoms, frame % hmat)
     end if
     
 #ifdef GPTA_MPI
-    call MPI_Bcast(numberOfAtoms, 1, MPI_INT, readingCPU, MPI_COMM_WORLD, ierr_mpi)
+    call MPI_Bcast(inputNumberOfAtoms, 1, MPI_INT, readingCPU, MPI_COMM_WORLD, ierr_mpi)
     call MPI_Bcast(frame % hmat, 9, MPI_DOUBLE, readingCPU, MPI_COMM_WORLD, ierr_mpi)
 #endif 
     if (me == 0) call dumpCellInfo(frame % hmat)
@@ -165,8 +165,7 @@ program gpta
     call initialiseNeighboursList()
    
     ! Allocate system arrays
-    call createSystemArrays(frame, numberOfAtoms)
-
+    call createSystemArrays(frame, inputNumberOfAtoms)
   end if
 
 #ifdef GPTA_MPI
@@ -175,7 +174,7 @@ program gpta
       allocate(allFrames(islave:jslave))
       allocate(allFramesReadSuccessfully(islave:jslave), source=.true.)
       do iproc=islave,jslave
-        call createSystemArrays(allFrames(iproc), numberOfAtoms)
+        call createSystemArrays(allFrames(iproc), inputNumberOfAtoms)
       end do
     end if
   end if
@@ -220,6 +219,8 @@ program gpta
 
     end if
 
+    call MPI_Barrier(MPI_COMM_WORLD, ierr_mpi)
+
     ! Tell all processors if we're at the end of the file
     call MPI_Bcast(endOfCoordinatesFiles, 1, MPI_LOGICAL, readingCPU, MPI_COMM_WORLD, ierr_mpi)
     if (masterReadingOnly .and. me == readingCPU) cycle
@@ -238,6 +239,7 @@ program gpta
       if (mod(frame % nframe - first_frame , nProgress)==0) then
         if (frame % nframe > nProgress) call message(-2) !??
         call message(0,"---Frames read",frame % nframe)
+!        write(io,'("---Frames read",i0)')frame % nframe
       end if
     end if
 
@@ -246,16 +248,16 @@ program gpta
     
     if (frameReadSuccessfully) then
       if (lastFrameOnly) cycle
-      if (computeNeighboursList) call updateNeighboursList(.false.)
-      if (computeNeighboursListOnce) computeNeighboursList = .false.
     else
-      if (lastFrameOnly) then
-        frameReadSuccessfully = .true.
-        if (computeNeighboursList) call updateNeighboursList(.false.)
-      end if
+      if (lastFrameOnly) frameReadSuccessfully = .true.
     end if
-
+      
     if (frameReadSuccessfully) numberOfFramesProcessed = numberOfFramesProcessed + 1
+    
+    if (computeNeighboursListOnce .and. computeNeighboursList) then
+      call updateNeighboursList(.false.)
+      computeNeighboursList = .false.
+    end if
 
     call runAllActions()
 

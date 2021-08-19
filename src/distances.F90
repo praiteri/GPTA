@@ -61,11 +61,19 @@ module moduleDistances
       real(8), dimension(3,n), intent(out) :: frac
     end subroutine cart2fracNINT
 
+    subroutine cart2fracNoWrap(n,cart,frac)
+      implicit none
+      integer, intent(in) :: n
+      real(8), dimension(3,n), intent(in) :: cart
+      real(8), dimension(3,n), intent(out) :: frac
+    end subroutine cart2fracNoWrap
+
   end interface
   procedure (func_vec), pointer :: computeDistanceSquaredPBC => null ()
   procedure (cart2frac), pointer :: cartesianToFractional => null ()
   procedure (frac2cart), pointer :: fractionalToCartesian => null ()
   procedure (cart2fracNINT), pointer :: cartesianToFractionalNINT => null ()
+  procedure (cart2fracNoWrap), pointer :: cartesianToFractionalNoWrap => null ()
 
 contains
   subroutine initialisePBC(lflag)
@@ -81,12 +89,14 @@ contains
       cartesianToFractional => copyCoordinates
       fractionalToCartesian => copyCoordinates
       cartesianToFractionalNINT => copyCoordinates
+      cartesianToFractionalNoWrap => copyCoordinates
 
     else if (lflag=="ortho") then
       computeDistanceSquaredPBC => computeDistanceSquaredOrthogonal
       cartesianToFractional => cartesianToFractionalOrthogonal
       fractionalToCartesian => fractionalToCartesianTriclinic
       cartesianToFractionalNINT => cartesianToFractionalOrthogonalNINT
+      cartesianToFractionalNoWrap => cartesianToFractionalOrthogonalNoWrap
       
     else if (lflag=="tri" .or. lflag=="safe") then
 
@@ -98,6 +108,7 @@ contains
       cartesianToFractional => cartesianToFractionalTriclinic
       fractionalToCartesian => fractionalToCartesianTriclinic
       cartesianToFractionalNINT => cartesianToFractionalTriclinicNINT
+      cartesianToFractionalNoWrap => cartesianToFractionalTriclinicNoWrap
     end if
     
     return
@@ -283,6 +294,36 @@ contains
       frac(1:3,i) = frac(1:3,i) - nint(frac(1:3,i))
     enddo
   end subroutine cartesianToFractionalTriclinicNINT
+
+
+  subroutine cartesianToFractionalOrthogonalNoWrap(n,cart,frac) 
+    use moduleSystem , only : frame
+    implicit none
+    integer, intent(in) :: n
+    real(8), dimension(3,n), intent(in) :: cart
+    real(8), dimension(3,n), intent(out) :: frac
+
+    integer :: i
+    do i=1,n
+      frac(1:3,i) = cart(1:3,i) / frame % cell(1:3)
+    enddo
+  end subroutine cartesianToFractionalOrthogonalNoWrap
+
+  subroutine cartesianToFractionalTriclinicNoWrap(n,cart,frac) 
+    use moduleSystem , only : frame
+    implicit none
+    integer, intent(in) :: n
+    real(8), dimension(3,n), intent(in) :: cart
+    real(8), dimension(3,n), intent(out) :: frac
+
+    integer :: i
+    do i=1,n
+      ! frac(1,i) = frame % hinv(1,1)*cart(1,i) + frame % hinv(1,2)*cart(2,i) + frame % hinv(1,3)*cart(3,i)
+      ! frac(2,i) = frame % hinv(2,1)*cart(1,i) + frame % hinv(2,2)*cart(2,i) + frame % hinv(2,3)*cart(3,i)
+      ! frac(3,i) = frame % hinv(3,1)*cart(1,i) + frame % hinv(3,2)*cart(2,i) + frame % hinv(3,3)*cart(3,i)
+      frac(1:3,i) = matmul(frame % hinv , cart(1:3,i))
+    enddo
+  end subroutine cartesianToFractionalTriclinicNoWrap
 
   subroutine wrapCoordinates(n,pos)
     implicit none

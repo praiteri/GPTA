@@ -110,10 +110,10 @@ subroutine initialiseFile(file,fname,fposition,fstatus,fformat)
   ! this is a FORTRAN08 feature
   open(newunit  = file % funit, &
        file     = file % fname, &
-       status   = fstat     , &
+       status   = fstat       , &
        form     = file % fform, &
        position = file % fpos , &
-       iostat   = ierr)
+       iostat   = ierr        )
   
   if (ierr/=0) then
     call message(-1,"Error opening file",str=trim(fname))

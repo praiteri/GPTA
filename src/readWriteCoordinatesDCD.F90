@@ -84,12 +84,16 @@ subroutine readCoordinatesDCD(uinp,first,natoms,pos,h,go)
     write(str,'(i0," /= ",i0)')nn,natoms
     if (nn/=natoms) call message(-1,"Wrong number of atoms in the DCD file",str=str)
   end if
-  
+
   if(icell==1)then
     read(uinp,end=112,err=112)cell(1),cell(6),cell(2),cell(5),cell(4),cell(3)
-    cell(4) = dacos(cell(4)) 
-    cell(5) = dacos(cell(5)) 
-    cell(6) = dacos(cell(6)) 
+
+    if ( all(cell(4:6) >= -1.d0) .and.  all(cell(4:6) <= 1.d0) ) then
+      cell(4) = dacos(cell(4))
+      cell(5) = dacos(cell(5))
+      cell(6) = dacos(cell(6))
+    end if
+    
     cell_tmp=real(cell,8)
     call cell2hmat(cell_tmp,h)
   else
@@ -105,12 +109,13 @@ subroutine readCoordinatesDCD(uinp,first,natoms,pos,h,go)
   pos(1,:) = real(x,8)
   pos(2,:) = real(y,8)
   pos(3,:) = real(z,8)
-  
+
   return
 
 111 write(0,*) "DCD error reading frame ",ncount
-112 go=.false.    
+112 go=.false.
   return
+
 end subroutine readCoordinatesDCD
 
 subroutine writeCoordinatesDCD(uout,write_header)
@@ -122,7 +127,7 @@ subroutine writeCoordinatesDCD(uout,write_header)
 
   integer :: j
   real*8 :: cell(6)
-  real*4, allocatable, dimension (:)  :: x, y, z
+  real*4, allocatable, dimension (:)  :: x!, y, z
 !
 ! DCD header
   real(4)            :: delta
@@ -137,10 +142,6 @@ subroutine writeCoordinatesDCD(uout,write_header)
   integer(4)         :: ntitle
   character(len=4)   :: car4
   character(len=80)  :: car(10)
-
-  allocate(x(numberOfAtoms))
-  allocate(y(numberOfAtoms))
-  allocate(z(numberOfAtoms))
 
   call hmat2cell(frame % hmat,cell,"COS")
 
@@ -174,14 +175,28 @@ subroutine writeCoordinatesDCD(uout,write_header)
     write(uout)cell(1),cell(6),cell(2),cell(5),cell(4),cell(3)
   end if
 
-  do j=1,numberOfAtoms
-    x(j)=real(frame % pos(1,j),4)
-    y(j)=real(frame % pos(2,j),4)
-    z(j)=real(frame % pos(3,j),4)
-  enddo
-  write(uout)x(1:numberOfAtoms)
-  write(uout)y(1:numberOfAtoms)
-  write(uout)z(1:numberOfAtoms)
+!  allocate(x(numberOfAtoms))
+!  allocate(y(numberOfAtoms))
+!  allocate(z(numberOfAtoms))
+!
+!  do j=1,numberOfAtoms
+!    x(j)=real(frame % pos(1,j),4)
+!    y(j)=real(frame % pos(2,j),4)
+!    z(j)=real(frame % pos(3,j),4)
+!  enddo
+!  write(uout)x(1:numberOfAtoms)
+!  write(uout)y(1:numberOfAtoms)
+!  write(uout)z(1:numberOfAtoms)
+
+  block
+    integer :: numberOfAtoms
+    numberOfAtoms = frame % natoms
+    allocate(x(numberOfAtoms))
+    do j=1,3
+      x = real(frame % pos(j,1:numberOfAtoms),4)
+      write(uout)x(1:numberOfAtoms)
+    enddo
+  end block
 
   return
 end subroutine writeCoordinatesDCD

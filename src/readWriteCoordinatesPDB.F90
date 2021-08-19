@@ -65,7 +65,7 @@ subroutine getNumberOfAtomsPDB(uinp,natoms,hmat)
 
 end subroutine getNumberOfAtomsPDB
 
-subroutine readCoordinatesPDB(uinp,natoms,pos,label,charge,hmat,go)
+subroutine readCoordinatesPDB(uinp,natoms,pos,label,charge,hmat,element,go)
   use moduleMessages 
   implicit none
   integer, intent(in) :: uinp
@@ -74,6 +74,7 @@ subroutine readCoordinatesPDB(uinp,natoms,pos,label,charge,hmat,go)
   character(*), dimension(natoms), intent(inout) :: label
   real(8), dimension(natoms), intent(inout) :: charge
   real(8), dimension(3,3), intent(inout) :: hmat
+  character(*), dimension(natoms), intent(inout) :: element
   logical, intent(inout) :: go
 
   real(8), parameter :: pi = 3.1415926535898d0
@@ -107,6 +108,8 @@ subroutine readCoordinatesPDB(uinp,natoms,pos,label,charge,hmat,go)
 ! Labels and positions
       read(line(13:16),*)label(iatom) 
       read(line(31:54),'(3f8.3)')pos(:,iatom)
+      read(line(77:78),*)element(iatom)
+
 ! charges - beyond character 80
       charge(iatom)=0.0d0
       if (len_trim(line)>80) then
@@ -167,7 +170,11 @@ subroutine writeCoordinatesPDB(uout,lpdb2)
     write(line(17:17),'(a1   )')" "                                ! atom variant, officially called the "alternate location indicator". This is usually " " 
  
     if (numberOfMolecules>0) then
-      write(line(18:22),'(a4,1x)')listOfMolecules(jd) % resname    ! amino acid abbreviation, e.g. "ARG". 
+      if (jd<1 .or. jd>numberOfMolecules) then
+        write(line(18:22),'(a4,1x)')"UNK"                            ! amino acid abbreviation, e.g. "ARG". 
+      else
+        write(line(18:22),'(a4,1x)')listOfMolecules(jd) % resname    ! amino acid abbreviation, e.g. "ARG". 
+      end if
     else
       write(line(18:22),'(a4,1x)')"UNK"                            ! amino acid abbreviation, e.g. "ARG". 
     end if

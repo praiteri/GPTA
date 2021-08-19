@@ -37,7 +37,7 @@ module moduleMolecularProperties
   
   implicit none
 
-  public :: computeMolecularProperties
+  public :: computeMolecularProperties, computeMolecularPropertiesHelp
   private
 
   character(:), pointer :: actionCommand
@@ -70,6 +70,25 @@ module moduleMolecularProperties
 
 contains
 
+  subroutine computeMolecularPropertiesHelp()
+    implicit none
+    call message(0,"This action computes a variety of molecular properties of the system.")
+    call message(0,"The properties that can currently be computed are")
+    call message(0,"  the molecular dipole.")
+    call message(0,"  the polar angle of the molecular dipole.")
+    call message(0,"  the polar angle for the vector normal to the plane defined by three atoms in the molecule.")
+    call message(0,"  the angle between three atoms in the molecule.")
+    call message(0,"  the torsional angle between four atoms in the molecule.")
+    call message(0,"  the radius of gyration.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +angle 1,2,3 +avg")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +torsion 1,2,3,4 +dist -pi,pi +nbin 180")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +dipole +dist 0,4 +nbin 50 +out dipole.out")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +dipoleZ +distZ +nbinZ 100")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +normalZ 1,2,3 +dist2D 0,pi +nbinZ 100 +nbin 90")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +dipole +dump +out dipole.out")
+  end subroutine computeMolecularPropertiesHelp
+  
   subroutine computeMolecularProperties(a)
     use moduleSystem 
     use moduleDistances
@@ -94,7 +113,7 @@ contains
 
       if (firstAction) then
 
-        if (keepFrameLabels) then
+        if (resetFrameLabels) then
           a % updateAtomsSelection = .false.
         else
           a % updateAtomsSelection = .true.
@@ -121,7 +140,7 @@ contains
 
       call associatePointers(a)
 
-      call computeMoleculesCOM()
+      ! call computeMoleculesCOM()
       allocate(cartesianCoord(3,numberOfLocalMolecules))       
       allocate(fractionalCoord(3,numberOfLocalMolecules))       
       do ilocal=1,numberOfLocalMolecules

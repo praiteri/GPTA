@@ -39,7 +39,7 @@ module moduleDensityMap2D
   use moduleDistances
   use moduleProperties
 
-  public :: computeDensityMap2D
+  public :: computeDensityMap2D, computeDensityMap2DHelp
   private
 
   character(:), pointer :: actionCommand
@@ -62,8 +62,19 @@ module moduleDensityMap2D
 
   integer, pointer :: ID
 
-  contains
-  
+contains
+
+  subroutine computeDensityMap2DHelp()
+    implicit none
+    call message(0,"This action computes the 2D density map projected on an arbitrary plane defined by its Miller indices.")
+    call message(0,"The location of the plane in the cell is chosen by defining the origin of the axes of the new cell.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --dmap2D +s O2 +hkl 1,0,0 +origin 1,0,0 +nbin 50,50 +out dmap2D.out")
+    call message(0,"  gpta.x --i coord.pdb --dmap2D +s O2 +hkl 1,1,0 +origin 46.12,0,0  +nbin 50,50 +thick 1.")
+    call message(0,"  gpta.x --i coord.pdb --dmap2D +s O2 +hkl 1,1,0 +origin 0,0,0 +thick 1. +fill 1")
+    call message(0,"  gpta.x --i coord.pdb --dmap2D +s O2 +cell 46.12,0,0,-30.7036,44.9762,0,0,0,86.4160")
+  end subroutine computeDensityMap2DHelp
+
   subroutine computeDensityMap2D(a)
     implicit none
     type(actionTypeDef), target :: a

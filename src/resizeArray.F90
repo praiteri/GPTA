@@ -33,11 +33,37 @@
 module moduleResizeArrays 
   
   interface resizeArray
-    module procedure resizeIntegerArray1D, resizeIntegerArray2D, resizeDoubleArray1D, resizeDoubleArray2D
+    module procedure resizeIntegerArray1D, resizeIntegerArray2D, resizeDoubleArray1D, resizeDoubleArray2D, resizeCharacterArray1D
   end interface
 
-  contains
+contains
   
+  subroutine resizeCharacterArray1D(array,n)
+    implicit none
+    integer, parameter :: cp=4
+    integer, intent(in) :: n
+    character(len=cp), allocatable, dimension(:) :: array
+    character(len=cp), allocatable, dimension(:) :: buffer
+    character(len=cp), allocatable, dimension(:) :: zeroes
+    integer :: m, o
+    if (n==0) then
+      deallocate(array)
+      return
+    end if
+    m = size(array)
+    if (m==n) return
+    if (n>m) then
+      o=n-m
+      allocate(zeroes(o) , source="    ")
+      allocate(buffer(n) , source=[array(1:m),zeroes])
+      deallocate(zeroes)
+    else
+      allocate(buffer(n) , source=array(1:n))
+    end if
+    call move_alloc(buffer,array)
+    return
+  end subroutine resizeCharacterArray1D
+
   subroutine resizeIntegerArray1D(array,n)
     implicit none
     integer, intent(in) :: n

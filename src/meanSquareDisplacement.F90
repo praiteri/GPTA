@@ -40,7 +40,7 @@ module moduleMeanSquareDisplacement
 
   implicit none
 
-  public :: msdAction
+  public :: computeMSD, computeMSDHelp
   private
 
   character(:), pointer :: actionCommand
@@ -55,7 +55,17 @@ module moduleMeanSquareDisplacement
 
 contains
 
-  subroutine msdAction(a)
+  subroutine computeMSDHelp()
+    implicit none
+    call message(0,"This action computes the Mean Square Displacement (MSD) of the selected species.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --msd +s Ca +out msd.out")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --msd +s O1,O2 +nt 1000")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --msd +mol M2 +dt 0.5")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --msd +i 1:300:3")
+  end subroutine computeMSDHelp
+
+  subroutine computeMSD(a)
     implicit none
     type(actionTypeDef), target :: a
     integer :: nsel
@@ -72,7 +82,7 @@ contains
 
         call dumpScreenInfo()
 
-        if (keepFrameLabels) then
+        if (resetFrameLabels) then
           a % updateAtomsSelection = .false.
         else
           a % updateAtomsSelection = .true.
@@ -107,7 +117,7 @@ contains
     if (endOfCoordinatesFiles) then
       call finaliseAction()
     end if 
-  end subroutine msdAction
+  end subroutine computeMSD
 
   subroutine initialiseAction(a)
     implicit none

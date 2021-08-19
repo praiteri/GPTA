@@ -39,7 +39,7 @@ module moduleRDF
 
   implicit none
 
-  public :: computeRadialPairDistribution
+  public :: computeRadialPairDistribution, computeRadialPairDistributionHelp
   private
 
   character(:), pointer :: actionCommand
@@ -51,8 +51,16 @@ module moduleRDF
   real(8), pointer :: rcut
   real(8), pointer :: averageVolume
   real(8), pointer, dimension(:) :: dist
+  logical, pointer :: soluteRDF
 
 contains
+
+  subroutine computeRadialPairDistributionHelp()
+    implicit none
+    call message(0,"This action computes the Radial Pair Distribution function")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --gofr +s Ca O1,O2 +out gofr.out +nbin 100")
+  end subroutine computeRadialPairDistributionHelp
 
   subroutine computeRadialPairDistribution(a)
     implicit none
@@ -71,12 +79,16 @@ contains
       if (firstAction) then         
         call dumpScreenInfo()
 
-        if (keepFrameLabels) then
+        if (resetFrameLabels) then
           a % updateAtomsSelection = .false.
         else
           a % updateAtomsSelection = .true.
         end if
+        
         call selectAtoms(2,actionCommand,a)
+
+        ! create a list of the atoms' indices for each group
+        call createSelectionList(a,2)
 
         ! Check groups have atoms
         if (count(a % isSelected(:,1)) == 0) call message(-1,"--gofr - no atoms selected in the first group")
@@ -90,7 +102,11 @@ contains
 
       end if
 
-      call computeAction(a)
+      if (soluteRDF) then
+        call computeActionSolute(a)
+      else
+        call computeAction(a)
+      end if
 
     end if
 
@@ -110,6 +126,7 @@ contains
     numberOfBins         => a % numberOfBins
     rcut                 => a % doubleVariables(1)
     averageVolume        => a % doubleVariables(2)
+    soluteRDF            => a % logicalVariables(1)
     dist                 => a % array1D
     
   end subroutine  
@@ -119,10 +136,18 @@ contains
     type(actionTypeDef), target :: a
 
     a % actionInitialisation = .false.
-    a % requiresNeighboursList = .true.
-    a % requiresNeighboursListUpdates = .true.
-    a % requiresNeighboursListDouble = .false.
     a % cutoffNeighboursList = 6.0d0
+
+    call assignFlagValue(actionCommand,"+solute",soluteRDF,.false.)
+    
+    if (soluteRDF) then
+      a % requiresNeighboursList = .false.
+      a % requiresNeighboursListUpdates = .false.
+    else
+      a % requiresNeighboursList = .true.
+      a % requiresNeighboursListUpdates = .true.
+    end if
+    a % requiresNeighboursListDouble = .false.
 
     call assignFlagValue(actionCommand,"+rcut",rcut,a % cutoffNeighboursList)
     call assignFlagValue(actionCommand,"+nbin",numberOfBins,100)
@@ -146,7 +171,7 @@ contains
 
   subroutine computeAction(a)
     use moduleVariables
-    use moduleSystem 
+    use moduleSystem
     implicit none
     type(actionTypeDef), target :: a
 
@@ -155,34 +180,77 @@ contains
     real(8), allocatable, dimension(:) :: local_dist
 
     dr = rcut / dble(numberOfBins)
-      if (computeNeighboursListDouble) then
-        dn = 0.5d0
-      else
-        dn = 1.0d0
-      end if
+    if (computeNeighboursListDouble) then
+      dn = 0.5d0
+    else
+      dn = 1.0d0
+    end if
+    averageVolume = averageVolume + frame % volume
 
-      averageVolume = averageVolume + frame % volume
-
-      allocate(local_dist(numberOfBins) , source=0.d0)
+    allocate(local_dist(numberOfBins) , source=0.d0)
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE (iatm,ineigh,jatm,idx)
 !$OMP DO REDUCTION(+:local_dist)
-      do iatm=1,frame % natoms
-        do ineigh=1,nneigh(iatm)
-          if (rneigh(ineigh,iatm) > rcut) cycle
-          jatm=lneigh(ineigh,iatm)
-          idx = int(rneigh(ineigh,iatm)/dr) + 1
-          if ( (a % isSelected(iatm,1) .and. a % isSelected(jatm,2))) local_dist(idx) = local_dist(idx) + dn
-          if ( (a % isSelected(iatm,2) .and. a % isSelected(jatm,1))) local_dist(idx) = local_dist(idx) + dn
-        enddo
+    do iatm=1,frame % natoms
+      do ineigh=1,nneigh(iatm)
+        if (rneigh(ineigh,iatm) > rcut) cycle
+        jatm=lneigh(ineigh,iatm)
+        idx = int(rneigh(ineigh,iatm)/dr) + 1
+        if ( (a % isSelected(iatm,1) .and. a % isSelected(jatm,2))) local_dist(idx) = local_dist(idx) + dn
+        if ( (a % isSelected(iatm,2) .and. a % isSelected(jatm,1))) local_dist(idx) = local_dist(idx) + dn
       enddo
+    enddo
 !$OMP END DO
 !$OMP END PARALLEL
 
-      dist = dist + local_dist
-      deallocate(local_dist)
+    dist = dist + local_dist
+    deallocate(local_dist)
 
   end subroutine computeAction
+
+  subroutine computeActionSolute(a)
+    use moduleVariables
+    use moduleSystem 
+    use moduleDistances
+    implicit none
+    type(actionTypeDef), target :: a
+
+    integer :: i, j, iatm, jatm, idx, nsel1, nsel2
+    real(8) :: dr, dij(3), r2, dist2
+    integer :: dn
+    integer, allocatable, dimension(:) :: local_dist
+
+    dr = rcut / dble(numberOfBins)
+    r2 = rcut**2
+    averageVolume = averageVolume + frame % volume
+
+    nsel1 = count(a % isSelected(:,1))
+    nsel2 = count(a % isSelected(:,2))
+
+    allocate(local_dist(numberOfBins) , source=0)
+!$OMP PARALLEL DEFAULT(SHARED) &
+!$OMP PRIVATE (i,j,iatm,jatm,dij,dist2,idx)
+!$OMP DO REDUCTION(+:local_dist)
+    do i=1,nsel1
+      iatm = a % idxSelection(i,1)
+      do j=1,nsel2
+        jatm = a % idxSelection(j,2)
+
+        dij = frame % pos(:,jatm) - frame % pos(:,iatm)
+        dist2 = computeDistanceSquaredPBC(dij)
+
+        if (dist2 > r2) cycle
+
+        idx = int(sqrt(dist2)/dr) + 1
+        local_dist(idx) = local_dist(idx) + 1
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    dist = dist + real(local_dist,8)
+
+  end subroutine computeActionSolute
 
   subroutine finaliseAction(a)
     implicit none
@@ -206,7 +274,7 @@ contains
     numberDensity = nsel2 / averageVolume
     
     rtmp = nsel1 * dble(tallyExecutions)
-    dist = dist / rtmp
+    dist = dist / rtmp 
     
     call initialiseFile(outputFile,outputFile % fname)
     write(outputFile % funit,"(a)") "# Distance | g(r) | Coordination Number | KB integral"

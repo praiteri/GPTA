@@ -31,11 +31,12 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! 
 module moduleRead 
-
+  use moduleCIF
+  use moduleGULP
 #ifdef GPTA_XDR
   use moduleXDR, only: xtcfile, trrfile
 #endif
-  contains
+contains
 
   subroutine openCoordinatesInputFiles()
     use moduleVariables
@@ -61,6 +62,7 @@ module moduleRead
       do iact=1,numberOfActions
         if (actionType(iact)(1:3) == "--i") then
           call parse(actionDetails(iact)," ",words,nw)
+
           do iw=1,nw
             call compact(words(iw))
             if (words(iw)(1:1)=="+") exit
@@ -86,13 +88,6 @@ module moduleRead
       enddo
       numberOfActions = jcmd
       
-      if (numberInputFiles == 0) return
-      ! call message(0,"Opening input coordinates files")
-      ! do i=1,numberInputFiles
-      !   call message(0,"..."//trim(ftype(i))//" file",str=fname(i))
-      ! enddo
-      ! call message(2)
-
       return
       
     end if
@@ -106,6 +101,7 @@ module moduleRead
       if (actionType(iact)(1:3) == "--i") then
 
         call parse(actionDetails(iact)," ",words,nw)
+
         do iw=1,nw
           call compact(words(iw))
           if (words(iw)(1:1)=="+") exit
@@ -113,14 +109,6 @@ module moduleRead
           call initialiseFile(inputFileNames(numberInputFiles), words(iw), fstatus='old')
           ! file type from extension
           if (len_trim(actionType(iact)) > 3) inputFileNames(numberInputFiles) % ftype = actionType(iact)(4:3+fp)
-
-! #ifdef GPTA_XDR
-!           if ( inputFileNames(numberInputFiles) % ftype == "xtc") then
-!             close(inputFileNames(numberInputFiles) % funit)
-!           else if ( inputFileNames(numberInputFiles) % ftype == "trr") then
-!             close(inputFileNames(numberInputFiles) % funit)
-!           end if
-! #endif
         enddo
  
         call assignFlagValue(actionDetails(iact),"+nm ",inputCoordInNM,.false.)
@@ -142,11 +130,14 @@ module moduleRead
       end if
 
     enddo
-    call message(0,"Opening input coordinates files")
-    do i=1,numberInputFiles
-      call message(0,"..."//trim(inputFileNames(i) % ftype)//" file",str=inputFileNames(i) % fname)
-    enddo
-    call message(2)
+
+    if (numberInputFiles > 0) then
+      call message(0,"Opening input coordinates files")
+      do i=1,numberInputFiles
+        call message(0,"..."//trim(inputFileNames(i) % ftype)//" file",str=inputFileNames(i) % fname)
+      enddo
+      call message(2)
+    end if
 
     numberOfActions = jcmd
 
@@ -156,6 +147,7 @@ module moduleRead
     use moduleVariables, only : fileTypeDef
     use moduleMessages 
     use moduleSystem, only : userDefinedCell, userDefinedHMatrix
+
     implicit none
     type(fileTypeDef), intent(in) :: f
     integer, intent(out) :: n
@@ -168,6 +160,9 @@ module moduleRead
 
       case ("xyz")  
         call getNumberOfAtomsXYZ(f % funit, n, hmat)
+
+      case ("arc")  
+        call getNumberOfAtomsARC(f % funit, n, hmat)
 
       case ("pdb" , "PDB")
         call getNumberOfAtomsPDB(f % funit, n, hmat)
@@ -190,6 +185,9 @@ module moduleRead
       case ("lmptrj")  
         call getNumberOfAtomsLammpsTrajectory(f % funit, n, hmat)
 
+      case ("cif") 
+        call getNumberOfAtomsCIF(f % funit, n, hmat)
+
       end select
       rewind(f % funit)
       
@@ -203,6 +201,8 @@ module moduleRead
     use moduleVariables
     use moduleSystem 
     use moduleMessages 
+    use moduleElements
+
     implicit none
     logical, intent(out) :: lerr
     integer :: numberOfAtomsLocal
@@ -212,6 +212,7 @@ module moduleRead
     logical, save :: firstTimeIn = .true.
     character(cp), allocatable, dimension(:), save :: savedLabels
     real(8), allocatable, dimension(:), save :: savedCharges
+    character(2), allocatable, dimension(:), save :: savedElements
 
 #ifdef GPTA_XDR
     type(xtcfile), save :: xtcf
@@ -224,6 +225,8 @@ module moduleRead
     character(len=STRLEN) :: fname
     logical :: firstAccess
     integer :: now, next_frame
+    integer :: iatm
+    integer :: n0
 
     ! Default to no error
     lerr = .true.
@@ -249,7 +252,7 @@ module moduleRead
       now = numberOfFramesRead
       next_frame = getNextFrameNumber(numberOfFramesRead)
 
-      numberOfAtomsLocal = numberOfAtoms
+      numberOfAtomsLocal = inputNumberOfAtoms
 
       if (next_frame < 0) then
         lerr = .false.
@@ -267,9 +270,48 @@ module moduleRead
         case ("xyz")
           call readCoordinatesXYZ(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
 
+        case ("arc")
+          call readCoordinatesARC(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
+
         case ("pdb")
-          call readCoordinatesPDB(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
+          call readCoordinatesPDB(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, localFrame % element, go)
         
+        case ("dcd2")
+          call swear()
+          block 
+            use dcdfort_common
+            use dcdfort_reader, only: dcdfile
+            type(dcdfile) :: dcd
+            integer(kind=int32) :: nframes, istart, nevery, iend, natoms
+            real(kind=real32) :: timestep
+            real(kind=real32), allocatable :: xyz(:,:)
+            real(kind=real64) :: box(6)
+            
+            if (inputFileNames(currentInputFile) % first_access) then
+              inputFileNames(currentInputFile) % first_access = .false.
+              close(iounit)
+              call dcd % open(trim(inputFileNames(currentInputFile) % fname))
+              call dcd % read_header(nframes, istart, nevery, iend, timestep, natoms)
+
+              if (numberOfAtomsLocal /= natoms) call message(-1,"Wrong number of atoms in DCD file")
+            end if
+            
+            allocate(xyz(3,numberOfAtomsLocal))
+            call dcd%read_next(xyz, box,go)
+
+            if (go) then
+
+              if ( all(box(4:6) >= -1.d0) .and.  all(box(4:6) <= 1.d0) ) then
+                box(4) = dacos(box(4)) 
+                box(5) = dacos(box(5)) 
+                box(6) = dacos(box(6)) 
+              end if
+              call cell2hmat(real(box,8),localFrame % hmat)          
+
+              localFrame % pos = real(xyz,8)
+            end if
+          end block
+
         case ("dcd")
           call readCoordinatesDCD(iounit,firstAccess,numberOfAtomsLocal,localFrame % pos,localFrame % hmat,go)
           if (present(infile)) then
@@ -279,8 +321,8 @@ module moduleRead
           end if
 
         case("gin")
-          call readCoordinatesGULP(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
-        
+          call readCoordinatesGULP(numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
+       
         case("gau")
           call readCoordinatesGaussian(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, go)
    
@@ -293,12 +335,15 @@ module moduleRead
         case("lmptrj")
           call readCoordinatesLammpsTrajectory(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
 
+        case("cif")
+          call readCoordinatesCIF(numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % hmat, go)
+
 #ifdef GPTA_XDR
         case("xtc")
           if (inputFileNames(currentInputFile) % first_access) then
             inputFileNames(currentInputFile) % first_access = .false.
             call xtcf % init(trim(inputFileNames(currentInputFile) % fname))
-          endif
+          end if
 
           call xtcf % read
           if (xtcf%NATOMS .ne. size(localFrame % pos)/3) &
@@ -310,13 +355,13 @@ module moduleRead
             localFrame % pos(1:3,1:localFrame % natoms) = xtcf % pos(1:3,1:localFrame % natoms) * 10.d0
           else
             go = .false.
-          endif
+          end if
 
         case("trr")
           if (inputFileNames(numberInputFiles) % first_access) then
             inputFileNames(numberInputFiles) % first_access = .false.
             call trrf % init(trim(inputFileNames(numberInputFiles) % fname))
-          endif
+          end if
 
           call trrf % read
           if (trrf%NATOMS .ne. localFrame % natoms) &
@@ -328,7 +373,7 @@ module moduleRead
             localFrame % pos(1:3,1:localFrame % natoms) = trrf % pos(1:3,1:localFrame % natoms) * 10.d0
           else
             go = .false.
-          endif
+          end if
 #endif
       end select
 
@@ -375,21 +420,29 @@ module moduleRead
     
     if (firstTimeIn) then
       firstTimeIn = .false.
+
+      if (ftype /= "pdb") then        
+        do iatm=1,frame % natoms
+          localFrame % element(iatm) = getElement(localFrame % lab(iatm))
+        end do
+      end if
       
-      allocate(savedLabels(numberOfAtoms))
-      allocate(savedCharges(numberOfAtoms))
+      allocate(savedLabels(frame % natoms))
+      allocate(savedCharges(frame % natoms))
+      allocate(savedElements(frame % natoms))
       
       savedLabels = localFrame % lab
       savedCharges = localFrame % chg
+      savedElements = localFrame % element
+
     else
-      if (keepFrameLabels) localFrame% lab = savedLabels
-      if (keepFrameCharges) localFrame% chg = savedCharges
+
+      n0 = size(savedLabels)
+      if (resetFrameLabels) localFrame% lab(1:n0) = savedLabels(1:n0)
+      if (resetFrameCharges) localFrame% chg(1:n0) = savedCharges(1:n0)
+      if (resetFrameElements) localFrame% element(1:n0) = savedElements(1:n0)
+
     end if
-    
-    ! if (mod(numberOfFramesRead,nProgress)==0) then
-    !   if (numberOfFramesRead > nProgress) call message(-2)
-    !   call message(0,"---Frames read",numberOfFramesRead)
-    ! end if
     
   end subroutine readCoordinates
   
@@ -453,7 +506,7 @@ module moduleRead
       if (abs(frame % hmat(2,1)) + abs(frame % hmat(3,1)) + abs(frame % hmat(3,2)) .gt. 1.0d-6) then
         call makeUpperTriangularCell(frame % hmat, frame % pos, frame % natoms)
         call getInverseCellMatrix (frame % hmat, frame % hinv, frame % volume)
-      endif
+      end if
       call hmat2cell (frame % hmat, frame % cell, "DEG")
 
       if (abs(frame % hmat(1,2)) + abs(frame % hmat(1,3)) + abs(frame % hmat(2,3)) .lt. 1.0d-6) then
@@ -472,9 +525,14 @@ module moduleRead
       call systemComposition(frame)
 
       totalMass = 0.d0
-      do iatm=1,frame % natoms
-        totalMass = totalMass + getElementMass(frame % lab(iatm))
-      enddo
+      block
+        real(8) :: rmass
+        do iatm=1,frame % natoms
+          rmass = getElementMass(frame % lab(iatm))
+          frame % mass(iatm) = rmass
+          totalMass = totalMass + rmass
+        enddo
+      end block
 
       totalCharge = 0.d0
       do iatm=1,frame % natoms

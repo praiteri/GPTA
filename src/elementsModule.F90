@@ -89,11 +89,13 @@ contains
     element = ''
     do i=1,cp
       if (ichar(label(i:i)) >=48 .and. ichar(label(i:i))<=57 ) exit
-      if (i==1) then
-        element(i:i) = uppercase(label(i:i))
-      else
-        element(i:i) = label(i:i)
-      end if
+      call lowercase(label,element)
+      element(1:1) = uppercase(label(1:1))
+      ! if (i==1) then
+      !   element(i:i) = uppercase(label(i:i))
+      ! else
+      !   element(i:i) = label(i:i)
+      ! end if
     enddo
     ln=len_trim(element)
     id=0
@@ -107,7 +109,7 @@ contains
     enddo
 
 ! This should ensure atoms to have letters after the species name
-! for exaple CA or CB can be identified as carbon atoms
+! for exaple HA or HB can be identified as hydrogen atoms
     if(id<=0 .and. ln>1) then
       ln = ln-1
       goto 100
@@ -115,6 +117,48 @@ contains
 
     return
   end function getAtomicNumber
+
+  function getElement(label) result(elem)
+    implicit none
+    character(*), intent(in) :: label
+    character(2) :: elem
+    integer :: id
+
+    character(cp) :: element
+    character(len=1), external :: uppercase
+    integer :: i, ln
+
+    element = ''
+    do i=1,cp
+      if (ichar(label(i:i)) >=48 .and. ichar(label(i:i))<=57 ) exit
+      call lowercase(label,element)
+      element(1:1) = uppercase(label(1:1))
+      ! if (i==1) then
+      !   element(i:i) = uppercase(label(i:i))
+      ! else
+      !   element(i:i) = label(i:i)
+      ! end if
+    enddo
+    ln=len_trim(element)
+    id=0
+100 continue
+    do i=1,nelement
+      if ( len_trim(atom(i) % lab) /= ln ) cycle
+      if(element(1:ln)==atom(i) % lab(1:ln)) then
+        elem = atom(i) % lab(1:2)
+        return
+      end if
+    enddo
+
+! This should ensure atoms to have letters after the species name
+! for exaple CA or CB can be identified as hydrogen atoms
+    if(id<=0 .and. ln>1) then
+      ln = ln-1
+      goto 100
+    end if
+
+    return
+  end function getElement
 
   function getElementMass(label) result(mass)
     implicit none

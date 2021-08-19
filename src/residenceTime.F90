@@ -39,7 +39,7 @@ module moduleResidenceTime
 
   implicit none
 
-  public :: computeResidenceTime
+  public :: computeResidenceTime, computeResidenceTimeHelp
   private
   character(:), pointer :: actionCommand
   logical, pointer :: firstAction
@@ -55,6 +55,14 @@ module moduleResidenceTime
   integer, pointer :: threshold
 
 contains
+
+  subroutine computeResidenceTimeHelp()
+    implicit none
+    call message(0,"This action computes the solvent residence time around selected solute atoms.")
+    call message(0,"For efficiency reasons it requires to provide the number of frames in the trajectory.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --restime +s Ca OW +rcut 3.2 +thres 1 +ntraj 1000")
+  end subroutine computeResidenceTimeHelp
 
   subroutine computeResidenceTime(a)
     use moduleSystem 
@@ -75,7 +83,7 @@ contains
       if (firstAction) then
         call dumpScreenInfo()
 
-        if (keepFrameLabels) then
+        if (resetFrameLabels) then
           a % updateAtomsSelection = .false.
         else
           a % updateAtomsSelection = .true.

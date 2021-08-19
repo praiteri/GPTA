@@ -406,7 +406,7 @@ contains
         else
           stdev = sqrt(stdev)
         end if
-        write(iounit,'(f20.10,1x,f20.10)') norm0, stdev
+        write(iounit,'(3(f15.5,1x))') norm0, stdev, stdev/sqrt( real(property(ID) % numberOfValues) )
         idx = idx + 2
       end do
 

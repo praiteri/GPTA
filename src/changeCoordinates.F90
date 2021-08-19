@@ -32,7 +32,157 @@
 ! 
 module moduleModifyCoordinates
 
-  contains
+contains
+
+  subroutine rescaleCellHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This action changes the system cell and rescales the atomic coordinates")
+    call message(0,"The cell can be expressed as:")
+    call message(0,"  1 number -> cubic")
+    call message(0,"  3 number -> orthorhombic")
+    call message(0,"  6 number -> a, b, c, alpha, beta, gamma")
+    call message(0,"  9 number -> metric matrix")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --rescale +cell 10")
+    call message(0,"  gpta.x --i coord.pdb --rescale +cell 10,20,30")
+    call message(0,"  gpta.x --i coord.pdb --rescale +cell 10,10,10,90,90,120")
+    call message(0,"  gpta.x --i coord.pdb --rescale +cell 10,0,0,0,10,0,0,0,10")
+  end subroutine rescaleCellHelp
+
+  subroutine shiftCoordinatesHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This action shifts the atomic coordinates by a 3D vector")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --shift 1,2,3")
+  end subroutine shiftCoordinatesHelp
+
+  subroutine shiftCOMHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This actions shifts the centre of mass of the selected atoms to:")
+    call message(0,"  * the centre of the cell (+centre)")
+    call message(0,"  * the same position as the first frame (+initial)")
+    call message(0,"  * a user defined point (+pos)")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --fixcom +c Ca +centre")
+    call message(0,"  gpta.x --i coord.pdb --fixcom +c Ca +initial")
+    call message(0,"  gpta.x --i coord.pdb --fixcom +c Ca +pos 10,20,30")
+  end subroutine shiftCOMHelp
+
+  subroutine applyPeriodicboundaryConditionsHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This actions wraps the atoms/molecules inside the cell.")
+    call message(0,"If the topology is known the molecues are not broken.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --pbc")
+    call message(0,"  gpta.x --i coord.pdb --top --pbc")
+  end subroutine applyPeriodicboundaryConditionsHelp
+
+  subroutine unwrapCoordinatesHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This actions unwraps the atoms/molecules across the PBC to generate a continuous trajectory.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb trajectory.dcd --unwrap")
+    call message(0,"  gpta.x --i coord.pdb trajectory.dcd --top --unwrap")
+  end subroutine unwrapCoordinatesHelp
+
+  subroutine replicateCellHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This action creates a supercell of the initial system.")
+    call message(0,"If the topology is known the replication is done by molecule; the molecues must not be broken.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --repl 2,2,2")
+    call message(0,"  gpta.x --i coord.pdb --top --repl 2,2,2")
+  end subroutine replicateCellHelp
+
+  subroutine mirrorCellHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This action replicates the system by making its mirror image.")
+    call message(0,"The mirror plane is one of the faces of the cell normal to x, y or z")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --mirror +x")
+    call message(0,"  gpta.x --i coord.pdb --mirror +y")
+    call message(0,"  gpta.x --i coord.pdb --mirror +z")
+  end subroutine mirrorCellHelp
+
+  subroutine removeOverlappingMoleculesHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This action remove molecules that overlap.")
+    call message(0,"The minimum distance between atoms can be specified by the +rmin flag.")
+    call message(0,"If the topology is known the the entire molecule is removed.")
+    call message(0,"It is also possoble to do a dry run to see how many atoms/molecules will be removed with certain distances.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --noclash +rmin 1.1")
+    call message(0,"  gpta.x --i coord.pdb --top --noclash +rmin 1.1")
+    call message(0,"  gpta.x --i coord.pdb --top --noclash +rmin 1.1 +dry")
+  end subroutine removeOverlappingMoleculesHelp
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine rescaleCell(a)
+    use moduleVariables
+    use moduleSystem 
+    use moduleStrings
+    use moduleMessages 
+    use moduleDistances
+    implicit none
+    type(actionTypeDef), target :: a
+    character(:), pointer :: actionCommand
+
+    integer :: numberOfWords
+    character(len=STRLEN), dimension(100) :: listOfWords
+
+    logical, pointer :: actionInitialisation
+    character(len=100) :: stringCell
+    real(8), dimension(3,3), save :: hmat, hinv
+    real(8), save :: volume, cell(6)
+
+    ! Associate variables
+    actionCommand        => a % actionDetails
+    actionInitialisation => a % actionInitialisation
+    
+    if (actionInitialisation) then
+      actionInitialisation = .false.
+      a % requiresNeighboursList = .false.
+      
+      call parse(actionCommand," ",listOfWords,numberOfWords)
+
+      if (numberOfWords==0) call message(-1,"--rescale : nothing to do")
+
+      call assignFlagValue(actionCommand,"+cell ", stringCell, "NONE")
+      call readCellFreeFormat(stringCell, hmat)
+      call getInverseCellMatrix(hmat,hinv,volume)
+      call hmat2cell (hmat, cell, "DEG")
+
+      call message(0,"Rescaled cell")
+      call message(0,"...Cell vector A",rv=hmat(1:3,1))
+      call message(0,"...Cell vector B",rv=hmat(1:3,2))
+      call message(0,"...Cell vector C",rv=hmat(1:3,3))
+      call message(0,"...Cell lengths",rv=cell(1:3))
+      call message(0,"...Cell angles",rv=cell(4:6))
+      call message(1,"...Volume",r=volume)
+
+      call checkUsedFlags(actionCommand)
+      return
+    end if
+    
+    if (frameReadSuccessfully) then 
+      frame % hmat = hmat
+      frame % hinv = hinv
+      frame % volume = volume
+      frame % cell = cell
+      call fractionalToCartesian(frame % natoms, frame % frac, frame % pos)
+    end if
+
+    if (endOfCoordinatesFiles) return
+
+  end subroutine rescaleCell
 
   subroutine shiftCoordinates(a)
     use moduleVariables
@@ -88,12 +238,20 @@ module moduleModifyCoordinates
       call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
     end if
 
-    if (numberOfMolecules>0) call computeMoleculesCOM()
+!    if (numberOfMolecules>0) call computeMoleculesCOM(0)
+    if (numberOfMolecules>0) then
+      block
+        integer :: imol
+        do imol=1,numberOfMolecules
+          listOfMolecules(imol) % centreOfMass = listOfMolecules(imol) % centreOfMass + dpos
+        end do
+      end block
+    end if
     if (endOfCoordinatesFiles) return
 
   end subroutine shiftCoordinates
 
-    subroutine shiftCOM(a)
+  subroutine shiftCOM(a)
     use moduleVariables
     use moduleSystem 
     use moduleStrings
@@ -105,6 +263,7 @@ module moduleModifyCoordinates
     logical, pointer :: firstAction
     logical, pointer :: actionInitialisation
     logical, pointer :: lcentre
+    logical, pointer :: linitial
     real(8), pointer, dimension(:) :: dpos
     
     real(8), dimension(3) :: xcom, xcentre, delta
@@ -118,6 +277,7 @@ module moduleModifyCoordinates
     dpos(1:3)            => a % doubleVariables(1:3)
     firstAction          => a % firstAction
     lcentre              => a % logicalVariables(1)
+    linitial             => a % logicalVariables(2)
 
     if (actionInitialisation) then
       actionInitialisation = .false.
@@ -125,6 +285,9 @@ module moduleModifyCoordinates
       
       ! fix the centre of mass to the cell centre      
       call assignFlagValue(actionCommand,"+centre",lcentre,.false.)
+      
+      ! fix the centre of mass intial position
+      call assignFlagValue(actionCommand,"+initial",linitial,.false.)
 
       if (.not. lcentre) call assignFlagValue(actionCommand,"+pos",dpos,[0.d0,0.d0,0.d0])
 
@@ -138,21 +301,40 @@ module moduleModifyCoordinates
       if (firstAction) then
         if (lcentre) then
           call message(0,"Translating centre of mass to the centre of the cell")
+
+        else if (linitial) then
+          call message(0,"Translating centre of mass to its initial position")
+        
         else
           call message(0,"Translating centre of mass to",rv=dpos)
         end if
 
-        if (keepFrameLabels) then
+        call selectAtoms(1,actionCommand,a)
+        call createSelectionList(a,1)
+        if (linitial) then
+          block
+            nsel = count(a % isSelected(:,1))
+
+            dpos = 0.d0
+            do i=1,nsel
+              idx = a % idxSelection(i,1)
+              dpos(1:3) = dpos(1:3) + frame % pos(1:3,idx)
+            end do
+            dpos(1:3) = dpos(1:3) / dble(nsel)
+          end block
+        end if
+
+        if (resetFrameLabels) then
           a % updateAtomsSelection = .false.
         else
           a % updateAtomsSelection = .true.
         end if
 
-        call selectAtoms(1,actionCommand,a)
-        call createSelectionList(a,1)
-
         call checkUsedFlags(actionCommand)
+
         firstAction = .false.
+
+        if (linitial) return
 
       else
 
@@ -185,7 +367,16 @@ module moduleModifyCoordinates
       call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
     end if
 
-    if (numberOfMolecules>0) call computeMoleculesCOM()
+!    if (numberOfMolecules>0) call computeMoleculesCOM(0)
+    if (numberOfMolecules>0) then
+      block
+        integer :: imol
+        do imol=1,numberOfMolecules
+          listOfMolecules(imol) % centreOfMass = listOfMolecules(imol) % centreOfMass + delta
+        end do
+      end block
+    end if
+
     if (endOfCoordinatesFiles) return
 
   end subroutine shiftCOM
@@ -244,9 +435,14 @@ module moduleModifyCoordinates
       endif
 
       do iatm=1,frame % natoms
-        dij = frame % pos(:,iatm) - a % localPositions(:,iatm)
-        dist = computeDistanceSquaredPBC(dij)
-        frame % pos(:,iatm) = a % localPositions(:,iatm) + dij
+        if (any(frame % frac(:,iatm) < 0.d0) .or. any(frame % frac(:,iatm) > 1.d0)) then
+          dij = frame % pos(:,iatm) - a % localPositions(:,iatm)
+          dist = computeDistanceSquaredPBC(dij)
+          frame % pos(:,iatm) = a % localPositions(:,iatm) + dij
+        end if
+       ! dij = frame % pos(:,iatm) - a % localPositions(:,iatm)
+       ! dist = computeDistanceSquaredPBC(dij)
+       ! frame % pos(:,iatm) = a % localPositions(:,iatm) + dij
       end do
 
       a % localPositions = frame % pos
@@ -273,6 +469,7 @@ module moduleModifyCoordinates
     real(8), allocatable, dimension(:,:) :: cartesianCoord
     real(8), allocatable, dimension(:) :: saveCharges
     character(cp), allocatable, dimension(:) :: saveLabels
+    real(8), allocatable, dimension(:) :: saveMasses
     
     integer, pointer, dimension(:) :: idx, jdx, kdx
     integer :: nargs
@@ -314,18 +511,35 @@ module moduleModifyCoordinates
     end if
     
     if (frameReadSuccessfully) then 
-
       if (numberOfMolecules > 0) call runInternalAction("pbc","NULL")
 
       nrepl = (idx(2)-idx(1)+1) * (jdx(2)-jdx(1)+1) * (kdx(2)-kdx(1)+1)
-      call move_alloc(frame % pos, cartesianCoord)
-      call move_alloc(frame % lab, saveLabels)
-      call move_alloc(frame % chg, saveCharges)
+
+      allocate(cartesianCoord(3, frame % natoms))
+      allocate(    saveLabels(   frame % natoms))
+      allocate(   saveCharges(   frame % natoms))
+      allocate(    saveMasses(   frame % natoms))
+      cartesianCoord = frame % pos
+          saveLabels = frame % lab
+         saveCharges = frame % chg
+          saveMasses = frame % mass
+  
+  
+      ! call move_alloc(frame % pos, cartesianCoord)
+      ! call move_alloc(frame % lab, saveLabels)
+      ! call move_alloc(frame % chg, saveCharges)
+      ! call move_alloc(frame % mass, saveMasses)
+      deallocate(frame % pos)
+      deallocate(frame % lab)
+      deallocate(frame % chg)
+      deallocate(frame % mass)
       deallocate(frame % frac)
       
       allocate(frame % pos(3,frame % natoms * nrepl))
       allocate(frame % lab(frame % natoms * nrepl))
       allocate(frame % chg(frame % natoms * nrepl))
+      allocate(frame % mass(frame % natoms * nrepl))
+      allocate(frame % frac(3,frame % natoms * nrepl))
       
       nn = 0 
       do iatm=1,frame % natoms
@@ -339,6 +553,7 @@ module moduleModifyCoordinates
                                   + k*frame % hmat(1:3,3)
               frame % lab(nn) = saveLabels(iatm)
               frame % chg(nn) = saveCharges(iatm)
+              frame % mass(nn)= saveMasses(iatm)
             end do
           end do
         end do
@@ -352,7 +567,6 @@ module moduleModifyCoordinates
       call getInverseCellMatrix(frame % hmat, frame % hinv, frame % volume)
       call hmat2cell (frame % hmat, frame % cell, "DEG")
 
-      allocate(frame % frac(3,frame % natoms))
       call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
 
       call setUpNeigboursList()
@@ -434,7 +648,7 @@ module moduleModifyCoordinates
       nrepl = 2
      
       if (a % firstAction) then
-        call extendFrame(frame, frame % natoms * nrepl)
+        call extendFrame(frame % natoms * nrepl)
         call checkUsedFlags(actionCommand)
         a % firstAction = .false.
       end if
@@ -482,14 +696,18 @@ module moduleModifyCoordinates
     type(actionTypeDef), target :: a
     character(:), pointer :: actionCommand  
     logical, pointer :: firstAction
+    logical, pointer :: dryRun
 
     real(8), pointer :: overlapDistance
+    integer :: nmol0, natm0
+    integer :: nmol1, natm1
     
     ! Associate variables
     actionCommand        => a % actionDetails
     firstAction          => a % firstAction
 
     overlapDistance      => a % doubleVariables(1)
+    dryRun               => a % logicalVariables(1)
 
     if (a % actionInitialisation) then
       a % actionInitialisation = .false.
@@ -497,8 +715,10 @@ module moduleModifyCoordinates
       a % requiresNeighboursListUpdates = .true.
       a % requiresNeighboursListDouble = .false.
       
-      call assignFlagValue(actionCommand,"+r",overlapDistance,1.5d0)
+      call assignFlagValue(actionCommand,"+rmin",overlapDistance,0.5d0)
       a % cutoffNeighboursList = overlapDistance
+
+      call assignFlagValue(actionCommand,"+dry",dryRun,.false.)
 
       call checkUsedFlags(actionCommand)
 
@@ -509,10 +729,51 @@ module moduleModifyCoordinates
 
       if (firstAction) then
         call message(0,"Removing overlap")
-        call message(1,"...Minimum overlap distance",r=overlapDistance)
+        call message(0,"...Minimum overlap distance",r=overlapDistance)
         call checkUsedFlags(actionCommand)
         firstAction = .false.
       end if
+      
+      block
+        integer :: iatm, ineigh
+        integer :: ndist0 = 0
+        integer :: ndist1 = 0
+        integer :: ndist2 = 0
+        integer :: ndist3 = 0
+        real(8) :: rdist1 = 0.1d0
+        real(8) :: rdist2 = 0.5d0
+        real(8) :: rdist3 = 1.0d0
+        character(len=5) :: str
+        do iatm=1,frame % natoms
+          do ineigh=1,nneigh(iatm)
+
+            if (rneigh(ineigh,iatm) < rdist1) then
+              ndist1 = ndist1 + 1
+            else if (rneigh(ineigh,iatm) < rdist2) then
+              ndist2 = ndist2 + 1
+            else if (rneigh(ineigh,iatm) < rdist3) then
+              ndist3 = ndist3 + 1
+            end if
+          
+            if (rneigh(ineigh,iatm) < overlapDistance) ndist0 = ndist0 + 1
+            
+          end do
+        end do
+
+        write(str,'(f5.3)')overlapDistance
+        call message(0,"...Number of contacts below "//trim(str)//" A",i=ndist0)
+        write(str,'(f3.1)')rdist1
+        call message(0,"...Number of contacts below "//trim(str)//" A",i=ndist1)
+        write(str,'(f3.1)')rdist2
+        call message(0,"...Number of contacts below "//trim(str)//" A",i=ndist2)
+        write(str,'(f3.1)')rdist3
+        call message(1,"...Number of contacts below "//trim(str)//" A",i=ndist3)
+      end block
+        
+      if (dryRun) return
+
+      natm0 = frame % natoms
+      nmol0 = numberOfMolecules
 
       if (numberOfMolecules == 0) then
         call deleteOverlapAllAtoms(overlapDistance,.true.)
@@ -524,9 +785,14 @@ module moduleModifyCoordinates
       ! update neighbours' list
       call updateNeighboursList(.true.)
       
+      natm1 = frame % natoms
+      call message(0,"...Number of atoms removed",natm0-natm1)
       if (numberOfMolecules > 0) then
         call runInternalAction("topology","+update")
+        nmol1 = numberOfMolecules
+        call message(0,"...Number of molecules removed",nmol0-nmol1)
       end if
+      call message(2)
 
     end if
 
@@ -536,7 +802,7 @@ module moduleModifyCoordinates
 
 end module moduleModifyCoordinates
 
- subroutine checkForBrokenMolecules(brokenMolecule)
+subroutine checkForBrokenMolecules(brokenMolecule)
   use moduleSystem 
   use moduleDistances
   use moduleMessages
@@ -611,21 +877,30 @@ subroutine reassembleBrokenMolecules()
 
 end subroutine reassembleBrokenMolecules
 
-subroutine computeMoleculesCOM()
+subroutine computeMoleculesCOM(mol0)
   use moduleSystem 
+  use moduleElements 
+
   implicit none
 
+  integer, intent(in) :: mol0
   integer :: imol, idx, iatm
-  real(8) :: xcom(3)
+  real(8) :: xcom(3), mass, massTotal
 
-  do imol=1,numberOfMolecules
+  do imol=mol0+1,numberOfMolecules
     xcom = 0.0d0
+    massTotal = 0.d0
     do idx=1,listOfMolecules(imol) % numberOfAtoms
       iatm = listOfMolecules(imol) % listOfAtoms(idx)
-      xcom = xcom + frame % pos(1:3,iatm)
+      ! mass = getElementMass(listOfMolecules(imol) % listOfLabels(idx))
+      mass = frame % mass(iatm)
+      xcom = xcom + frame % pos(1:3,iatm) * mass
+      massTotal = massTotal + mass
     enddo
-    listOfMolecules(imol) % centreOfMass(1:3) = xcom / listOfMolecules(imol) % numberOfAtoms
+    ! listOfMolecules(imol) % centreOfMass(1:3) = xcom / listOfMolecules(imol) % numberOfAtoms
+    listOfMolecules(imol) % centreOfMass(1:3) = xcom / massTotal
   enddo
+
 end subroutine computeMoleculesCOM
 
 subroutine deleteOverlapAllMolecules(rcut,removeSecond)

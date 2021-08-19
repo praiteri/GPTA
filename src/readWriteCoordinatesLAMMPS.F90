@@ -306,7 +306,7 @@ subroutine writeLammpsCoordinates(iout)
   if (allocated(lmp_impropers)) numberOfImproperTerms = sum(lmp_impropers(:) % number)
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  call message(0,"LAMMPS forcefiel summary")
+  call message(0,"LAMMPS forcefield summary")
   call message(0,"...Number of atom types",i=lammpsNumberOfAtoms)
   do idx=1,lammpsNumberOfAtoms
     call message(0,"......Atom type -> "//trim(lammpsAtomTypes(idx)),lmp_atoms(idx) % number)
@@ -728,21 +728,82 @@ subroutine getNumberOfAtomsLammpsTrajectory(uinp, n, hmat)
   real(8), dimension(3,3), intent(out) :: hmat
   
   integer :: ios
+  integer :: pbcType
   character(len=10) :: fmtline
   integer, parameter :: maxCharacters = 200
   character(len=maxCharacters)  :: line
   real(8) :: rtmp(2)
   
   write(fmtline,'("(a",i0,")")') maxCharacters
-  do
+
+  main: do
     read(uinp,fmtline,iostat=ios)line
     if (ios /= 0) return
 
     if (index(line,"ITEM: NUMBER OF ATOMS") > 0) then
       read(uinp,*)n
+    end if
+  
+    ! read the cell
+    if (index(line,"ITEM: BOX BOUNDS") > 0) then
+
+      if ( index(line,"ITEM: BOX BOUNDS pp pp pp") > 0 ) then
+        pbcType = 1
+      else if ( index(line,"ITEM: BOX BOUNDS xy xz yz pp pp pp") > 0 ) then
+        pbcType = 2
+      else
+        pbcType = 0
+      end if
+
+      ! read an orthorhombic cell
+      if (pbcType == 1) then
+        block
+          integer :: idx
+          do idx=1,3
+            read(uinp,fmtline, iostat=ios) line 
+            if (ios /= 0) then
+              exit main
+            end if
+            read(line,*) rtmp
+            hmat (idx, idx) = rtmp(2) - rtmp(1)
+          end do
+        end block
+    
+     ! read a triclinic cell
+      else if (pbcType == 2) then
+        block
+          real(8) :: xlo_bound, xhi_bound, xy
+          real(8) :: ylo_bound, yhi_bound, xz
+          real(8) :: zlo_bound, zhi_bound, yz
+          real(8) :: xlo, xhi
+          real(8) :: ylo, yhi
+          real(8) :: zlo, zhi
+          
+          read(uinp,*) xlo_bound, xhi_bound, xy
+          read(uinp,*) ylo_bound, yhi_bound, xz
+          read(uinp,*) zlo_bound, zhi_bound, yz
+      
+          xlo = xlo_bound - MIN(0.0,xy,xz,xy+xz)
+          xhi = xhi_bound - MAX(0.0,xy,xz,xy+xz)
+          ylo = ylo_bound - MIN(0.0,yz)
+          yhi = yhi_bound - MAX(0.0,yz)
+          zlo = zlo_bound
+          zhi = zhi_bound
+      
+          hmat(1,1) = xhi - xlo
+          hmat(2,2) = yhi - ylo
+          hmat(3,3) = zhi - zlo
+          hmat(1,2) = xy
+          hmat(1,3) = xz
+          hmat(2,3) = yz
+       end block
+    
+      end if
+
       return
     end if
-  end do
+
+  end do main
   
 end subroutine getNumberOfAtomsLammpsTrajectory
 
@@ -768,6 +829,8 @@ subroutine readCoordinatesLammpsTrajectory(uinp,natoms,pos,label,charge,hmat,go)
   integer :: pbcType, n
   real(8) :: rtmp(2)
 
+  charge=0.d0
+  
   write(fmtline,'("(a",i0,")")') maxCharacters
   go = .true.
 
@@ -813,7 +876,6 @@ subroutine readCoordinatesLammpsTrajectory(uinp,natoms,pos,label,charge,hmat,go)
         ! read a triclinic cell
         else if (pbcType == 2) then
           block
-            integer :: idx
             real(8) :: xlo_bound, xhi_bound, xy
             real(8) :: ylo_bound, yhi_bound, xz
             real(8) :: zlo_bound, zhi_bound, yz

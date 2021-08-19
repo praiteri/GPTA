@@ -138,6 +138,14 @@ subroutine message(istop,comment,icol,i,r,iv,rv,str,l)
     lastDash = .false.
   end if
 
+  if (istop == -3) then
+#ifdef GPTA_MPI
+    call MPI_Abort(MPI_COMM_WORLD, 9, idx )
+#else
+    stop
+#endif
+  end if
+
   line = ""
   str0 = ""
   str1 = ""

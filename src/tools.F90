@@ -196,6 +196,9 @@ do i=1,ilen
     lcstr(i:i)=str(i:i)
   end if
 end do
+do i=ilen+1,len(lcstr)
+  lcstr(i:i)=" "
+end do
 
 end subroutine lowercase
 
@@ -488,9 +491,8 @@ subroutine readCellFreeFormat(string, hmat)
   character(len=STRLEN), dimension(100) :: listOfWords
   real(8), dimension(6) :: cell
 
+  hmat = 0.d0
   call parse(string,",",listOfWords,numberOfWords)
-  write(0,*)"#"//trim(string)//"#"
-  write(0,*)numberOfWords
   if (numberOfWords == 1) then
     read(listOfWords(1),*) hmat(1,1)
     hmat(2,2) = hmat(1,1)
@@ -685,6 +687,33 @@ subroutine createSelectionList(a,n)
     end do
   end do
 end subroutine createSelectionList
+
+subroutine createInvertedSelectionList(a,n)
+  use moduleVariables, only : actionTypeDef
+  use moduleSystem, only : frame 
+  use moduleMessages
+  implicit none
+  type(actionTypeDef), target :: a
+  integer, intent(in) :: n
+  integer :: ntmp, i, idx
+  if (.not. allocated(a % isSelected)) call message(-1,"Cannot creat selection list",str=a % actionDetails)
+
+  ntmp = frame % natoms - count(a % isSelected(:,1))
+  do idx=2,n
+    ntmp = max(ntmp , frame % natoms - count(a % isSelected(:,idx)))
+  end do
+
+  if (.not. allocated(a % idxSelection)) allocate(a % idxSelection(ntmp,n))
+  
+  do idx=1,n
+    ntmp = 0
+    do i=1,frame % natoms
+      if (a % isSelected(i, idx)) cycle
+      ntmp = ntmp + 1
+      a % idxSelection(ntmp, idx) = i
+    end do
+  end do
+end subroutine createInvertedSelectionList
 
 subroutine defineSurfaceVectors(imiller, hmat, hsurf)
   ! use m_rnkpar

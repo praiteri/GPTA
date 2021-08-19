@@ -38,7 +38,7 @@ module moduleDensityMap3D
   use moduleFiles
   use moduleDistances
 
-  public :: computeDensityMap3D
+  public :: computeDensityMap3D, computeDensityMap3DHelp
   private
 
   character(:), pointer :: actionCommand
@@ -55,11 +55,20 @@ module moduleDensityMap3D
 
 contains
 
+  subroutine computeDensityMap3DHelp()
+    implicit none
+    call message(0,"This action computes the 3D density map for the selected atoms in a portion of the system.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --dmap3D +out dmap3D.cube +s O2 +origin 12,34,56 +cell 10")
+    call message(0,"  gpta.x --i coord.pdb --dmap3D +out dmap3D.cube +s O2 +origin 12,34,56 +cell 10,10,2")
+    call message(0,"  gpta.x --i coord.pdb --dmap3D +out dmap3D.cube +s O2 +cell 10,10,10,90,90,90")
+    call message(0,"  gpta.x --i coord.pdb --dmap3D +out dmap3D.cube +s O2 +cell 10,0,0,0,10,0,0,0,10")
+  end subroutine computeDensityMap3DHelp
+
   subroutine computeDensityMap3D(a)
 
     implicit none
     type(actionTypeDef), target :: a
-
 
     integer, dimension(3) :: itmp
     real(8), allocatable, dimension(:,:) :: cartesianCoord
@@ -157,12 +166,12 @@ contains
   subroutine dumpSetupInfo()
     implicit none
     call message(0,"Compute 3D density map")
+    call message(0,"...Output file",str=outputFile % fname)
     call message(0,"...Number of bins",iv=numberOfBins)
     call message(0,"...Origin",rv=origin)
     call message(0,"...Region size A",rv=densityBox(1:3))
     call message(0,"...Region size B",rv=densityBox(4:6))
     call message(0,"...Region size C",rv=densityBox(7:9))
-    call message(0,"...Output file",str=outputFile % fname)
   end subroutine dumpSetupInfo
 
   subroutine dumpDensityCube()
@@ -201,18 +210,18 @@ contains
       end do
     end do
 
-     i=0
-     do ix=1,numberOfBins(1)
-       do iy=1,numberOfBins(2)
-         do iz=1,numberOfBins(3)
-           i=i+1
-           write(funit,'(e13.5)',advance='no')dmap(ix,iy,iz)
-           if(mod(i,6)==0)write(funit,*)
-         enddo
-         if (mod(numberOfBins(3),6)/=0) write(funit,*)
-       enddo
-     enddo
-     call flush(funit)
+    i=0
+    do ix=1,numberOfBins(1)
+      do iy=1,numberOfBins(2)
+        do iz=1,numberOfBins(3)
+          i=i+1
+          write(funit,'(e13.5)',advance='no')dmap(ix,iy,iz)
+          if(mod(i,6)==0)write(funit,*)
+        enddo
+        if (mod(numberOfBins(3),6)/=0) write(funit,*)
+      enddo
+    enddo
+    call flush(funit)
 
   end subroutine dumpDensityCube
 

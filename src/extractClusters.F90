@@ -40,7 +40,7 @@ module moduleExtractClustersAction
   
   implicit none
 
-  public :: ExtractClusters
+  public :: extractClusters, extractClustersHelp
   private
 
   character(:), pointer :: actionCommand
@@ -53,7 +53,14 @@ module moduleExtractClustersAction
 
 contains
 
-  subroutine ExtractClusters(a)
+  subroutine extractClustersHelp()
+    implicit none
+    call message(0,"This action extracts a spherical cluster of radius R around the selected atom.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --cluster +i 12 +r 6.0 +out clusters.xyz")
+  end subroutine extractClustersHelp
+
+  subroutine extractClusters(a)
     implicit none
     type(actionTypeDef), target :: a
 
@@ -73,7 +80,7 @@ contains
       call computeAction()
     end if
 
-  end subroutine ExtractClusters
+  end subroutine extractClusters
 
   subroutine initialiseAction(a)
     implicit none

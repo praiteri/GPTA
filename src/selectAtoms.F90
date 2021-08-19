@@ -68,6 +68,13 @@ subroutine selectAtoms(nsel,cmd,a)
   call parse2(cmd,"+",listOfFlags,numberOfFlags)
   do idx=1,numberOfFlags
 
+    ! select all atoms
+    if (index(listOfFlags(idx),"all") > 0 .or. index(listOfFlags(idx),"ALL") > 0) then
+        selectionID = selectionID + 1
+        a % isSelected(: , selectionID) = .true.
+        cycle
+    end if
+
     ! select atoms by label
     if ( index(listOfFlags(idx),"+s ") > 0) then
       selectionString = trim(selectionString) // " " // trim(listOfFlags(idx))

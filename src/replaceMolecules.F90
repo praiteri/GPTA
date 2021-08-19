@@ -43,7 +43,7 @@ module moduleReplaceMolecule
 
   implicit none
 
-  public :: replaceMolecules
+  public :: replaceMolecules, replaceMoleculesHelp
   private
 
   character(:), pointer :: actionCommand
@@ -63,6 +63,15 @@ module moduleReplaceMolecule
   integer, pointer :: ID
 
 contains
+
+  subroutine replaceMoleculesHelp()
+    implicit none
+    call message(0,"This action can be used to replace selected molecules with a different molecule read from a file.")
+    call message(0,"The +is and +ir flags provide a mapping between the atoms in the system's and reference molecules.")
+    call message(0,"Examples:")
+    call message(0,"gpta.x --i co3.pdb --top --subs +mol M1 +is 1,2,3,4 +ir 1,4,3,2 +f hco3.pdb --o new.pdb")
+    call message(0,"gpta.x --i slab.pdb --top --subs +mol M1 +all +f co3.pdb +rmsd rmsd.out")
+  end subroutine replaceMoleculesHelp
 
   subroutine initialiseAction(a)
     use moduleStrings

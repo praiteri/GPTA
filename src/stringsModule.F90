@@ -94,10 +94,13 @@ contains
   ! the delimiters contained in the string 'delims'. Preceding a delimiter in
   ! 'str' by a backslash (\) makes this particular instance not a delimiter.
   ! The integer output variable nargs contains the number of arguments found.
-  
+  implicit none
+
   character(len=*) :: str,delims
   character(len=len_trim(str)) :: strwork
   character(len=*),dimension(:) :: args
+
+  integer :: nargs, na, k, i, lenstr
 
   nargs=0
   if (len_trim(str) == 0) return
@@ -125,16 +128,19 @@ contains
   
   end subroutine parse
   
-    subroutine parse2(str,delims,args,nargs)
+  subroutine parse2(str,delims,args,nargs)
   
   ! Parses the string 'str' into arguments args(1), ..., args(nargs) based on
   ! the delimiters contained in the string 'delims'. Preceding a delimiter in
   ! 'str' by a backslash (\) makes this particular instance not a delimiter.
   ! The integer output variable nargs contains the number of arguments found.
-  
+  implicit none
+
   character(len=*) :: str,delims
   character(len=len_trim(str)) :: strwork
   character(len=*),dimension(:) :: args
+
+  integer :: nargs, na, k, i, lenstr
 
   nargs=0
   if (len_trim(str) == 0) return
@@ -169,9 +175,13 @@ contains
   
   ! Reads line from unit=nunitr, ignoring blank lines
   ! and deleting comments beginning with "#"
+  implicit none
+  integer, intent(in) :: nunitr
+  character(len=*), intent(inout) :: line
+  integer, intent(inout) :: ios
   
-  character (len=*):: line
-  
+  integer :: ipos, jpos
+
   do
     read(nunitr,'(a)', iostat=ios) line      ! read input line
     if(ios /= 0) return
@@ -183,8 +193,7 @@ contains
     call compact(line)
     if(len_trim(line) /= 0) exit
   end do
-  return
-  
+
   end subroutine readline
 
 
@@ -194,11 +203,13 @@ contains
   
   ! Removes backslash (\) characters
   ! Removes percent ( % ) characters 
-  
+  implicit none
   character(len=*):: str
   character(len=1):: ch
   character(len=len_trim(str))::outstr
   
+  integer :: i, k, lenstr
+
   str=adjustl(str)
   lenstr=len_trim(str)
   outstr=' '
@@ -225,11 +236,14 @@ contains
   ! character if it is preceded by a backslash (\). If the backslash
   ! character is desired in 'str', then precede it with another backslash.
   
+  implicit none
   character(len=*) :: str,delims,before
   character,optional :: sep
   logical :: pres
   character :: ch, cha
   
+  integer :: i, k, ipos, ibsl, lenstr, iposa
+
   pres=present(sep)
   str=adjustl(str)
   call compact(str)
@@ -342,7 +356,7 @@ contains
     character(len=STRLEN), dimension(50) :: words
 
     call parse(cmd," ",words,nw)
-    if (nw/=2) call message(-1,"Wrong number of arguments for +"//trim(cmd))
+    if (nw/=2) call message(-1,"Wrong number of arguments for POO +"//trim(cmd))
     vec = trim(words(2))
 
     return
@@ -636,7 +650,7 @@ contains
     character(len=*), allocatable, dimension(:), intent(out) :: result
 
     character(len=200), dimension(100) :: words, tokens
-    integer :: nw, nt
+    integer :: nw, nt, i
 
     call parse(string,"+",listOfWords,numberOfWords)
     do iWord=1,numberOfWords
@@ -644,13 +658,14 @@ contains
         call parse(listOfWords(iWord)," ",words,nw)
         call parse(words(2),",",tokens,nt)
         allocate(result(nt))
-        call readTokens(listOfWords(iWord),result(1:nt))
+        do i=1,nt
+          read(tokens(i),*)result(i)
+        enddo
         exit
       end if
     enddo
     call concatenateWords(numberOfWords, listOfWords, string, iWord)
-    
-    return
+
   end subroutine findArrayString
   
   subroutine findLogical(string,flag,result,default)
@@ -702,7 +717,6 @@ contains
     call concatenateWords(numberOfWords, listOfWords, string, iWord)
 
   end subroutine removeFlag
-
 
   integer function countFlagArguments(string,flag)
     implicit none

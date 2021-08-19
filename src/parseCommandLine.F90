@@ -32,6 +32,9 @@
 ! 
 subroutine parseActionLine()
   use moduleActions, only : numberOfActions, actionType, actionDetails
+  use moduleMessages
+  use moduleHelp
+
   implicit none
 
   integer :: iarg
@@ -51,10 +54,24 @@ subroutine parseActionLine()
       numberOfActions=numberOfActions+1
       actionType(numberOfActions) = trim(word)
       actionDetails(numberOfActions) = ""
-    else
-      actionDetails(numberOfActions) = trim(actionDetails(numberOfActions))//" "//trim(word)
+    else 
+      if (word(1:1)=="-1") then
+        if ( ((ichar(word(2:2)) >= 48) .and. (ichar(word(2:2)) <= 57)) .or. (ichar(word(2:2)) == 46) )then
+          actionDetails(numberOfActions) = trim(actionDetails(numberOfActions))//" "//trim(word)
+        else
+          write(0,*)ichar(word(2:2)),word(2:2)
+          call message(-1,"Unknown command",str=word)
+        end if
+      else
+        actionDetails(numberOfActions) = trim(actionDetails(numberOfActions))//" "//trim(word)
+      end if  
     end if
   enddo
 
-  return
+  if (any(actionType == "--help")) call help()
+
+  do iarg=1,numberOfActions
+    if ( index(actionDetails(iarg),"+help") > 0) call commandHelp(actionType(iarg))
+  end do
+
 end subroutine parseActionLine

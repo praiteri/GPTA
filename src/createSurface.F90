@@ -40,7 +40,7 @@ module moduleCreateSurface
   
   implicit none
 
-  public :: createSurface
+  public :: createSurface, createSurfaceHelp
   private
 
   character(:), pointer :: actionCommand
@@ -50,6 +50,14 @@ module moduleCreateSurface
   integer, pointer, dimension(:) :: imiller
 
 contains
+
+  subroutine createSurfaceHelp()
+    implicit none
+    call message(0,"This action creates a new system unit cell oriented with the chosen Miller index parallel to the z axis.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --surface +hkl 1,0,4 +out surface.pdb")
+  end subroutine createSurfaceHelp
+
 
   subroutine initialiseAction(a)
 

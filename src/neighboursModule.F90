@@ -124,11 +124,12 @@ contains
       end if
     end if
 
-    if (frame % natoms == 0) then
-      ntmp = numberOfAtoms
-    else
-      ntmp = frame % natoms
-    end if
+    ntmp = frame % natoms
+! not sure about this    if (frame % natoms == 0) then
+! not sure about this      ntmp = numberOfAtoms
+! not sure about this    else
+! not sure about this      ntmp = frame % natoms
+! not sure about this    end if
 
     if (allocated(nneigh)) then 
       if ( size(lneigh)/ntmp /= neighmax) then

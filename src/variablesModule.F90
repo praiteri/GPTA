@@ -66,7 +66,7 @@ module moduleVariables
   logical :: forceVerletList = .false.
 
   ! String parsing
-  integer, parameter :: STRLEN   = 400
+  integer, parameter :: STRLEN   = 1000
   integer, parameter :: MAXWORDS = 1000  ! Max words on a line
   integer, parameter :: MAXFILES = 100   ! Max words on a line
 
@@ -110,12 +110,15 @@ module moduleVariables
     real(8) :: hinv(3,3)
     real(8) :: volume
     character(cp), allocatable, dimension(:) :: lab
+    character(2), allocatable, dimension(:) :: element
+    real(8), allocatable, dimension(:) :: mass
     real(8), allocatable, dimension(:,:) :: pos
     real(8), allocatable, dimension(:,:) :: frac
     real(8), allocatable, dimension(:) :: chg
   end type frameTypeDef
-  logical :: keepFrameLabels =.true.
-  logical :: keepFrameCharges = .true.
+  logical :: resetFrameLabels =.true.
+  logical :: resetFrameCharges = .true.
+  logical :: resetFrameElements = .true.
 
   type moleculeTypeDef
     integer                                  :: ID

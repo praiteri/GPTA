@@ -70,7 +70,7 @@ subroutine defineVariables(cmd)
         iword = iword + 1
         read(listOfWords(iword),*) distanceScaling
         
-      case("safedist")
+      case("safedist" , "safepbc")
         safeDistances = .true.
 
       case("verlet")
@@ -108,8 +108,9 @@ subroutine defineVariables(cmd)
         read(words(2),*) sbond_l(2,sbond_n)
 
       case ("reax")
-        keepFrameLabels = .false.
-        keepFrameCharges = .false.
+        resetFrameLabels = .false.
+        resetFrameCharges = .false.
+        resetFrameElements= .false.
         
     end select
   end do

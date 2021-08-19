@@ -31,14 +31,28 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! 
 module moduleDeleteAtoms
-  
+  use moduleMessages 
+
 contains
+
+
+  subroutine deleteAtomsHelp()
+    implicit none
+    call message(0,"This action deletes the selected atoms from the input configuration.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --delete +s O")
+    call message(0,"  gpta.x --i coord.pdb --delete +s O,H")
+    call message(0,"  gpta.x --i coord.pdb --delete +i 1:30")
+    call message(0,"  gpta.x --i coord.pdb --delete +i 1:30:3")
+    call message(0,"  gpta.x --i coord.pdb --delete +i 1,34,6789")
+    call message(0,"  gpta.x --i coord.pdb --top --delete +mol M2")
+  end subroutine deleteAtomsHelp
 
   subroutine deleteAtoms(a)
     use moduleVariables
     use moduleStrings
     use moduleSystem 
-    use moduleMessages 
+    use moduleNeighbours
 
     implicit none
     type(actionTypeDef), target :: a
@@ -51,7 +65,7 @@ contains
     logical, pointer :: indexSelection
     logical, pointer :: moleculeSelection
 
-    integer :: iatm, natoms
+    integer :: iatm
 
     actionCommand        => a % actionDetails
 
@@ -82,12 +96,13 @@ contains
       if (firstAction) then
         call message(0,"Deleting Atoms")
 
-        if (keepFrameLabels) then
+        if (resetFrameLabels) then
           a % updateAtomsSelection = .false.
         else
           a % updateAtomsSelection = .true.
         end if
         call selectAtoms(1,actionCommand,a)
+        call createInvertedSelectionList(a,1)
 
         call checkUsedFlags(actionCommand)
         firstAction = .false.
@@ -98,15 +113,32 @@ contains
       end if
 
       ! Delete atoms
-      natoms = 0
-      do iatm=1,frame % natoms
-        if (a % isSelected(iatm, 1)) cycle
-        natoms = natoms + 1
-        frame % pos(1:3,natoms) = frame % pos(1:3,iatm)
-        frame % lab(    natoms) = frame % lab(    iatm)
-        frame % chg(    natoms) = frame % chg(    iatm)
-      enddo
-      frame % natoms = natoms
+      ! natoms = 0
+      ! do iatm=1,frame % natoms
+      !   if (a % isSelected(iatm, 1)) cycle
+      !   natoms = natoms + 1
+      !   frame % pos(1:3,natoms) = frame % pos(1:3,iatm)
+      !   frame % frac(1:3,natoms) = frame % frac(1:3,iatm)
+      !   frame % lab(    natoms) = frame % lab(    iatm)
+      !   frame % chg(    natoms) = frame % chg(    iatm)
+      !   frame % element(natoms) = frame % element(iatm)
+      ! enddo
+      ! frame % natoms = natoms
+
+      block
+        integer ::  icentre
+        frame % natoms = size(a % idxSelection(:,1))
+        do icentre=1,frame % natoms
+          iatm = a % idxSelection(icentre,1)
+          frame % pos(1:3, icentre) = frame % pos(1:3, iatm)
+          frame % frac(1:3,icentre) = frame % frac(1:3,iatm)
+          frame % lab(     icentre) = frame % lab(     iatm)
+          frame % chg(     icentre) = frame % chg(     iatm)
+          frame % element( icentre) = frame % element( iatm)
+        end do
+      end block
+
+      if (computeNeighboursList) call updateNeighboursList(.true.)
 
     end if
 

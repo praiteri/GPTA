@@ -35,6 +35,7 @@ subroutine initialiseActions()
   use moduleMessages
 
   use moduleTemplateAction
+
   use moduleOpenMM
   use moduleAtomsAttributes
   use moduleDeleteAtoms
@@ -55,6 +56,7 @@ subroutine initialiseActions()
   use moduleXrayAction
   use moduleMeanSquareDisplacement
   use moduleExtractClustersAction
+  use moduleSolvationShell
 
 #ifdef GPTA_OPENMM
   use moduleAmoeba
@@ -73,35 +75,37 @@ subroutine initialiseActions()
   enddo
 
   do i=1,numberOfActions
-      
+    
     ! print *, me, trim(actionType(i))
     nullify(allActions(i) % work)
-    if (actionType(i) == "--test"   ) allActions(i) % work => testAction
-    
-    if (actionType(i) == "--top"    ) allActions(i) % work => computeTopology
-    if (actionType(i) == "--pbc"    ) allActions(i) % work => applyPeriodicboundaryConditions
-    if (actionType(i) == "--unwrap" ) allActions(i) % work => unwrapCoordinates
-    if (actionType(i) == "--shift"  ) allActions(i) % work => shiftCoordinates
-    if (actionType(i) == "--fixcom" ) allActions(i) % work => shiftCOM
-    if (actionType(i) == "--repl"   ) allActions(i) % work => replicateCell
-    if (actionType(i) == "--mirror" ) allActions(i) % work => mirrorCell
-    if (actionType(i) == "--noclash") allActions(i) % work => removeOverlappingMolecules
-    if (actionType(i) == "--delete" ) allActions(i) % work => deleteAtoms
-    if (actionType(i) == "--set"    ) allActions(i) % work => setAtomAttributes
-    if (actionType(i) == "--subs"   ) allActions(i) % work => replaceMolecules
-    if (actionType(i) == "--add"    ) allActions(i) % work => addAtoms
-    if (actionType(i) == "--surface") allActions(i) % work => createSurface
+    if (actionType(i) == "--test"     ) allActions(i) % work => testAction
 
-    if (actionType(i) == "--extract") allActions(i) % work => extractSystemProperties
-    if (actionType(i) == "--gofr"   ) allActions(i) % work => computeRadialPairDistribution
-    if (actionType(i) == "--dmap1D" ) allActions(i) % work => computeDensityProfile
-    if (actionType(i) == "--dmap2D" ) allActions(i) % work => computeDensityMap2D 
-    if (actionType(i) == "--dmap3D" ) allActions(i) % work => computeDensityMap3D 
-    if (actionType(i) == "--molprop") allActions(i) % work => computeMolecularProperties
-    if (actionType(i) == "--restime") allActions(i) % work => computeResidenceTime
-    if (actionType(i) == "--xray"   ) allActions(i) % work => xrayAction
-    if (actionType(i) == "--msd"    ) allActions(i) % work => msdAction
-    if (actionType(i) == "--cluster") allActions(i) % work => extractClusters
+    if (actionType(i) == "--top"      ) allActions(i) % work => computeTopology
+    if (actionType(i) == "--pbc"      ) allActions(i) % work => applyPeriodicboundaryConditions
+    if (actionType(i) == "--unwrap"   ) allActions(i) % work => unwrapCoordinates
+    if (actionType(i) == "--shift"    ) allActions(i) % work => shiftCoordinates
+    if (actionType(i) == "--rescale"  ) allActions(i) % work => rescaleCell
+    if (actionType(i) == "--fixcom"   ) allActions(i) % work => shiftCOM
+    if (actionType(i) == "--repl"     ) allActions(i) % work => replicateCell
+    if (actionType(i) == "--mirror"   ) allActions(i) % work => mirrorCell
+    if (actionType(i) == "--noclash"  ) allActions(i) % work => removeOverlappingMolecules
+    if (actionType(i) == "--delete"   ) allActions(i) % work => deleteAtoms
+    if (actionType(i) == "--set"      ) allActions(i) % work => setAtomAttributes
+    if (actionType(i) == "--subs"     ) allActions(i) % work => replaceMolecules
+    if (actionType(i) == "--add"      ) allActions(i) % work => addAtoms
+    if (actionType(i) == "--surface"  ) allActions(i) % work => createSurface
+
+    if (actionType(i) == "--extract"  ) allActions(i) % work => extractSystemProperties
+    if (actionType(i) == "--gofr"     ) allActions(i) % work => computeRadialPairDistribution
+    if (actionType(i) == "--dmap1D"   ) allActions(i) % work => computeDensityProfile
+    if (actionType(i) == "--dmap2D"   ) allActions(i) % work => computeDensityMap2D 
+    if (actionType(i) == "--dmap3D"   ) allActions(i) % work => computeDensityMap3D 
+    if (actionType(i) == "--solvation") allActions(i) % work => solvationShell 
+    if (actionType(i) == "--molprop"  ) allActions(i) % work => computeMolecularProperties
+    if (actionType(i) == "--restime"  ) allActions(i) % work => computeResidenceTime
+    if (actionType(i) == "--xray"     ) allActions(i) % work => computeXrayPowder
+    if (actionType(i) == "--msd"      ) allActions(i) % work => computeMSD
+    if (actionType(i) == "--cluster"  ) allActions(i) % work => extractClusters
 
 ! openMM driver for AMOEBA
 #ifdef GPTA_OPENMM
@@ -116,21 +120,35 @@ subroutine initialiseActions()
 
     ! Check the command exists
     if (.not. associated(allActions(i) % work)) call message(-1,"Unknown Command : "//trim(actionType(i)))
+
   enddo
 
-  call runAllActions()
-
+  ! call runAllActions()
+  ! Run over all the action commands
+  block
+    integer :: iact
+    do iact=1,numberOfActions
+      call allActions(iact) % work(action(iact))
+    enddo
+  end block
+  
   return
 end subroutine initialiseActions
 
 subroutine runAllActions()
   use moduleActions
   use moduleMessages 
+  ! use moduleSystem, only : computeNeighboursList, frameReadSuccessfully, computeNeighboursList, computeNeighboursListOnce
+  use moduleNeighbours
+
   integer :: iact
   real(8) :: startTime, endTime
 
   ! Run over the processing commands
   do iact=1,numberOfActions
+    ! Compute the neighbours' list before the first action that requires it
+    if (action(iact) % requiresNeighboursList .and. computeNeighboursList) call updateNeighboursList(.false.)
+    
     startTime = timing()
     call allActions(iact) % work(action(iact))
     endTime = timing()

@@ -50,11 +50,10 @@ module modulePlumedInterface
 
 contains
 
-subroutine initialiseAction(a)
+subroutine initialiseAction()
   use moduleStrings
   use moduleSystem
   implicit none
-  type(actionTypeDef), target :: a
 
 #ifdef GPTA_PLUMED
   a % actionInitialisation = .false.
@@ -73,9 +72,8 @@ subroutine initialiseAction(a)
 #endif
   end subroutine initialiseAction
 
-  subroutine associatePointers(a)
+  subroutine associatePointers()
     implicit none
-    type(actionTypeDef), target :: a
 
 #ifdef GPTA_PLUMED
     ! Local pointers
@@ -111,9 +109,9 @@ subroutine initialiseAction(a)
     integer :: i
     real(8) :: etot
 
-    call associatePointers(a)
+    call associatePointers()
     if (a % actionInitialisation) then
-      call initialiseAction(a)
+      call initialiseAction()
       return
     end if
 

@@ -53,6 +53,7 @@ module moduleMolecularTopology
   logical, pointer :: updateTopology
   logical, pointer :: updateTopologyOnce
   logical, pointer :: rebuildMolecules
+  logical, pointer :: checkForBroken
   logical, pointer :: reorderAtoms
   logical, pointer :: userDefinedMolecules
 
@@ -70,9 +71,10 @@ contains
     updateTopology         => a % logicalVariables(1)
     updateTopologyOnce     => a % logicalVariables(2)
     rebuildMolecules       => a % logicalVariables(3)
-    reorderAtoms           => a % logicalVariables(4)
+    checkForBroken         => a % logicalVariables(4)
+    reorderAtoms           => a % logicalVariables(5)
     
-    userDefinedMolecules   => a % logicalVariables(5)
+    userDefinedMolecules   => a % logicalVariables(6)
     moleculesLabels(1:)    => a % stringVariables(1:)
 
   end subroutine associatePointers
@@ -106,9 +108,11 @@ contains
       deallocate(tmpLabels)
     end if
 
-    call assignFlagValue(actionCommand,"+rebuild",rebuildMolecules,.false.)
+    call assignFlagValue(actionCommand,"+rebuild ",rebuildMolecules,.false.)
     
-    call assignFlagValue(actionCommand,"+reorder",reorderAtoms,.false.)
+    call assignFlagValue(actionCommand,"+check ",checkForBroken,.false.)
+    
+    call assignFlagValue(actionCommand,"+reorder ",reorderAtoms,.false.)
 
     call assignFlagValue(actionCommand,"+def",userDefinedMolecules,.false.)
     if (userDefinedMolecules) then
@@ -174,8 +178,6 @@ contains
     implicit none
     ! type(actionTypeDef), target :: a
 
-!    logical, external :: checkForBrokenMolecules
-
     integer :: iatm, jatm, ineigh, idx, jdx, itmp
     character(cp) :: l1 ,l2
     real(8) :: rmax
@@ -226,7 +228,7 @@ contains
 
     allocate(m(frame % natoms))
     do idx=1,frame % natoms
-      allocate(m(idx) % listOfAtoms(100))
+      allocate(m(idx) % listOfAtoms(200))
     enddo
     iatm = 0
     numberOfMolecules = 0
@@ -533,14 +535,14 @@ contains
         call checkUsedFlags(actionCommand)
       end if
       
-      if (rebuildMolecules) then
-        call reassembleAllMolecules()
-      else 
+      if (rebuildMolecules) call reassembleAllMolecules()
+
+      if (checkForBroken) then
         call checkForBrokenMolecules(brokenMolecules)
         if (brokenMolecules) call reassembleBrokenMolecules()
       end if
 
-      call computeMoleculesCOM()
+      call computeMoleculesCOM(0)
     end if
 
   end subroutine computeTopology
@@ -725,7 +727,7 @@ subroutine computeConnectivity()
     call resizeArray(listOfUniqueTorsions,numberOfUniqueTorsions)
 
     ! Upper limit for improper torsions
-    n = numberOfAtoms
+    n = frame % natoms
     allocate(listOfUniqueOutOfPlane(4,n))
     do i=1,frame % natoms
       if (numberOfCovalentBondsPerAtom(i) == 3) then
