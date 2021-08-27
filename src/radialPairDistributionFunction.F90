@@ -56,6 +56,7 @@ module moduleRDF
 contains
 
   subroutine computeRadialPairDistributionHelp()
+    use moduleMessages
     implicit none
     call message(0,"This action computes the Radial Pair Distribution function")
     call message(0,"Examples:")
@@ -63,6 +64,7 @@ contains
   end subroutine computeRadialPairDistributionHelp
 
   subroutine computeRadialPairDistribution(a)
+    use moduleMessages
     implicit none
     type(actionTypeDef), target :: a
 
@@ -217,7 +219,6 @@ contains
 
     integer :: i, j, iatm, jatm, idx, nsel1, nsel2
     real(8) :: dr, dij(3), r2, dist2
-    integer :: dn
     integer, allocatable, dimension(:) :: local_dist
 
     dr = rcut / dble(numberOfBins)

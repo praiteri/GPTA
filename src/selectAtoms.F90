@@ -96,7 +96,7 @@ subroutine selectAtoms(nsel,cmd,a)
     else if ( index(listOfFlags(idx),"+i ") > 0) then
       selectionString = trim(selectionString) // " " // trim(listOfFlags(idx))
 
-      call extractFlag(listOfFlags(idx),"+i",flagString)
+      call extractFlag(listOfFlags(idx),"+i ",flagString)
       call parse(flagString," ",listOfWords,numberOfWords)
 
       do jdx=1,numberOfWords
@@ -123,7 +123,7 @@ subroutine selectAtoms(nsel,cmd,a)
   
       if (numberOfMolecules == 0) call message(-1,"Cannot perform selection by molecules, use --top")
 
-      call extractFlag(listOfFlags(idx),"+mol",flagString)
+      call extractFlag(listOfFlags(idx),"+mol ",flagString)
       call parse(flagString," ",listOfWords,numberOfWords)
 
       do jdx=1,numberOfWords

@@ -154,7 +154,7 @@ contains
 
     call assignFlagValue(actionCommand,"+rmin",minimumDistance,1.5d0)
 
-    call assignFlagValue(actionCommand,"+mol",localString)
+    call assignFlagValue(actionCommand,"+f",localString)
     numberOfFiles = size(localString)
     
     fileNames(1:numberOfFiles) = localString(1:numberOfFiles)
@@ -284,6 +284,7 @@ contains
           do i=1,localMolecules(iFile) % natoms
             listOfMolecules(currentMolecules) % listOfAtoms(i) = currentAtoms + i
           end do
+          listOfMolecules(currentMolecules) % centreOfMass = localMolecules(iFile) % centre
         end block
 
         block ! add atoms to frame

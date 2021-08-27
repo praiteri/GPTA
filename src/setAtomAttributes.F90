@@ -187,11 +187,16 @@ contains
               newLabels(idx)(1:2) = listOfElements(idx)
             end do
           else
-            if (size(newLabels) /= size(oldLabels)) then
-              if (size(newLabels) /= 1) call message(-1,"select +s and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
-              ctmp = newLabels(1)
-              deallocate(newLabels)
-              allocate(newLabels(size(oldLabels)), source=ctmp)
+            if (moleculeSelection) then
+              if (size(newLabels) /= maxval(atomFlag)) &
+                call message(-1,"--set | +mol and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
+            else
+              if (size(newLabels) /= size(oldLabels)) then
+                if (size(newLabels) /= 1) call message(-1,"--set | +s and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
+                ctmp = newLabels(1)
+                deallocate(newLabels)
+                allocate(newLabels(size(oldLabels)), source=ctmp)
+              end if
             end if
           end if
 

@@ -169,7 +169,7 @@ obj/align_molecules.o: ./src/align_molecules.F90
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/align_molecules.F90 -c -o $@
 obj/amoeba.o: ./src/amoeba.F90 obj/distances.o  obj/filesModule.o  obj/messagesModule.o  obj/openMM.o  obj/property.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/amoeba.F90 -c -o $@
-obj/changeCoordinates.o: ./src/changeCoordinates.F90 obj/distances.o  obj/elementsModule.o  obj/messagesModule.o  obj/neighboursModule.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
+obj/changeCoordinates.o: ./src/changeCoordinates.F90 obj/align_molecules.o  obj/distances.o  obj/elementsModule.o  obj/messagesModule.o  obj/neighboursModule.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/changeCoordinates.F90 -c -o $@
 obj/createSurface.o: ./src/createSurface.F90 obj/ranking_module.o  obj/filesModule.o  obj/messagesModule.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/createSurface.F90 -c -o $@
@@ -203,7 +203,7 @@ obj/filesModule.o: ./src/filesModule.F90 obj/messagesModule.o  obj/variablesModu
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/filesModule.F90 -c -o $@
 obj/gpta.o: ./src/gpta.F90 obj/actionModule.o  obj/distances.o  obj/elementsModule.o  obj/messagesModule.o  obj/neighboursModule.o  obj/property.o  obj/random_module.o  obj/readCoordinatesModule.o  obj/systemModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/gpta.F90 -c -o $@
-obj/help.o: ./src/help.F90 obj/addAtoms.o  obj/amoeba.o  obj/setAtomAttributes.o  obj/createSurface.o  obj/deleteAtoms.o  obj/densityMap2D.o  obj/densityMap3D.o  obj/densityMap1D.o  obj/writeCoordinates.o  obj/extractClusters.o  obj/extractProperties.o  obj/meanSquareDisplacement.o  obj/messagesModule.o  obj/changeCoordinates.o  obj/molecularProperties.o  obj/topology.o  obj/openMM.o  obj/plumed.o  obj/radialPairDistributionFunction.o  obj/replaceMolecules.o  obj/residenceTime.o  obj/solvationShell.o  obj/testTemplate.o  obj/xray.o 
+obj/help.o: ./src/help.F90 obj/addAtoms.o  obj/amoeba.o  obj/setAtomAttributes.o  obj/createSurface.o  obj/deleteAtoms.o  obj/densityMap2D.o  obj/densityMap3D.o  obj/densityMap1D.o  obj/writeCoordinates.o  obj/extractClusters.o  obj/extractProperties.o  obj/meanSquareDisplacement.o  obj/messagesModule.o  obj/changeCoordinates.o  obj/molecularProperties.o  obj/topology.o  obj/openMM.o  obj/plumed.o  obj/radialPairDistributionFunction.o  obj/replaceMolecules.o  obj/residenceTime.o  obj/solvationShell.o  obj/testTemplate.o  obj/variablesModule.o  obj/xray.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/help.F90 -c -o $@
 obj/inertiaTensor.o: ./src/inertiaTensor.F90 obj/elementsModule.o  obj/systemModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/inertiaTensor.F90 -c -o $@
@@ -231,7 +231,7 @@ obj/ranking_module.o: ./src/ranking_module.F90
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/ranking_module.F90 -c -o $@
 obj/readCoordinatesCIF.o: ./src/readCoordinatesCIF.F90 obj/messagesModule.o  obj/symmetryModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/readCoordinatesCIF.F90 -c -o $@
-obj/readCoordinatesMisc.o: ./src/readCoordinatesMisc.F90 obj/elementsModule.o  obj/stringsModule.o 
+obj/readCoordinatesMisc.o: ./src/readCoordinatesMisc.F90 obj/elementsModule.o  obj/stringsModule.o  obj/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/readCoordinatesMisc.F90 -c -o $@
 obj/readCoordinatesModule.o: ./src/readCoordinatesModule.F90 obj/dcdfort_common.o  obj/dcdfort_reader.o  obj/actionModule.o  obj/readCoordinatesCIF.o  obj/distances.o  obj/elementsModule.o  obj/filesModule.o  obj/readWriteCoordinatesGULP.o  obj/messagesModule.o  obj/neighboursModule.o  obj/stringsModule.o  obj/systemModule.o  obj/variablesModule.o  obj/xdr.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/readCoordinatesModule.F90 -c -o $@
@@ -329,7 +329,7 @@ obj_mpi/align_molecules.o: ./src/align_molecules.F90
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/align_molecules.F90 -c -o $@
 obj_mpi/amoeba.o: ./src/amoeba.F90 obj_mpi/distances.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/openMM.o  obj_mpi/property.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/amoeba.F90 -c -o $@
-obj_mpi/changeCoordinates.o: ./src/changeCoordinates.F90 obj_mpi/distances.o  obj_mpi/elementsModule.o  obj_mpi/messagesModule.o  obj_mpi/neighboursModule.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
+obj_mpi/changeCoordinates.o: ./src/changeCoordinates.F90 obj_mpi/align_molecules.o  obj_mpi/distances.o  obj_mpi/elementsModule.o  obj_mpi/messagesModule.o  obj_mpi/neighboursModule.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/changeCoordinates.F90 -c -o $@
 obj_mpi/createSurface.o: ./src/createSurface.F90 obj_mpi/ranking_module.o  obj_mpi/filesModule.o  obj_mpi/messagesModule.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/createSurface.F90 -c -o $@
@@ -363,7 +363,7 @@ obj_mpi/filesModule.o: ./src/filesModule.F90 obj_mpi/messagesModule.o  obj_mpi/v
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/filesModule.F90 -c -o $@
 obj_mpi/gpta.o: ./src/gpta.F90 obj_mpi/actionModule.o  obj_mpi/distances.o  obj_mpi/elementsModule.o  obj_mpi/messagesModule.o  obj_mpi/neighboursModule.o  obj_mpi/property.o  obj_mpi/random_module.o  obj_mpi/readCoordinatesModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/gpta.F90 -c -o $@
-obj_mpi/help.o: ./src/help.F90 obj_mpi/addAtoms.o  obj_mpi/amoeba.o  obj_mpi/setAtomAttributes.o  obj_mpi/createSurface.o  obj_mpi/deleteAtoms.o  obj_mpi/densityMap2D.o  obj_mpi/densityMap3D.o  obj_mpi/densityMap1D.o  obj_mpi/writeCoordinates.o  obj_mpi/extractClusters.o  obj_mpi/extractProperties.o  obj_mpi/meanSquareDisplacement.o  obj_mpi/messagesModule.o  obj_mpi/changeCoordinates.o  obj_mpi/molecularProperties.o  obj_mpi/topology.o  obj_mpi/openMM.o  obj_mpi/plumed.o  obj_mpi/radialPairDistributionFunction.o  obj_mpi/replaceMolecules.o  obj_mpi/residenceTime.o  obj_mpi/solvationShell.o  obj_mpi/testTemplate.o  obj_mpi/xray.o 
+obj_mpi/help.o: ./src/help.F90 obj_mpi/addAtoms.o  obj_mpi/amoeba.o  obj_mpi/setAtomAttributes.o  obj_mpi/createSurface.o  obj_mpi/deleteAtoms.o  obj_mpi/densityMap2D.o  obj_mpi/densityMap3D.o  obj_mpi/densityMap1D.o  obj_mpi/writeCoordinates.o  obj_mpi/extractClusters.o  obj_mpi/extractProperties.o  obj_mpi/meanSquareDisplacement.o  obj_mpi/messagesModule.o  obj_mpi/changeCoordinates.o  obj_mpi/molecularProperties.o  obj_mpi/topology.o  obj_mpi/openMM.o  obj_mpi/plumed.o  obj_mpi/radialPairDistributionFunction.o  obj_mpi/replaceMolecules.o  obj_mpi/residenceTime.o  obj_mpi/solvationShell.o  obj_mpi/testTemplate.o  obj_mpi/variablesModule.o  obj_mpi/xray.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/help.F90 -c -o $@
 obj_mpi/inertiaTensor.o: ./src/inertiaTensor.F90 obj_mpi/elementsModule.o  obj_mpi/systemModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/inertiaTensor.F90 -c -o $@
@@ -391,7 +391,7 @@ obj_mpi/ranking_module.o: ./src/ranking_module.F90
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/ranking_module.F90 -c -o $@
 obj_mpi/readCoordinatesCIF.o: ./src/readCoordinatesCIF.F90 obj_mpi/messagesModule.o  obj_mpi/symmetryModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/readCoordinatesCIF.F90 -c -o $@
-obj_mpi/readCoordinatesMisc.o: ./src/readCoordinatesMisc.F90 obj_mpi/elementsModule.o  obj_mpi/stringsModule.o 
+obj_mpi/readCoordinatesMisc.o: ./src/readCoordinatesMisc.F90 obj_mpi/elementsModule.o  obj_mpi/stringsModule.o  obj_mpi/variablesModule.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/readCoordinatesMisc.F90 -c -o $@
 obj_mpi/readCoordinatesModule.o: ./src/readCoordinatesModule.F90 obj_mpi/dcdfort_common.o  obj_mpi/dcdfort_reader.o  obj_mpi/actionModule.o  obj_mpi/readCoordinatesCIF.o  obj_mpi/distances.o  obj_mpi/elementsModule.o  obj_mpi/filesModule.o  obj_mpi/readWriteCoordinatesGULP.o  obj_mpi/messagesModule.o  obj_mpi/neighboursModule.o  obj_mpi/stringsModule.o  obj_mpi/systemModule.o  obj_mpi/variablesModule.o  obj_mpi/xdr.o 
 	$(FC) $(CPPFLAGS) $(F90FLAGS) src/readCoordinatesModule.F90 -c -o $@

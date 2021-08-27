@@ -40,8 +40,12 @@ module moduleHelp
 contains
 
   subroutine help()
+    use moduleVariables
     use moduleMessages
     implicit none
+#ifdef GPTA_MPI
+    integer :: idx
+#endif
 
     call message(-10)
 
@@ -50,10 +54,18 @@ contains
     call message(1,"gpta.x --gofr +help ")
     call message(0,'List of Available Commands in GPTA')
     
+    call message(0,"%%%%% Global")
+    call message(0," --nt          :: sets the number of openMP threads to use" )
+    call message(0," --define      :: alters the value of some global parameters" )
+    
     call message(0,"%%%%% Input/Output")
     call message(0," --i           :: reads the coordinates file(s)" )
     call message(0," --o           :: writes the coordinates file" )
-    call message(0," --top         :: calculates of the topology")
+    call message(0," --frame       :: selects one frame for processing" )
+    call message(0," --frames      :: selects multiple frames for processing" )
+    call message(0," --last        :: selects the last frame for processing" )
+    call message(0," --skip        :: sets the stride for processing the frames" )
+    call message(0," --log         :: sets the filename for the program output, it replaces the screen output" )
 
     call message(2)
     call message(0,"%%%%% Actions that change the atomic coordinates")
@@ -74,6 +86,7 @@ contains
     
     call message(2)
     call message(0,"%%%%% Actions that calculate properties ")
+    call message(0," --top         :: calculates of the topology")
     call message(0," --extract     :: computes system-wide properties from the trajectory file")
     call message(0," --gofr        :: computes the radial pair distribution function")
     call message(0," --dmap1D      :: computes the 1D density map")
@@ -180,6 +193,8 @@ contains
       call message(0,"  gpta.x --i coord.pdb --top")
     end if
 
+
+    if (cmd == "--define"   ) call defineVariablesHelp()
 
     if (cmd == "--rescale"  ) call rescaleCellHelp()
     if (cmd == "--shift"    ) call shiftCoordinatesHelp()

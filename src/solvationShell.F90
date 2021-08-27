@@ -51,9 +51,11 @@ module moduleSolvationShell
   
   integer, pointer :: moleculeID
   integer, pointer :: smoothingType
-  
+  integer, pointer :: numberOfSwaps
+
   integer, pointer, dimension(:) :: numberOfBins
   real(8), pointer, dimension(:) :: densityBox
+  character(len=STRLEN), pointer, dimension(:) :: listOfSwaps
 
   character(len=STRLEN), pointer :: fileName
   character(len=STRLEN) :: moleculeName
@@ -67,11 +69,13 @@ contains
     call message(0,"Examples:")
     call message(0,"  gpta.x --i coord.pdb --top --solvation +s O2 +id M2  +cell 10,12,14  +nbin 50,50,50")
     call message(0,"  gpta.x --i coord.pdb --top --solvation +id M2 +s O +cell 9 +nbin 20,20,20 +smooth +ref ace.xyz")
+    call message(0,"  gpta.x --i coord.pdb --top --solvation +id M2 +s O +cell 9 +nbin 20,20,20 +ref ace.xyz +swap 2,3,4 6,7")
   end subroutine solvationShellHelp
 
     subroutine solvationShell(a)
     implicit none
     type(actionTypeDef), target :: a
+    real(8) :: d(3)
 
     call associatePointers(a)
 
@@ -95,7 +99,7 @@ contains
         block
           integer :: n
           n = size(a % localIndices)
-          call CenterCoords(n, a % localPositions) 
+          call CenterCoords(d, n, a % localPositions) 
         end block
 
         ! dump info about the action on the screen
@@ -135,10 +139,12 @@ contains
     moleculeID           => a % integerVariables(1)
     numberOfBins(1:3)    => a % integerVariables(2:4)    
     smoothingType        => a % integerVariables(5)
+    numberOfSwaps        => a % integerVariables(6)
 
     densityBox(1:9)      => a % doubleVariables(1:9)
 
     fileName             => a % stringVariables(1)
+    listOfSwaps(1:)      => a % stringVariables(2:)
 
   end subroutine associatePointers
 
@@ -147,6 +153,7 @@ contains
     type(actionTypeDef), target :: a
 
     logical :: lflag
+    character(STRLEN) :: flagString
 
     a % actionInitialisation = .false.
 
@@ -171,14 +178,13 @@ contains
   
       call assignFlagValue(actionCommand,"+cell ", stringCell, "NONE")
       if (stringCell == "NONE") then
-        htmp = frame % hmat
-      else
-        call readCellFreeFormat(stringCell, htmp)
+        stringCell = "10.d0, 0.d0, 0.d0, 0.d0, 10.d0, 0.d0, 0.d0, 0.d0, 10.d0"
       end if
+      call readCellFreeFormat(stringCell, htmp)
       densityBox = reshape(htmp,[9])
       rtmp = htmp(1,1) + htmp(2,2) + htmp(3,3)
       if ( sum(abs(densityBox)) - rtmp > 1e-6 ) then
-        call message(-1,"--solvation | only orthorhombic boxes can be used")
+        call message(-1,"--solvation | currently only orthorhombic boxes can be used")
       end if
     end block
 
@@ -189,6 +195,15 @@ contains
     else
       smoothingType = 0
     end if
+
+    call assignFlagValue(actionCommand,"+swap",lflag,.false.)
+    if (lflag) then
+      call extractFlag(actionCommand,"+swap",flagString)
+      call parse(flagString," ",listOfSwaps,numberOfSwaps)
+    else
+      numberOfSwaps = 0
+    end if
+
     tallyExecutions = 0
 
   end subroutine initialiseAction
@@ -201,7 +216,7 @@ contains
     
     integer :: funit
     real(8) :: hmat(3,3), hinv(3,3), dvol, dh(3,3), origin(3)
-    integer :: i, ix, iy, iz, n
+    integer :: i, ix, iy, n
 
     call initialiseFile(outputFile,outputFile % fname)
   
@@ -238,15 +253,9 @@ contains
       write(funit,'(i6,4f13.5)')ix, 0.d0, a % localPositions(1:3,i) / rbohr / tallyExecutions
     end do
 
-    i=0
     do ix=1,numberOfBins(1)
       do iy=1,numberOfBins(2)
-        do iz=1,numberOfBins(3)
-          i=i+1
-          write(funit,'(e13.5)',advance='no')a % array3D(ix,iy,iz)
-          if(mod(i,6)==0)write(funit,*)
-        enddo
-        if (mod(numberOfBins(3),6)/=0) write(funit,*)
+        write(funit,'(6e13.5)') a % array3D(ix,iy,1:numberOfBins(3))
       enddo
     enddo
     call flush(funit)
@@ -257,13 +266,22 @@ contains
 
   subroutine dumpScreenInfo()
     implicit none
+    integer :: i
+    character(len=STRLEN) :: str
     call message(0,"Computing solvation shell")
     call message(0,"...Output file",str=outputFile % fname)
     call message(0,"...Number of bins",iv=numberOfBins)
     call message(0,"...Region size A",rv=densityBox(1:3))
     call message(0,"...Region size B",rv=densityBox(4:6))
     call message(0,"...Region size C",rv=densityBox(7:9))
-
+    if (smoothingType == 1) call message(0,"...Density smoothing with tirnagular kernel")
+    if (numberOfSwaps > 0) then
+      str = listOfSwaps(1)
+      do i=2,numberOfSwaps
+        str = trim(str) // " - " // trim(listOfSwaps(i))
+      end do
+      call message(0,"...Checking atoms' permutations",str=str)
+    end if
   end subroutine dumpScreenInfo
 
   subroutine computeAction(a)
@@ -277,24 +295,92 @@ contains
     real(8), dimension(3) :: boundaries, dp
     integer, dimension(3) :: nb
     integer :: ipos(3)
-    real(8) :: rmsd, rotmat(3,3), dij(3), rvec(9), rtmp
+    real(8) :: dij(3), rtmp
+    real(8) :: rmsd, rotmat(3,3), rvec(9)
+
+    real(8), allocatable, dimension(:,:) :: currentPositions1
+    real(8), allocatable, dimension(:,:) :: currentPositions2
+    real(8) :: rmsd2, rvec2(9)
 
     n = size(a % localIndices)
 
     ! centre of mass of the solute
-    xcom = 0.d0
     allocate(currentPositions(3,n))
     do idx=1,n
       iatm = a % localIndices(idx)
       currentPositions(1:3,idx) =  frame % pos(1:3,iatm) 
     end do
-    xcom = sum(currentPositions,dim=2) / n
-    do idx=1,n
-      currentPositions(1:3,idx) = currentPositions(1:3,idx) - xcom(1:3)
-    end do
+    call CenterCoords(xcom, n, currentPositions)
+    
+    allocate(currentPositions1(3,n))
+    allocate(currentPositions2(3,n))
+    currentPositions1 = currentPositions
+    currentPositions2 = currentPositions
 
     ! current positions are centered to the origin
     call Superimpose(n, a % localPositions, currentPositions, rmsd, rvec)
+
+    ! check if swapped atoms give a lower rmsd
+    block
+      integer :: i, j, k, n, ntot, n1, n2
+      integer, allocatable, dimension(:) :: order
+      logical, external :: nextp
+      integer, allocatable, dimension(:) :: numberOfIndices
+      integer, allocatable, dimension(:) :: listOfIndices
+      
+      character(len=200), dimension(100) :: tokens
+
+      if ( numberOfSwaps > 0) then
+       allocate(numberOfIndices(numberOfSwaps))
+        
+        do i=1,numberOfSwaps
+          call parse(listOfSwaps(i),",",tokens,numberOfIndices(i))
+        end do
+        ntot = sum(numberOfIndices)
+
+        allocate(listOfIndices(ntot))
+        ntot = 0
+        do i=1,numberOfSwaps
+          call parse(listOfSwaps(i),",",tokens,n)
+          do j=1,n
+            read(tokens(j),*) listOfIndices(ntot+j) 
+          end do
+          ntot = ntot + n
+        end do
+        ! write(0,*)listOfIndices
+
+        allocate(order(ntot))
+        do i=1,ntot
+          order(i) = i
+        enddo
+      
+        main : do while (nextp(ntot,order)) 
+          n=0
+          do k=1,numberOfSwaps
+            n1 = n+1
+            n2 = n+numberOfIndices(k)
+            if (any(order(n1:n2) < n1) .or. any(order(n1:n2) > n2)) cycle main
+            n = n + numberOfIndices(k)
+          end do
+        
+          do i=1,ntot
+            j = listOfIndices(i)
+            k = listOfIndices(order(i))
+            currentPositions2(:,j) = currentPositions1(:,k)
+
+            call Superimpose(size(a % localIndices), a % localPositions, currentPositions2, rmsd2, rvec2)
+            if (rmsd2 < rmsd) then
+              rmsd = rmsd2
+              rvec = rvec2
+              currentPositions = currentPositions2
+            end if
+          
+          end do
+
+        end do main
+      end if
+    end block
+
     rotmat = transpose(reshape(rvec,[3,3]))
 
     ! Average positions
@@ -356,7 +442,7 @@ contains
 
     n = listOfMolecules(imol) % numberOfAtoms
     allocate(a % localLabels(n))
-    allocate(a % localPositions(3,n*2))    
+    allocate(a % localPositions(3,n*2), source=0.d0)    
     allocate(a % localIndices(n))
 
     a % localLabels(:) = listOfMolecules(imol) % listOfLabels(:)
@@ -457,6 +543,6 @@ end module moduleSolvationShell
       enddo
     enddo
 
-    array3D = smooth
+    array3D = smooth / sum(w)
 
   end subroutine smoothDistribution3D

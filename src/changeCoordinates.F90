@@ -37,7 +37,7 @@ contains
   subroutine rescaleCellHelp()
     use moduleMessages
     implicit none
-    call message(0,"This action changes the system cell and rescales the atomic coordinates")
+    call message(0,"This action changes the system cell and rescales the atomic coordinates.")
     call message(0,"The cell can be expressed as:")
     call message(0,"  1 number -> cubic")
     call message(0,"  3 number -> orthorhombic")
@@ -53,7 +53,7 @@ contains
   subroutine shiftCoordinatesHelp()
     use moduleMessages
     implicit none
-    call message(0,"This action shifts the atomic coordinates by a 3D vector")
+    call message(0,"This action shifts the atomic coordinates by a 3D vector.")
     call message(0,"Examples:")
     call message(0,"  gpta.x --i coord.pdb --shift 1,2,3")
   end subroutine shiftCoordinatesHelp
@@ -880,26 +880,25 @@ end subroutine reassembleBrokenMolecules
 subroutine computeMoleculesCOM(mol0)
   use moduleSystem 
   use moduleElements 
+  use moduleAlignMolecules, only : computeCenter
 
   implicit none
 
   integer, intent(in) :: mol0
-  integer :: imol, idx, iatm
-  real(8) :: xcom(3), mass, massTotal
+  integer :: imol, idx, iatm, n
 
+  real(8), allocatable, dimension(:,:) :: localPositions
+
+  idx = maxval(listOfMolecules(mol0+1:numberOfMolecules) % numberOfAtoms)
+  allocate(localPositions(3,idx))
   do imol=mol0+1,numberOfMolecules
-    xcom = 0.0d0
-    massTotal = 0.d0
-    do idx=1,listOfMolecules(imol) % numberOfAtoms
+    n = listOfMolecules(imol) % numberOfAtoms
+    do idx=1,n
       iatm = listOfMolecules(imol) % listOfAtoms(idx)
-      ! mass = getElementMass(listOfMolecules(imol) % listOfLabels(idx))
-      mass = frame % mass(iatm)
-      xcom = xcom + frame % pos(1:3,iatm) * mass
-      massTotal = massTotal + mass
-    enddo
-    ! listOfMolecules(imol) % centreOfMass(1:3) = xcom / listOfMolecules(imol) % numberOfAtoms
-    listOfMolecules(imol) % centreOfMass(1:3) = xcom / massTotal
-  enddo
+      localPositions(1:3,idx) = frame % pos(1:3,iatm)
+    end do
+    listOfMolecules(imol) % centreOfMass(1:3) = computeCenter(n, localPositions(:,1:n))
+  end do
 
 end subroutine computeMoleculesCOM
 

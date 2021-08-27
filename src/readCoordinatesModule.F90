@@ -161,7 +161,7 @@ contains
       case ("xyz")  
         call getNumberOfAtomsXYZ(f % funit, n, hmat)
 
-      case ("arc")  
+      case ("arc" , "txyz")  
         call getNumberOfAtomsARC(f % funit, n, hmat)
 
       case ("pdb" , "PDB")
@@ -270,7 +270,7 @@ contains
         case ("xyz")
           call readCoordinatesXYZ(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
 
-        case ("arc")
+        case ("arc" , "txyz")
           call readCoordinatesARC(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
 
         case ("pdb")

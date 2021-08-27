@@ -48,7 +48,6 @@ subroutine defineVariables(cmd)
   character(len=STRLEN), dimension(100) :: listOfWords, words
 
   character(len=STRLEN) :: wstr
-  ! character(len=STRLEN), external :: lowercase
 
   call parse(cmd, " ", listOfWords, numberOfWords)
 
@@ -56,9 +55,9 @@ subroutine defineVariables(cmd)
   do while (iword < numberOfWords)
     iword = iword + 1
     i = len_trim(listOfWords(iword)) + 1
-    call lowercase(listOfWords(iword),wstr)
+    call lowercase (listOfWords(iword),wstr)
     wstr(i:) = ""
-    select case(wstr)
+    select case (wstr)
       case default
         call message(-1,"--define - unknown variable",str=wstr)
 
@@ -66,17 +65,17 @@ subroutine defineVariables(cmd)
         iword = iword + 1
         read(listOfWords(iword),*) randomNumberSeed
 
-      case("rscale")
+      case ("rscale")
         iword = iword + 1
         read(listOfWords(iword),*) distanceScaling
         
-      case("safedist" , "safepbc")
+      case ("safedist" , "safepbc")
         safeDistances = .true.
 
-      case("verlet")
+      case ("verlet")
         forceVerletList = .true.
 
-      case("rcov")
+      case ("rcov")
 
         iword = iword + 1
         call parse(listOfWords(iword),"=",words,nw)
@@ -116,6 +115,31 @@ subroutine defineVariables(cmd)
   end do
 
 end subroutine defineVariables
+
+subroutine defineVariablesHelp()
+  use moduleMessages
+  implicit none
+  call message(0,"This action is executed once before any other command and alter the default values of some global variables.")
+  call message(0,"The allowed arguments for this action are:")
+
+  call message(0,"  * seed     -> set the random number generator seed")
+  call message(0,"  * rscale   -> set the scaling parameter for the maximum bond lengths")
+  call message(0,"  * safepbc  -> use a safe (and slow) algorithm for the calculation of distances and PBC")
+  call message(0,"  * safedist -> use a safe (and slow) algorithm for the calculation of distances and PBC")
+  call message(0,"  * verlet   -> use the Verlet algorithm for the neighbours' list")
+  call message(0,"  * rcov     -> sets the covalent radius of an atom")
+  call message(0,"  * bond     -> set the maximum bond length for a pair")
+  call message(0,"  * reax     -> assumes a reactive trajectory with different connectivity in each frame (Experimental)")
+  call message(0,"Examples:")
+  call message(0,"  gpta.x --define seed 12345")
+  call message(0,"  gpta.x --define rscale 1.15")
+  call message(0,"  gpta.x --define safepbc")
+  call message(0,"  gpta.x --define safedist")
+  call message(0,"  gpta.x --define verlet")
+  call message(0,"  gpta.x --define rcov Ca=0.0")
+  call message(0,"  gpta.x --define bond Ca-OW=0.1")
+  call message(0,"  gpta.x --define reax")
+end subroutine defineVariablesHelp 
 
 subroutine dumpVariablesInfo()
   use moduleVariables

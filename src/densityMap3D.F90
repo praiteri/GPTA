@@ -210,15 +210,9 @@ contains
       end do
     end do
 
-    i=0
     do ix=1,numberOfBins(1)
       do iy=1,numberOfBins(2)
-        do iz=1,numberOfBins(3)
-          i=i+1
-          write(funit,'(e13.5)',advance='no')dmap(ix,iy,iz)
-          if(mod(i,6)==0)write(funit,*)
-        enddo
-        if (mod(numberOfBins(3),6)/=0) write(funit,*)
+        write(funit,'(6e13.5)')dmap(ix,iy,1:numberOfBins(3))
       enddo
     enddo
     call flush(funit)

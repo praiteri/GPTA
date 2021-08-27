@@ -55,10 +55,10 @@ contains
     call message(0,"Examples:")
     call message(0,"  gpta.x --i coord.pdb --rescale +cell 10")
     call message(0,"  gpta.x --i coord.pdb --top --add solute +atom Na,Cl +n 2,2 +rmin 4.0")
-    call message(0,"  gpta.x --i coord.pdb --top --add solvent +mol benzene.pdb +n 5 +rmin 5.0 --o new.pdb")
-    call message(0,"  gpta.x --add solvent +mol h2o.pdb +box 12. +n 57 +rmin 2 --top --o water.pdb")
-    call message(0,"  gpta.x --i coord.pdb --top --add centre +mol M1")
-    call message(0,"  gpta.x --i benzene.pdb --top --add centre +mol M1 +i 1,3,5,7,9,11")
+    call message(0,"  gpta.x --i coord.pdb --top --add solvent +f benzene.pdb +n 5 +rmin 5.0 --o new.pdb")
+    call message(0,"  gpta.x --add solvent +f h2o.pdb +box 12. +n 57 +rmin 2 --top --o water.pdb")
+    call message(0,"  gpta.x --i coord.pdb --top --add centre +f M1")
+    call message(0,"  gpta.x --i benzene.pdb --top --add centre +f M1 +i 1,3,5,7,9,11")
     call message(0,"  gpta.x --i water.pdb --top --add dummy +i 1,2,3 +dist 0.1577 --o tip4p_ice.pdb")
   end subroutine addAtomsHelp
   
@@ -93,7 +93,7 @@ contains
         if (index(a % actionDetails,"+atom") > 0) then
           addVirtualSite(1) % work => addElements
 
-        else if (index(a % actionDetails,"+mol") > 0) then
+        else if (index(a % actionDetails,"+f") > 0) then
           addVirtualSite(1) % work => addMoleculesFromFile
         end if
 

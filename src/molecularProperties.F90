@@ -71,6 +71,7 @@ module moduleMolecularProperties
 contains
 
   subroutine computeMolecularPropertiesHelp()
+    use moduleMessages
     implicit none
     call message(0,"This action computes a variety of molecular properties of the system.")
     call message(0,"The properties that can currently be computed are")
@@ -81,12 +82,12 @@ contains
     call message(0,"  the torsional angle between four atoms in the molecule.")
     call message(0,"  the radius of gyration.")
     call message(0,"Examples:")
-    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +angle 1,2,3 +avg")
-    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +torsion 1,2,3,4 +dist -pi,pi +nbin 180")
-    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +dipole +dist 0,4 +nbin 50 +out dipole.out")
-    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +dipoleZ +distZ +nbinZ 100")
-    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +normalZ 1,2,3 +dist2D 0,pi +nbinZ 100 +nbin 90")
-    call message(0,"  gpta.x --i c.pdb --top --molprop +mol M1 +dipole +dump +out dipole.out")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +angle 1,2,3 +avg")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +torsion 1,2,3,4 +dist -pi,pi +nbin 180")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +dipole +dist 0,4 +nbin 50 +out dipole.out")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +dipoleZ +distZ +nbinZ 100")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +normalZ 1,2,3 +dist2D 0,pi +nbinZ 100 +nbin 90")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +dipole +dump +out dipole.out")
   end subroutine computeMolecularPropertiesHelp
   
   subroutine computeMolecularProperties(a)
@@ -212,7 +213,7 @@ contains
     a % requiresNeighboursListDouble = .false.
     a % cutoffNeighboursList = 3.0d0
     
-    call assignFlagValue(actionCommand,"+mol",targetMolecule,"NULL")
+    call assignFlagValue(actionCommand,"+id",targetMolecule,"NULL")
     
     call assignFlagValue(actionCommand,"+out",outputFile % fname,'molprop.out')
     call initialiseFile(outputFile,outputFile % fname)

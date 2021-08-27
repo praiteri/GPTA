@@ -265,12 +265,13 @@
   end subroutine readCoordinatesXYZ
 
   subroutine getNumberOfAtomsARC(iounit,natoms,hmat)
+    use moduleVariables, only : identityMatrix
     implicit none
     integer, intent(in) :: iounit
     integer, intent(out) :: natoms
     real(8), dimension(3,3), intent(inout) :: hmat
     character(len=500) :: line
-    integer :: ierr, i,j
+    integer :: ierr
     
     natoms = 0
 
@@ -281,13 +282,14 @@
 
     read(line,*,iostat=ierr)natoms,hmat(1:3,1), hmat(1:3,2), hmat(1:3,3)
     if (ierr/=0)then
-      hmat=0.d0
+      hmat = identityMatrix
     endif
 
   end subroutine getNumberOfAtomsARC
 
   subroutine readCoordinatesARC(iounit,n,pos,lab,chg,hmat,go)
     use moduleStrings
+    use moduleVariables, only : identityMatrix
     implicit none
     integer, intent(in) :: iounit
     integer, intent(in) :: n
@@ -300,7 +302,6 @@
     integer :: i, j, nn, ierr
     character(len=500) :: line
 
-
     go = .true. 
 
     read(iounit,'(a500)',iostat=ierr)line
@@ -308,15 +309,15 @@
       go = .false.
       return
     end if
-    read(line,*) nn
-    if (nn/=n) then 
+    read(line,*,iostat=ierr) nn
+    if (ierr/=0 .or. nn/=n) then 
       go = .false.
       return
     end if
 
     read(line,*,iostat=ierr)nn,hmat(1:3,1), hmat(1:3,2), hmat(1:3,3)
     if (ierr/=0)then
-      hmat=0.d0
+      hmat = identityMatrix
     endif
 
     do i=1,n
@@ -331,6 +332,8 @@
         return
       end if
     enddo
-
+    
+    chg = 0.d0
+    
   end subroutine readCoordinatesARC
 

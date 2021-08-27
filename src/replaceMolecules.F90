@@ -51,10 +51,11 @@ module moduleReplaceMolecule
 
   character(len=STRLEN), pointer :: targetMolecule
   integer, pointer :: numberOfLocalMolecules
-  integer, pointer, dimension(:) :: localIndices
+  integer, pointer :: mapSize
+  integer, pointer, dimension(:) :: moleculesIndices
 
   type(fileTypeDef), pointer :: inputFile
-  logical, pointer :: frameRead
+  logical, pointer :: frameRead, mapUsed
   integer, pointer, dimension(:) :: currentIndices
   integer, pointer, dimension(:) :: referenceIndices
 
@@ -69,8 +70,8 @@ contains
     call message(0,"This action can be used to replace selected molecules with a different molecule read from a file.")
     call message(0,"The +is and +ir flags provide a mapping between the atoms in the system's and reference molecules.")
     call message(0,"Examples:")
-    call message(0,"gpta.x --i co3.pdb --top --subs +mol M1 +is 1,2,3,4 +ir 1,4,3,2 +f hco3.pdb --o new.pdb")
-    call message(0,"gpta.x --i slab.pdb --top --subs +mol M1 +all +f co3.pdb +rmsd rmsd.out")
+    call message(0,"gpta.x --i co3.pdb --top --subs +id M1 +map 1,2,3,4 1,4,3,2 +f hco3.pdb --o new.pdb")
+    call message(0,"gpta.x --i slab.pdb --top --subs +id M1 +all +f co3.pdb +rmsd rmsd.out")
   end subroutine replaceMoleculesHelp
 
   subroutine initialiseAction(a)
@@ -78,11 +79,10 @@ contains
     use moduleSystem
     implicit none
     type(actionTypeDef), target :: a
-    integer :: i, n
+    integer :: i
     real(8), dimension(3,3) :: hmat
 
-    integer, allocatable, dimension(:) :: idx
-    logical :: lflag
+    character(STRLEN) :: flagString
 
     a % actionInitialisation = .false.
     a % requiresNeighboursList = .true.
@@ -91,7 +91,7 @@ contains
     a % cutoffNeighboursList = 3.0d0
 
     ! molecule to replace
-    call assignFlagValue(actionCommand,"+mol",targetMolecule,"NULL")
+    call assignFlagValue(actionCommand,"+id",targetMolecule,"NULL")
 
     ! file with the reference molecule
     call assignFlagValue(actionCommand,"+f",inputFile % fname,'NULL')
@@ -99,10 +99,10 @@ contains
       call initialiseFile(inputFile, inputFile % fname)
 
       ! -> get number of atoms
-      call getNumberOfAtoms(inputFile, n, hmat)
+      call getNumberOfAtoms(inputFile, mapSize, hmat)
       rewind(inputFile % funit)
 
-      call createSystemArrays(a % localFrame, n)
+      call createSystemArrays(a % localFrame, mapSize)
 
       call readCoordinates(frameRead, a % localFrame, inputFile)
 
@@ -113,30 +113,42 @@ contains
 
     end if
 
-    call assignFlagValue(actionCommand,"+all",lflag,.false.)
-    if (lflag) then
-      n = a % localFrame % natoms
-      allocate(idx(n))
-      do i=1,n
-        idx(i) = i
-      enddo
-      currentIndices(1:n) => a % integerVariables(101:100+n)
-      currentIndices = idx
-      referenceIndices(1:n) => a % integerVariables(151:150+n)
-      referenceIndices = idx
-      
+    call assignFlagValue(actionCommand,"+map",mapUsed,.false.) 
+    if (mapUsed) then
+      call extractFlag(actionCommand,"+map",flagString)
+
+      block
+        integer :: nFields, n
+        character(len=STRLEN), dimension(2) :: fields
+        character(len=200), dimension(100) :: tokens
+
+        call parse(flagString," ",fields,nFields)
+        if (nFields /= 2) call message(-1,"--subs - +map requires two group of indices")
+
+        call parse(fields(1),",",tokens,mapSize)
+        currentIndices(1:mapSize) => a % integerVariables(101:100+mapSize)
+        do i=1,mapSize
+          read(tokens(i),*) currentIndices(i)
+        end do
+
+        call parse(fields(2),",",tokens,n)
+        if (n /= mapSize) call message(-1,"--subs - different number of atoms for in mapping")
+        referenceIndices(1:mapSize) => a % integerVariables(151:150+mapSize)
+        do i=1,mapSize
+          read(tokens(i),*) referenceIndices(i)
+        end do
+
+      end block
+
     else
-      ! building the matching arrays
-      call assignFlagValue(actionCommand,"+is",idx)
-      n = size(idx)
-      currentIndices(1:n) => a % integerVariables(101:100+n)
-      currentIndices = idx
-      deallocate(idx)
-      
-      call assignFlagValue(actionCommand,"+ir",idx)
-      n = size(idx)
-      referenceIndices(1:n) => a % integerVariables(151:150+n)
-      referenceIndices = idx
+      mapSize = a % localFrame % natoms
+      currentIndices(1:mapSize) => a % integerVariables(101:100+mapSize)
+      referenceIndices(1:mapSize) => a % integerVariables(151:150+mapSize)
+      do i=1,mapSize
+        currentIndices(i) = i
+        referenceIndices(i) = i
+      enddo
+
     end if
     
     call assignFlagValue(actionCommand,"+rmsd",computeOnlyRMSD,.false.)
@@ -158,16 +170,20 @@ contains
     actionCommand           => a % actionDetails
     firstAction             => a % firstAction
 
-    targetMolecule          => a % stringVariables(1)
-    numberOfLocalMolecules  => a % integerVariables(1)
-    localIndices            => a % localIndices
-
     inputFile               => a % inputFile
-    frameRead               => a % logicalVariables(1)
-
-    computeOnlyRMSD         => a % logicalVariables(2)
-    ID                      => a % integerVariables(2)
     outputFile              => a % outputFile
+
+    targetMolecule          => a % stringVariables(1)
+
+    ID                      => a % integerVariables(1)
+    numberOfLocalMolecules  => a % integerVariables(2)
+    mapSize                 => a % integerVariables(3)
+
+    moleculesIndices        => a % localIndices
+
+    frameRead               => a % logicalVariables(1)
+    computeOnlyRMSD         => a % logicalVariables(2)
+    mapUsed                 => a % logicalVariables(3)
 
   end subroutine associatePointers
 
@@ -176,9 +192,13 @@ contains
     call message(0,"Replace Molecules Action")
     call message(0,"...Target molecule",str=targetMolecule)
     call message(0,"...New molecule read from",str=inputFile % fname)
-    call message(0,"...Atoms used for the alignmen")
-    call message(0,"......Current molecule",iv=currentIndices)
-    call message(0,"......New molecule",iv=referenceIndices)
+    if (mapUsed) then
+      call message(0,"...Atoms used for the alignment",mapSize)
+      call message(0,"......Current molecule",iv=currentIndices(1:mapSize))
+      call message(0,"......New molecule",iv=referenceIndices(1:mapSize))
+    else
+      call message(0,"...All atoms used for the alignment")
+    end if
     call message(2)
 
   end subroutine dumpScreenInfo
@@ -189,12 +209,12 @@ contains
     type(actionTypeDef), target :: a
 
     integer :: nref, ncur, ilocal, imol
-    real(8) :: rmsd, rvec(9), rotmat(3,3)
+    real(8) :: rmsd, rvec(9), rotmat(3,3), dij(3)
     real(8), allocatable, dimension(:,:) :: referencePositions
     real(8), allocatable, dimension(:,:) :: currentPositions
     real(8), allocatable, dimension(:) :: weights
 
-    integer :: nidx0, nidx1, idx, jdx, iatm
+    integer :: idx, jdx, iatm
 
     logical, allocatable, dimension(:) :: selectedMolecules
     
@@ -204,37 +224,36 @@ contains
 
     real(8), allocatable, dimension(:) :: localProperty
 
+    ! Number of atoms in the new molecule
     nref = a % localFrame % natoms
-    nidx0 = size(referenceIndices)
 
-    imol = localIndices(1)
+    ! number of atoms in the current molecule
+    imol = moleculesIndices(1)
     ncur = listOfMolecules(imol) % numberOfAtoms
-    nidx1 = size(currentIndices)
-
-    if (nidx1 > nref) call message(-1,"--subs - wrong number of indices in +wr")
-    if (nidx1 > ncur) call message(-1,"--subs - wrong number of indices in +ws")
-    if (nidx1 /= nidx0) call message(-1,"--subs - +wr and +ws must have the same number of indices")
 
     ! allocating arrays for the alignment
-    allocate(referencePositions(3,nref))
-    allocate(currentPositions(3,nref))
+    allocate(referencePositions(3,mapSize))
+    allocate(currentPositions(3,mapSize))
 
     ! extracting the atoms for the reference structure to match
-    allocate(weights(a % localFrame % natoms), source=0.d0)
-    do idx=1,nidx0
+    ! custom weights can be added here
+    allocate(weights(mapSize), source=1.d0)
+    do idx=1,mapSize
       iatm = referenceIndices(idx)
-      weights(iatm) = 1.d0
       referencePositions(1:3,idx) = a % localFrame % pos(1:3,iatm)
     end do
 
-    ! shifting reference molecule and the subset of atoms used for alignement to the origin
-    call CenterCoords(nidx0, referencePositions) 
+    ! shifting reference (new) molecule to the origin
+    call CenterCoords(dij, mapSize, referencePositions, weights) 
+    do idx=1, a % localFrame % natoms
+      a % localFrame % pos(1:3,idx) = a % localFrame % pos(1:3,idx) - dij(1:3)
+    end do
 
     if (computeOnlyRMSD) then
       allocate(localProperty(numberOfLocalMolecules))
       do ilocal=1,numberOfLocalMolecules
-        imol = localIndices(ilocal)
-        do idx=1,nidx1
+        imol = moleculesIndices(ilocal)
+        do idx=1,mapSize
           jdx = currentIndices(idx)
           iatm = listOfMolecules(imol) % listOfAtoms(jdx)
           currentPositions(1:3,idx) = frame % pos(1:3,iatm)
@@ -242,20 +261,17 @@ contains
 
         ! extracting the rotation matrix to rotate referencePositions onto currentPositions
         ! current positions are centered to the origin
-        call Superimpose(nidx1, referencePositions, currentPositions, rmsd, rvec)
+        call Superimpose(mapSize, referencePositions, currentPositions, rmsd, rvec, weights)
         localProperty(ilocal) = rmsd
       end do
       call workData % compute(ID, numberOfValues=numberOfLocalMolecules, xValues=localProperty)
 
     else
 
-      ! using weighted function to get the same shift
-      call CenterCoords(a % localFrame % natoms, a % localFrame % pos, weights) 
-
       ! allocating temporary arrays for the new positions
       allocate(selectedMolecules(numberOfMolecules), source=.false.)
       do ilocal=1,numberOfLocalMolecules
-        imol = localIndices(ilocal)
+        imol = moleculesIndices(ilocal)
         selectedMolecules(imol) = .true.
       end do
       newNumberOfAtoms = frame % natoms + count(selectedMolecules)*(nref-ncur)
@@ -268,27 +284,29 @@ contains
       
         if (selectedMolecules(imol)) then
           ! extracting the atoms for the reference structure to match
-          do idx=1,nidx1
+          do idx=1,mapSize
             jdx = currentIndices(idx)
             iatm = listOfMolecules(imol) % listOfAtoms(jdx)
             currentPositions(1:3,idx) = frame % pos(1:3,iatm)
           end do
+          ! This allows for a better centering of the molecule
+          listOfMolecules(imol) % centreOfMass = computecenter(mapSize,currentPositions)
 
           ! extracting the rotation matrix to rotate referencePositions onto currentPositions
-          ! current positions are centered to the origin
-          call Superimpose(nidx1, referencePositions, currentPositions, rmsd, rvec)
+          ! current positions don't need to be centered to the origin
+          call Superimpose(mapSize, referencePositions, currentPositions, rmsd, rvec, weights)
           rotmat = reshape(rvec,[3,3])
 
           ! rotating the reference molecule + shifting its original centre of mass
-          ! could lead to problems if old and new molecule are very different
           do idx=1,a % localFrame % natoms
-            newPositions(1:3,newNumberOfAtoms+idx) = &
-              matmul(rotmat , a % localFrame % pos(1:3,idx)) + listOfMolecules(imol) % centreOfMass
+            dij = matmul(rotmat , a % localFrame % pos(1:3,idx))
+            newPositions(1:3,newNumberOfAtoms+idx) = dij + listOfMolecules(imol) % centreOfMass
           end do
+
           do idx=1,a % localFrame % natoms
             newLabels(newNumberOfAtoms+idx) = a % localFrame % lab(idx)
           end do
-          newNumberOfAtoms = newNumberOfAtoms + nref
+          newNumberOfAtoms = newNumberOfAtoms + a % localFrame % natoms
 
         else
 
@@ -353,7 +371,7 @@ contains
         
         ! get the indices of the molecules to replace
         call getLocalIndices(targetMolecule, a, numberOfLocalMolecules)
-        localIndices => a % localIndices
+        moleculesIndices => a % localIndices
         
         call checkUsedFlags(actionCommand)
         firstAction = .false.

@@ -34,7 +34,7 @@ module moduleAlignMolecules
 
 #define PREC 8
   private
-  public :: Superimpose, CenterCoords
+  public :: Superimpose, CenterCoords, computeCenter
   
 contains
 
@@ -49,19 +49,20 @@ contains
     real(PREC), intent(in), optional :: weight(nlen)
     
     integer :: ireturn
+    real(PREC) :: shift(3)
     real(PREC) :: A(9), E0
     
     if (present(weight)) then
       ! center the structures -- if precentered you can omit this step
       ! call CenterCoords(nlen, coords1, weight)
-      call CenterCoords(nlen, coords2, weight)
+      call CenterCoords(shift, nlen, coords2, weight)
       
       ! calculate the (weighted) inner product of two structures
       call InnerProduct(nlen, coords1, coords2, A, E0, weight)
     else
       ! center the structures -- if precentered you can omit this step
       ! call CenterCoords(nlen, coords1)
-      call CenterCoords(nlen, coords2)
+      call CenterCoords(shift, nlen, coords2)
       
       ! calculate the inner product of two structures
       call InnerProduct(nlen, coords1, coords2, A, E0)
@@ -418,16 +419,17 @@ contains
     E0 = G * 0.5
   end subroutine InnerProduct
   
-  subroutine CenterCoords(nlen, coords, weight)
+  subroutine CenterCoords(s, nlen, coords, weight)
     
     implicit none 
     
+    real(PREC), intent(out) :: s(3)
     integer, intent(in) :: nlen
     real(PREC), intent(inout) :: coords(3,nlen)
     real(PREC), intent(in), optional :: weight(nlen)
     
     integer :: i
-    real(PREC) :: s(3), wsum
+    real(PREC) :: wsum
     
     s(:) = 0.0
     
@@ -452,6 +454,38 @@ contains
     enddo
   end subroutine CenterCoords
   
+  function computeCenter(nlen, coords, weight) result(s)
+    
+    implicit none 
+    
+    real(PREC) :: s(3)
+    integer, intent(in) :: nlen
+    real(PREC), intent(in) :: coords(3,nlen)
+    real(PREC), intent(in), optional :: weight(nlen)
+    
+    integer :: i
+    real(PREC) :: wsum
+    
+    s(:) = 0.0
+    
+    if (present(weight)) then
+      wsum = 0.0
+      do i = 1, nlen
+        s(:) = s(:) + weight(i) * coords(:,i)
+        wsum = wsum + weight(i)
+      enddo
+      
+      s(:) = s(:) / wsum
+    else
+      do i = 1, nlen
+        s(:) = s(:) + coords(:,i)
+      enddo
+      
+      s(:) = s(:) / real(nlen, kind=PREC)
+    endif
+    
+  end function computeCenter
+
   ! subroutine InnerProductNoWeight(nlen, coords1, coords2, A, E0)
     
   !   implicit none 
