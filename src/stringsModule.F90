@@ -101,7 +101,6 @@ contains
   character(len=*),dimension(:) :: args
 
   integer :: nargs, na, k, i, lenstr
-
   nargs=0
   if (len_trim(str) == 0) return
   strwork = trim(str)

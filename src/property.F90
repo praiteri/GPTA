@@ -410,7 +410,7 @@ contains
         idx = idx + 2
       end do
 
-    else if (property(ID) % type == "histogram") then
+    else if (property(ID) % type == "histogram" .or. property(ID) % type == "histo") then
       xmin = property(ID) % lowerLimit
       xmax = property(ID) % upperLimit
       nbin = property(ID) % numberOfBins

@@ -33,7 +33,7 @@
 subroutine initialiseActions()
   use moduleActions
   use moduleMessages
-
+  use moduleStrings
   use moduleTemplateAction
 
   use moduleOpenMM
@@ -57,6 +57,7 @@ subroutine initialiseActions()
   use moduleMeanSquareDisplacement
   use moduleExtractClustersAction
   use moduleSolvationShell
+  use moduleExtractFramesByProperty
 
 #ifdef GPTA_OPENMM
   use moduleAmoeba
@@ -67,7 +68,7 @@ subroutine initialiseActions()
 #endif
 
   implicit none
-  integer :: i
+  integer :: i, idx
   allocate(action(0:numberOfActions))
   do i=1,numberOfActions
     action(i) % name = actionType(i)
@@ -76,8 +77,9 @@ subroutine initialiseActions()
 
   do i=1,numberOfActions
     
-    ! print *, me, trim(actionType(i))
+    ! print *, "WWWW",me, trim(actionType(i)),i
     nullify(allActions(i) % work)
+
     if (actionType(i) == "--test"     ) allActions(i) % work => testAction
 
     if (actionType(i) == "--top"      ) allActions(i) % work => computeTopology
@@ -95,7 +97,18 @@ subroutine initialiseActions()
     if (actionType(i) == "--add"      ) allActions(i) % work => addAtoms
     if (actionType(i) == "--surface"  ) allActions(i) % work => createSurface
 
-    if (actionType(i) == "--extract"  ) allActions(i) % work => extractSystemProperties
+    if (actionType(i) == "--extract"  ) then
+      if ( index(actionDetails(i),"+clusters") > 0) then
+        call removeFlag(action(i) % actionDetails , "+clusters")
+        allActions(i) % work => extractClusters
+      else if ( index(actionDetails(i),"+conf") > 0) then
+        call removeFlag(action(i) % actionDetails , "+conf")
+        allActions(i) % work => extractFrames
+      else
+        allActions(i) % work => extractSystemProperties
+      end if
+    end if
+
     if (actionType(i) == "--gofr"     ) allActions(i) % work => computeRadialPairDistribution
     if (actionType(i) == "--dmap1D"   ) allActions(i) % work => computeDensityProfile
     if (actionType(i) == "--dmap2D"   ) allActions(i) % work => computeDensityMap2D 
@@ -105,7 +118,6 @@ subroutine initialiseActions()
     if (actionType(i) == "--restime"  ) allActions(i) % work => computeResidenceTime
     if (actionType(i) == "--xray"     ) allActions(i) % work => computeXrayPowder
     if (actionType(i) == "--msd"      ) allActions(i) % work => computeMSD
-    if (actionType(i) == "--cluster"  ) allActions(i) % work => extractClusters
 
 ! openMM driver for AMOEBA
 #ifdef GPTA_OPENMM

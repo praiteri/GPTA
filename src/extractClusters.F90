@@ -204,7 +204,10 @@ contains
     write(str,'(i0)') frame % nframe
     localFile % fname = trim(outputFile % fname)//"."//trim(str)//".xyz"
     call initialiseFile(localFile, localFile % fname)
-    call dumpXYZ(localFile % funit, nsel, lpos, llab)
+    ! call dumpXYZ(localFile % funit, nsel, lpos, llab)
+
+    call dumpCoordinates("xyz", localFile % funit, nsel, lpos, llab)
+ 
     close(localFile % funit)
 
     deallocate(llab)

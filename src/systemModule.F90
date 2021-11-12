@@ -65,6 +65,7 @@ module moduleSystem
   character(len=5)                                :: pbc_type
   logical                                         :: inputCoordInNM = .false.
   logical                                         :: inputCoordInBohr = .false.
+  logical                                         :: inputCoordInFractional = .false.
   logical                                         :: outputCoordInBohr = .false.
 
   ! Neighbours' list  
@@ -117,6 +118,19 @@ module moduleSystem
       integer, intent(in), optional :: numberOfSelectedAtoms
       integer, dimension(:), intent(in), optional :: selectionList
     end subroutine stuff
+  end interface
+
+    interface
+      subroutine dumpCoordinates(ftype, funit, natoms, pos, label, hmat, header)
+      implicit none 
+      character(len=*) :: ftype
+      integer, intent(in) :: funit
+      integer, intent(in) :: natoms
+      real(8), dimension(3,natoms), intent(in) :: pos
+      character(4), dimension(natoms), intent(in) :: label
+      real(8), dimension(3,3), optional, intent(in) :: hmat
+      logical, optional, intent(in) :: header
+    end subroutine
   end interface
 
 end module moduleSystem 

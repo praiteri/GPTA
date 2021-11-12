@@ -47,7 +47,7 @@ module moduleExtractSystemProperties
   type(fileTypeDef), pointer :: outputFile
   logical, pointer :: firstAction
 
-  logical, pointer :: dumpCoordinates
+  logical, pointer :: dumpCoordinatesLocal
   type(fileTypeDef), pointer :: coordinatesFile
 
   integer, pointer :: ID
@@ -116,7 +116,7 @@ contains
 
         call message(0,"System property")
         call message(0,"...Extracting "//trim(a % sysprop % name))
-        if (dumpCoordinates) then
+        if (dumpCoordinatesLocal) then
           call message(0,"......Output file for coordinates",str=coordinatesFile % fname)
         else if (outputFile % fname /= "NULL") then
           call message(0,"......Output file",str=outputFile % fname)
@@ -159,7 +159,7 @@ contains
     ! Normal processing of the frame - finalise calculation and write output
     if (endOfCoordinatesFiles) then
 
-      if (.not. dumpCoordinates) then
+      if (.not. dumpCoordinatesLocal) then
         if (averageMultiProperty) call message(0,"......Average(s) and standard deviation(s)")
         if (distProperty        ) then
           if (distributionType == 1) then 
@@ -205,7 +205,7 @@ contains
     averageMultiProperty    => a % logicalVariables(3) ! Average more than one property
     distProperty            => a % logicalVariables(4) ! Distribution
 
-    dumpCoordinates         => a % logicalVariables(5) 
+    dumpCoordinatesLocal    => a % logicalVariables(5) 
     averagePositions        => a % logicalVariables(6) 
     coordinatesFile         => a % auxiliaryFile 
 
@@ -248,7 +248,7 @@ contains
     if ( count([distProperty,averageMultiProperty]) == 0 ) dumpProperty = .true.
 
     call assignFlagValue(actionCommand,"+out",outputFile % fname,"NULL")
-    if (.not. dumpCoordinates) then
+    if (.not. dumpCoordinatesLocal) then
       if (outputFile % fname /= "NULL") then
         call initialiseFile(outputFile, outputFile % fname)
         write(outputFile % funit,"(a)")"#System property"
@@ -273,7 +273,7 @@ contains
     real(8) :: rtmp
     character(len=30) :: str
 
-    if (dumpCoordinates) then
+    if (dumpCoordinatesLocal) then
       call workData % extract(ID, avgValues)
       frame % hmat = reshape(avgValues(1:9),[3,3])
       call hmat2cell (frame % hmat, frame % cell, "DEG")
@@ -408,7 +408,7 @@ contains
     if (flagExists(actionCommand,"+system")) then
       n = n + 1
       averageMultiProperty = .true.
-      dumpCoordinates = .true.
+      dumpCoordinatesLocal = .true.
 
       call assignFlagValue(actionCommand,"+out",coordinatesFile % fname,"averageSystem.pdb")
 !      call assignFlagValue(actionCommand,"+avg",averagePositions,.false.)

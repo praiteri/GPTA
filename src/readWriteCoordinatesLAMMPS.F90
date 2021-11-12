@@ -346,11 +346,29 @@ subroutine writeLammpsCoordinates(iout)
   write(iout,'(i8,a15)') lammpsNumberOfOutOfPlane , adjustr("improper types")
   write(iout,'(i8,a15)')
 
-  write(iout,'(/,g15.8,g15.8," xlo xhi")')0.0d0,frame % hmat(1,1)
-  write(iout,'(  g15.8,g15.8," ylo yhi")')0.0d0,frame % hmat(2,2)
-  write(iout,'(  g15.8,g15.8," zlo zhi")')0.0d0,frame % hmat(3,3)
-  if (abs(frame % hmat(1,2))+abs(frame % hmat(1,3))+abs(frame % hmat(2,3))>1.d-8) &
-    write(iout,'(3g15.8," xy xz yz")')frame % hmat(1,2),frame % hmat(1,3),frame % hmat(2,3)
+  if (frame % volume > 1.1d0) then
+    write(iout,'(/,g15.8,g15.8," xlo xhi")')0.0d0,frame % hmat(1,1)
+    write(iout,'(  g15.8,g15.8," ylo yhi")')0.0d0,frame % hmat(2,2)
+    write(iout,'(  g15.8,g15.8," zlo zhi")')0.0d0,frame % hmat(3,3)
+    if (abs(frame % hmat(1,2))+abs(frame % hmat(1,3))+abs(frame % hmat(2,3))>1.d-8) &
+      write(iout,'(3g15.8," xy xz yz")')frame % hmat(1,2),frame % hmat(1,3),frame % hmat(2,3)
+  else
+    block
+      real(8), dimension(3) :: pmin, pmax
+      real(8) :: xmin, xmax, dx
+      
+      pmin = minval(frame % pos, dim=2)
+      pmax = maxval(frame % pos, dim=2)
+      dx = maxval(pmax - pmin)
+      xmin = minval(pmin) - 2.d0 * dx
+      xmax = maxval(pmax) + 2.d0 * dx
+
+      write(iout,'(/,g15.8,g15.8," xlo xhi")')xmin , xmax
+      write(iout,'(  g15.8,g15.8," ylo yhi")')xmin , xmax
+      write(iout,'(  g15.8,g15.8," zlo zhi")')xmin , xmax
+
+    end block
+  end if
 
   write(iout,'(/" Atoms"/)')
   do i=1,frame % natoms
@@ -588,7 +606,7 @@ subroutine getNumberOfAtomsLammps(uinp, n, hmat)
   real(8), dimension(3,3), intent(out) :: hmat
   
   integer :: ios
-  character(len=20)  :: line
+  character(len=200)  :: line
   real(8) :: rtmp(2)
   
   n = 0
@@ -598,7 +616,7 @@ subroutine getNumberOfAtomsLammps(uinp, n, hmat)
     if (index(line, "atoms") >0 )then
       read(line,*) n
     end if
-    
+
     if (index(line, "xlo xhi") >0 )then
       read(line,*,iostat=ios) rtmp
       if (ios == 0) then
@@ -626,7 +644,7 @@ subroutine getNumberOfAtomsLammps(uinp, n, hmat)
       end if
     end if
     
-    if (index(line, "xy xz yz") >0 )then
+    if (index(line, "xy xz yz") > 0 )then
       read(line,*) hmat(1,2) , hmat(1,3) , hmat(2,3) 
     end if
     
@@ -710,7 +728,6 @@ subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
         end if
         read(line,*) iatm, itmp, label(iatm), charge(iatm), pos(1:3,iatm)
       end do
-      write(0,*) pos(1:3,1)
       return
     end if
 

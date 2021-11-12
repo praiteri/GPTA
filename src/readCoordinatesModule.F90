@@ -113,6 +113,7 @@ contains
  
         call assignFlagValue(actionDetails(iact),"+nm ",inputCoordInNM,.false.)
         call assignFlagValue(actionDetails(iact),"+bohr ",inputCoordInBohr,.false.)
+        call assignFlagValue(actionDetails(iact),"+frac ",inputCoordInFractional,.false.)
         call assignFlagValue(actionDetails(iact),"+cell ", stringCell, "NONE")
         if (stringCell == "NONE") then
           userDefinedCell = .false.
@@ -202,6 +203,7 @@ contains
     use moduleSystem 
     use moduleMessages 
     use moduleElements
+    use moduleDistances
 
     implicit none
     logical, intent(out) :: lerr
@@ -227,6 +229,7 @@ contains
     integer :: now, next_frame
     integer :: iatm
     integer :: n0
+    real(8) :: dij(3)
 
     ! Default to no error
     lerr = .true.
@@ -437,12 +440,21 @@ contains
     else
 
       n0 = size(savedLabels)
-      if (resetFrameLabels) localFrame% lab(1:n0) = savedLabels(1:n0)
-      if (resetFrameCharges) localFrame% chg(1:n0) = savedCharges(1:n0)
-      if (resetFrameElements) localFrame% element(1:n0) = savedElements(1:n0)
+      if (resetFrameLabels) localFrame % lab(1:n0) = savedLabels(1:n0)
+      if (resetFrameCharges) localFrame % chg(1:n0) = savedCharges(1:n0)
+      if (resetFrameElements) localFrame % element(1:n0) = savedElements(1:n0)
 
     end if
     
+    if (inputCoordInFractional) then
+      do iatm=1,localFrame % natoms
+        dij(1:3) = localFrame % pos(1:3,iatm)
+        localFrame % pos(1,iatm) = localFrame % hmat(1,1)*dij(1) + localFrame % hmat(1,2)*dij(2) + localFrame % hmat(1,3)*dij(3)
+        localFrame % pos(2,iatm) = localFrame % hmat(2,1)*dij(1) + localFrame % hmat(2,2)*dij(2) + localFrame % hmat(2,3)*dij(3)
+        localFrame % pos(3,iatm) = localFrame % hmat(3,1)*dij(1) + localFrame % hmat(3,2)*dij(2) + localFrame % hmat(3,3)*dij(3)
+      end do
+    end if
+
   end subroutine readCoordinates
   
   function getNextFrameNumber(current) result(next)
@@ -518,10 +530,10 @@ contains
     if (firstTimeIn) then
       firstTimeIn = .false.
       
-          call initialisePBC(pbc_type)
-          if (computeNeighboursList) call setUpNeigboursList() 
+      call initialisePBC(pbc_type)
+      if (computeNeighboursList) call setUpNeigboursList() 
 
-      call systemComposition(frame)
+      if (frame % natoms > 0) call systemComposition(frame)
 
       totalMass = 0.d0
       block
@@ -541,7 +553,7 @@ contains
       call message(0,"...Total mass (g/mole)",r=totalMass)
       if (pbc_type /= "none") then
         density = 1.6605388d0 * totalMass / frame % volume
-        call message(0,"...Density (g/cm^3)",r=density)
+        call message(0,"...Initial density (g/cm^3)",r=density)
       end if
       call message(1,"...Total charge",r=totalCharge)
 

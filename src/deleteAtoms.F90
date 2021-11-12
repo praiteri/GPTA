@@ -138,7 +138,7 @@ contains
         end do
       end block
 
-      if (computeNeighboursList) call updateNeighboursList(.true.)
+      call updateNeighboursList(.true.)
 
     end if
 

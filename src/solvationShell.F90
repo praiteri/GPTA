@@ -269,6 +269,7 @@ contains
     integer :: i
     character(len=STRLEN) :: str
     call message(0,"Computing solvation shell")
+    call message(0,"...Solute molecule ID",str=moleculeName)
     call message(0,"...Output file",str=outputFile % fname)
     call message(0,"...Number of bins",iv=numberOfBins)
     call message(0,"...Region size A",rv=densityBox(1:3))
@@ -393,13 +394,18 @@ contains
     allocate(solventPositionsCart(3,nsel))
     allocate(solventPositionsFrac(3,nsel))
 
-    ! loop over over the first group of atoms
+    ! Local array with the fractional coordinates of only the selected atoms
     do idx=1,nsel
       iatm = a % idxSelection(idx,1)
-      dij(1:3) = frame % pos(1:3,iatm) - xcom(1:3)
+      solventPositionsFrac(1:3,idx) = frame % frac(1:3,iatm)
+    enddo
+    call fractionalToCartesian(nsel, solventPositionsFrac, solventPositionsCart)
+
+    ! loop over over the first group of atoms
+    do idx=1,nsel
+      dij(1:3) = solventPositionsCart(1:3,idx) - xcom(1:3)
       solventPositionsCart(1:3,idx) = matmul(rotmat , dij(1:3))
     end do
-
     call cartesianToFractionalNINT(nsel, solventPositionsCart, solventPositionsFrac)
 
     ! requires an even number of bins

@@ -60,7 +60,8 @@ module moduleMolecularProperties
   logical, pointer :: dumpProperty    ! Output dump all molecule on the same line
   logical, pointer :: dumpPropertySeq ! Output dump sequentially
   logical, pointer :: averageProperty ! Average
-  logical, pointer :: distProperty    ! Distribution
+  logical, pointer :: histoProperty   ! Histogram
+  logical, pointer :: distProperty    ! Distribution (normalised)
   logical, pointer :: distZProperty   ! Distribution of Averages (z)
   logical, pointer :: distZProperty2D
 
@@ -83,6 +84,7 @@ contains
     call message(0,"  the radius of gyration.")
     call message(0,"Examples:")
     call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +angle 1,2,3 +avg")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +torsion 1,2,3,4 +histo -pi,pi +nbin 180")
     call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +torsion 1,2,3,4 +dist -pi,pi +nbin 180")
     call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +dipole +dist 0,4 +nbin 50 +out dipole.out")
     call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +dipoleZ +distZ +nbinZ 100")
@@ -179,9 +181,10 @@ contains
     dumpProperty            => a % logicalVariables(1) ! Output dump all molecule on the same line
     dumpPropertySeq         => a % logicalVariables(2) ! Output dump sequentially
     averageProperty         => a % logicalVariables(3) ! Average
-    distProperty            => a % logicalVariables(4) ! Distribution
-    distZProperty           => a % logicalVariables(5) ! Distribution of Averages (z)
-    distZProperty2D         => a % logicalVariables(6) ! 2D map
+    histoProperty           => a % logicalVariables(4) ! Histogram
+    distProperty            => a % logicalVariables(5) ! Distribution (normalised)
+    distZProperty           => a % logicalVariables(6) ! Distribution of Averages (z)
+    distZProperty2D         => a % logicalVariables(7) ! 2D map
 
     numberOfLocalMolecules  => a % integerVariables(1)
     localIndices            => a % localIndices
@@ -271,7 +274,8 @@ contains
     call assignFlagValue(actionCommand,"+dumpSeq ",dumpPropertySeq, .false.) ! Dump sequentialy
 
     call assignFlagValue(actionCommand,"+avg "    ,averageProperty, .false.) ! Average
-    call assignFlagValue(actionCommand,"+dist "   ,distProperty   , .false.) ! Distribution
+    call assignFlagValue(actionCommand,"+histo "  ,histoProperty  , .false.) ! Histogram
+    call assignFlagValue(actionCommand,"+dist "   ,distProperty   , .false.) ! Distribution (normalised)
     call assignFlagValue(actionCommand,"+distZ "  ,distZProperty  , .false.) ! Distribution of Averages (z)
     call assignFlagValue(actionCommand,"+dist2D " ,distZProperty2D, .false.) ! Distribution of Averages (z)
 
@@ -288,6 +292,11 @@ contains
     else if (distProperty) then
       call assignFlagValue(actionCommand,"+nbin ",numberOfBins,100)
       call assignFlagValue(actionCommand,"+dist ", distributionLimits(1:2),[1.d0,2.d0])
+      call workData % initialise(ID, "histogram", numberOfBins=[numberOfBins], lowerLimits=[distributionLimits(1)], upperLimits=[distributionLimits(2)])
+
+    else if (histoProperty) then
+      call assignFlagValue(actionCommand,"+nbin ",numberOfBins,100)
+      call assignFlagValue(actionCommand,"+histo ", distributionLimits(1:2),[1.d0,2.d0])
       call workData % initialise(ID, "histogram", numberOfBins=[numberOfBins], lowerLimits=[distributionLimits(1)], upperLimits=[distributionLimits(2)])
 
     else if (distZProperty) then
@@ -334,7 +343,11 @@ contains
     else if (dumpPropertySeq) then
       call message(0,"...Writing the property of each molecule sequentially")
     else if (distProperty) then
-      call message(0,"...Computing the property distribution")
+      call message(0,"...Computing the normalised distribution")
+      call message(0,"......Distribution limits",rv=distributionLimits(1:2))
+      call message(0,"......Number of bins",i=numberOfBins)
+    else if (histoProperty) then
+      call message(0,"...Computing the histogram")
       call message(0,"......Distribution limits",rv=distributionLimits(1:2))
       call message(0,"......Number of bins",i=numberOfBins)
     else if (distZProperty) then
@@ -359,8 +372,10 @@ contains
        call workData % dump(ID, outputFile % funit, upperLimits=[distributionLimits(2), frame % hmat(3,3)])
     else if (distZProperty) then
       call workData % dump(ID, outputFile % funit, upperLimits=[frame % hmat(3,3)])
-    else 
+    else if (distProperty) then
       call workData % dump(ID, outputFile % funit, normalisation="probability")
+    else
+      call workData % dump(ID, outputFile % funit, normalisation="none")
     end if
     close(outputFile % funit)
 

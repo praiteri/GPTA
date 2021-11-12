@@ -44,6 +44,9 @@ module moduleAddAtoms
   end type localWorkProcedure
   type(localWorkProcedure) :: addVirtualSite(100)
 
+  integer :: lastFrameCalled = -11
+  integer :: nCalled
+
 contains
 
   subroutine addAtomsHelp()
@@ -81,6 +84,12 @@ contains
     integer :: originalNumberOfMolecules
     logical :: updateTopology
 
+    if (frame % nframe > lastFrameCalled) then
+      lastFrameCalled = frame % nframe
+      nCalled = 0
+    end if
+    nCalled = nCalled + 1
+
     read(a % actionDetails,*) option
 
     removeOverlap = 0
@@ -88,13 +97,37 @@ contains
       case default
         call message(-1,"--add - nothing to do")
 
+      case("box")
+        block
+          integer :: idx
+          character(len=100) :: stringCell
+          idx = index(a % actionDetails,"box") + 3
+          read(a % actionDetails(idx:),'(a100)')stringCell
+          call readCellFreeFormat(stringCell, frame % hmat)
+        end block
+        if (abs(frame % hmat(1,2)) + abs(frame % hmat(1,3)) + abs(frame % hmat(2,3)) .lt. 1.0d-6) then
+          pbc_type = "ortho"
+        else
+          pbc_type = "tri"
+        end if
+        call initialisePBC(pbc_type)
+        ! Initialise neighbours list
+        call hmat2cell (frame % hmat, frame % cell, "DEG")
+        call getInverseCellMatrix (frame % hmat, frame % hinv, frame % volume)
+        call initialiseNeighboursList()
+        return
+
       case("solute" , "solvent")
         updateTopology = .false.
         if (index(a % actionDetails,"+atom") > 0) then
-          addVirtualSite(1) % work => addElements
+          addVirtualSite(nCalled) % work => addElements
 
         else if (index(a % actionDetails,"+f") > 0) then
-          addVirtualSite(1) % work => addMoleculesFromFile
+          addVirtualSite(nCalled) % work => addMoleculesFromFile
+
+        else
+          call message(-1,"--add solute/solvent requires either +f or +atom")
+
         end if
 
         if (option == "solute") then
@@ -105,20 +138,25 @@ contains
 
       case("dummy")
         updateTopology = .true.
-        addVirtualSite(1) % work => addDummyParticles
+        addVirtualSite(nCalled) % work => addDummyParticles
 
       case("centre")
         updateTopology = .true.
-        addVirtualSite(1) % work => addCentresParticles
+        addVirtualSite(nCalled) % work => addCentresParticles
 
     end select
     
     originalNumberOfAtoms = frame % natoms
     originalNumberOfMolecules = numberOfMolecules
     
-    call addVirtualSite(1) % work(a)
-
     if (frameReadSuccessfully) then
+      call addVirtualSite(nCalled) % work(a)
+
+      if (originalNumberOfAtoms == 0) then
+        call setUpNeigboursList()
+        call initialiseNeighboursList()
+      end if
+  
       call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
       call updateNeighboursList(.true.)
       !      if (updateTopology) call runInternalAction("topology","+update +reorder")

@@ -48,7 +48,7 @@ contains
     if (a % actionInitialisation) call initialiseAction(a)
 
     if (frameReadSuccessfully) then
-      if (firstAction) then
+      ! if (firstAction) then
 
         allocate(localMolecules(numberOfFiles))
         allocate(inputFile(numberOfFiles))
@@ -82,9 +82,6 @@ contains
 
           localMolecules(iFile) % natoms = a % localFrame % natoms
 
-!          allocate(localMolecules(iFile) % lab , source= a % localFrame % lab)
-!          allocate(localMolecules(iFile) % pos , source= a % localFrame % pos)
-!          allocate(localMolecules(iFile) % chg , source= a % localFrame % chg)
           allocate(localMolecules(iFile) % lab(  localMolecules(iFile) % natoms))
           allocate(localMolecules(iFile) % pos(3,localMolecules(iFile) % natoms))
           allocate(localMolecules(iFile) % chg(  localMolecules(iFile) % natoms))
@@ -108,9 +105,13 @@ contains
         call checkUsedFlags(actionCommand)
         firstAction = .false.
 
-      end if
+      ! end if
     
       call computeAction()
+
+      deallocate(localMolecules)
+      deallocate(inputFile)
+
     end if
 
   end subroutine addMoleculesFromFile
@@ -151,12 +152,12 @@ contains
 
     a % actionInitialisation = .false.
     a % requiresNeighboursList = .false.
-
+    
     call assignFlagValue(actionCommand,"+rmin",minimumDistance,1.5d0)
 
     call assignFlagValue(actionCommand,"+f",localString)
     numberOfFiles = size(localString)
-    
+
     fileNames(1:numberOfFiles) = localString(1:numberOfFiles)
     deallocate(localString)
 
@@ -259,9 +260,10 @@ contains
         vec(2) = sin(theta) * sin(phi)
         vec(3) = cos(theta)
         theta  = grnd() * twopi  
-        call rotateMolecule(vec(1:3), theta, localMolecules(iFile) % natoms, localMolecules(iFile) % pos,-1)
-      
+        call rotateMolecule(vec(1:3), theta, localMolecules(iFile) % natoms, localMolecules(iFile) % pos, 0)
+
         call checkMoleculesOverlap(1+initialMolecules, currentMolecules, localMolecules(iFile), overlapFlag)
+
         if (overlapFlag) cycle add
 
         imol = imol + 1

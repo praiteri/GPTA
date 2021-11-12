@@ -101,12 +101,12 @@ contains
     call message(2)
     call message(0,"%%%%% Special actions ")
 #ifdef GPTA_PLUMED
-    call message(0 " --plumed      :: conputes properties of the system using PLUMED")
+    call message(0, " --plumed      :: conputes properties of the system using PLUMED")
 #endif
 
 ! openMM driver for AMOEBA
 #ifdef GPTA_OPENMM
-    call message(0 " --amoeba      :: computes the energy/induced dipole... using openMM")
+    call message(0, " --amoeba      :: computes the energy/induced dipole... using openMM")
 #endif
     call message(1," --test        :: test routine for develpment")
 
@@ -161,11 +161,25 @@ contains
     call message(0,"For a more detailed description of the command please refer to the manual.")
     call message(0,"..........................................................................................................")
 
-
     if (cmd == "--i" ) then
       call message(0,"This action reads the atomic coordinate from file(s).")
       call message(0,"It takes one or more filenames as argument; it can also be repeated.")
-      call message(0,"There is also an alternative form --iABC, where ABC is the typical file extension identifying the coordinates' type")
+      call message(0,"There is also an alternative form, --iABC, where ABC is the typical file extension identifying the coordinates' type")
+      call message(0,"These are the currently supported input coordinates file types")
+      call message(0,"     xyz -> Extended XYZ")
+      call message(0,"     pdb -> Protein Data Bank file")
+      call message(0,"     dcd -> CHARMM DCD file ")
+      call message(0,"    dcd2 -> CHARMM DCD file (safe/slow routine)")
+      call message(0,"     arc -> TINKER ARC file (with connectivity)")
+      call message(0,"    txyz -> TINKER XYZ input file")
+      call message(0,"     gin -> GULP input file")
+      call message(0,"     gau -> GAUSSIAN output file")
+      call message(0,"     gro -> GROMOS input file")
+      call message(0,"     lmp -> LAMMPS input file")
+      call message(0,"  lmptrj -> LAMMPS custom trajectory file (partially supported)")
+      call message(0,"     cif -> Crystallographic Information File ")
+      call message(0,"     xtc -> GROMACS XTC trajectory file")
+      call message(0,"     trr -> GROMACS TRR trajectory file")
       call message(0,"Examples:")
       call message(0,"  gpta.x --i coord.pdb trajectory.dcd")
       call message(0,"  gpta.x --ixyz coord.data --i traj.pdb")
@@ -174,7 +188,19 @@ contains
     if (cmd == "--o" ) then
       call message(0,"This action write the atomic coordinates to file.")
       call message(0,"It takes one filenames as argument, it can be repeated.")
-      call message(0,"There is also an alternative form --oABC, where ABC is the typical file extension identifying the coordinates' type")
+      call message(0,"There is also an alternative form, --oABC, where ABC is the typical file extension identifying the coordinates' type")
+      call message(0,"These are the currently supported input coordinates file types")
+      call message(0,"     xyz -> Extended XYZ")
+      call message(0,"     pdb -> Protein Data Bank file")
+      call message(0,"     pdb -> Protein Data Bank file (with CONECT section)")
+      call message(0,"     dcd -> CHARMM DCD file ")
+      call message(0,"     lmp -> LAMMPS input file")
+      call message(0,"  lmptrj -> LAMMPS custom trajectory file (partially supported)")
+      call message(0,"     psf -> CHARMM PSF file")
+      call message(0,"     arc -> TINKER ARC file (with connectivity)")
+      call message(0,"     gin -> GULP input file")
+      call message(0,"    gin2 -> GULP input file (fractional coordinates)")
+      call message(0,"     xtc -> GROMACS XTC trajectory file")
       call message(0,"Examples:")
       call message(0,"  gpta.x --i coord.pdb trajectory.dcd")
       call message(0,"  gpta.x --ixyz coord.data --i traj.pdb")
@@ -192,7 +218,6 @@ contains
       call message(0,"Examples:")
       call message(0,"  gpta.x --i coord.pdb --top")
     end if
-
 
     if (cmd == "--define"   ) call defineVariablesHelp()
 
@@ -229,7 +254,7 @@ contains
 #endif
 
 #ifdef GPTA_PLUMED
-    if (cmd == "--plumed" ) call plumedInterfaceHelp()
+    ! if (cmd == "--plumed" ) call plumedInterfaceHelp()
 #endif
 
     call message(-3)

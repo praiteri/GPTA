@@ -62,7 +62,6 @@ contains
   subroutine initialiseNeighboursList()
     implicit none
     integer :: iact
-
     do iact=1,numberOfActions
       if (action(iact) % requiresNeighboursList) then
         computeNeighboursList = (computeNeighboursList .or. action(iact) % requiresNeighboursList)

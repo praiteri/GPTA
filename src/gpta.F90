@@ -140,11 +140,13 @@ program gpta
   
     if (numberOfMpiProcesses > 1) call message(-1,"Cannot run MPI version without an input trajectory")
 
-    frameReadSuccessfully = .true.
+    frame % nframe = -1
     call initialiseActions()
+    frame % nframe = 0
+    frameReadSuccessfully = .true.
     call runAllActions()
     endOfCoordinatesFiles = .true.
-  
+
   else
 
     ! Get number of atoms from first file
@@ -163,8 +165,9 @@ program gpta
     
     ! Initialise neighbours list
     call initialiseNeighboursList()
-   
+    
     ! Allocate system arrays
+    frame % nframe = 0
     call createSystemArrays(frame, inputNumberOfAtoms)
   end if
 

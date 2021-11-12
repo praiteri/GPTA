@@ -165,7 +165,79 @@ subroutine dumpGULP(uout, natoms, pos, lab, hmat)
 
 end subroutine dumpGULP
 
-subroutine dumpCoordinates(ftype, funit, natoms, pos, label, hmat)
+subroutine dumpDCD(uout, natoms, pos, hmat, write_header)
+  use moduleMessages 
+  use moduleSystem
+  implicit none
+  integer, intent(in)    :: uout
+  integer, intent(in) :: natoms
+  real(8), dimension(3,natoms), intent(in) :: pos
+  real(8), dimension(3,3), intent(in) :: hmat
+  logical, intent(in) :: write_header
+
+  integer :: j
+  real*8 :: cell(6)
+  real*4, allocatable, dimension (:)  :: x!, y, z
+!
+! DCD header
+  real(4)            :: delta
+  integer(4)         :: nframes
+  integer(4)         :: nstart
+  integer(4)         :: nsanc
+  integer(4)         :: nstep
+  integer(4)         :: i4(4)
+  integer(4)         :: namin
+  integer(4), save   :: icell
+  integer(4)         :: i9(9)
+  integer(4)         :: ntitle
+  character(len=4)   :: car4
+  character(len=80)  :: car(10)
+
+  call hmat2cell(hmat,cell,"COS")
+
+  if(all(cell(1:3)>1.d0))then
+    icell=1                 !! flag to indicate whether the cell is written in the dcd
+  else
+    icell=0
+  end if
+
+  ! DCD HEADER TAKEN FROM NAMD2-6
+  if(write_header)then
+    car4="CORD"
+    nframes=1                 !! frames in the output dcd (it'll give a worning if wrong)
+    nstart=1                  !! first timestep in output
+    nsanc=1                   !! dcd frequency
+    nstep=1                   !! timestep of the last dcd
+    i4=(/0,0,0,0/)            !! four useless integers :)
+    namin=0                   !! endian type
+    delta=0.01                !! timestep size
+    i9=(/0,0,0,0,0,0,0,0,24/) !! nine useless integers :)
+    ntitle=1                  !! number of dcd title lines
+    car(1:ntitle)=(/"REMARKS DCD FILE CREATED BY GPTA"/)
+
+    write(uout) car4, nframes, nstart, nsanc, nstep, i4, namin, delta, icell, i9
+    write(uout) ntitle, (car(j),j=1,ntitle)
+    write(uout) frame % natoms
+  end if
+
+  if(icell==1)then
+    write(uout)cell(1),cell(6),cell(2),cell(5),cell(4),cell(3)
+  end if
+
+  block
+    integer :: numberOfAtoms
+    numberOfAtoms = natoms
+    allocate(x(numberOfAtoms))
+    do j=1,3
+      x = real(pos(j,1:numberOfAtoms),4)
+      write(uout)x(1:numberOfAtoms)
+    enddo
+  end block
+
+  return
+end subroutine dumpDCD
+
+subroutine dumpCoordinates(ftype, funit, natoms, pos, label, hmat, header)
   use moduleVariables
   use moduleMessages
   implicit none 
@@ -173,8 +245,9 @@ subroutine dumpCoordinates(ftype, funit, natoms, pos, label, hmat)
   integer, intent(in) :: funit
   integer, intent(in) :: natoms
   real(8), dimension(3,natoms), intent(in) :: pos
-  character(cp), dimension(natoms), intent(in) :: label
+  character(4), dimension(natoms), intent(in) :: label
   real(8), dimension(3,3), optional, intent(in) :: hmat
+  logical, optional, intent(in) :: header
 
   select case (ftype)
     case default
@@ -192,6 +265,9 @@ subroutine dumpCoordinates(ftype, funit, natoms, pos, label, hmat)
       
     case ("gin")
       call dumpGULP(funit, natoms, pos, label, hmat)
+
+    case ("dcd")
+      call dumpDCD(funit, natoms, pos, hmat, header)
 
   end select
 

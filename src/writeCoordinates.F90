@@ -185,7 +185,6 @@ contains
       if (firstAction) then
         call message(1,"Writing coordinates in "//trim(outputFile % ftype)//" format",str=trim(outputFile % fname))
         call checkUsedFlags(actionCommand)
-        firstAction = .false.
       end if
 
       ! Compute topology and connectivity before convestion to Bohr, if required
@@ -193,8 +192,13 @@ contains
         if (numberOfMolecules == 0) then
           call runInternalAction("topology","NULL")
         end if
-        call computeConnectivity() 
+
+        if (firstAction) then
+          call computeConnectivity() 
+        end if
+
       end if
+      firstAction = .false.
 
       !! --> define local frame here <--- !!
 

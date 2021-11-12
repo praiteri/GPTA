@@ -511,17 +511,12 @@ contains
     ! Normal processing of the frame
     if (frameReadSuccessfully) then
       if (updateTopology) then
-        if (allocated(atomToMoleculeIndex)) then
-          deallocate(atomToMoleculeIndex)
-          deallocate(listofmolecules)
-          deallocate(uniqueMoleculesID)
-          deallocate(numberOfCovalentBondsPerAtom)
-          deallocate(listOfCovalentBondsPerAtom)
-        end if
-        
-        if (allocated(listOfUniqueBonds)) then
-          deallocate(listOfUniqueBonds)
-        end if
+        if (allocated(atomToMoleculeIndex         ))  deallocate(atomToMoleculeIndex)
+        if (allocated(listofmolecules             ))  deallocate(listofmolecules)
+        if (allocated(uniqueMoleculesID           ))  deallocate(uniqueMoleculesID)
+        if (allocated(numberOfCovalentBondsPerAtom))  deallocate(numberOfCovalentBondsPerAtom)
+        if (allocated(listOfCovalentBondsPerAtom  ))  deallocate(listOfCovalentBondsPerAtom)
+        if (allocated(listOfUniqueBonds           ))  deallocate(listOfUniqueBonds)
 
         if (userDefinedMolecules) then
           call defineMoleculesFromLabels()
