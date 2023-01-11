@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleLammps 
 
   use moduleVariables, only : cp
@@ -377,7 +377,7 @@ subroutine writeLammpsCoordinates(iout)
     write(iout,'(3i7,4f15.7)') i, atomToMoleculeIndex(i), itype, frame % chg(i), frame % pos(:,i)
   enddo
 
-  if (numberOfUniqueBonds>0) write(iout,'(/" Bonds"/)')
+  if (numberOfBondTerms>0) write(iout,'(/" Bonds"/)')
   do i=1,numberOfUniqueBonds
     itype = findLammpsBondType(iout,listOfUniqueBonds(1:2,i))
      if (itype==0) then
@@ -386,7 +386,7 @@ subroutine writeLammpsCoordinates(iout)
     end if
   enddo
 
-  if (numberOfUniqueAngles>0) write(iout,'(/" Angles"/)')
+  if (numberOfAngleTerms>0) write(iout,'(/" Angles"/)')
   do i=1,numberOfUniqueAngles
     itype = findLammpsAngleType(iout,listOfUniqueAngles(1:3,i))
     if (itype==0) then
@@ -398,7 +398,7 @@ subroutine writeLammpsCoordinates(iout)
     end if
   enddo
 
-  if (numberOfUniqueTorsions>0) write(iout,'(/" Dihedrals"/)')
+  if (numberOfTorsionTerms>0) write(iout,'(/" Dihedrals"/)')
   numberOfTorsionTerms = 0
   do i=1,numberOfUniqueTorsions
     jtype = findLammpsTorsionType(iout,listOfUniqueTorsions(1:4,i))
@@ -411,7 +411,7 @@ subroutine writeLammpsCoordinates(iout)
     end if
   end do
   
-  if (numberOfUniqueOutOfPlane>0) write(iout,'(/" Impropers"/)')
+  if (numberOfImproperTerms>0) write(iout,'(/" Impropers"/)')
   do i=1,numberOfUniqueOutOfPlane
     itype = findLammpsImproperType(iout,listOfUniqueOutOfPlane(1:4,i))
     if (itype==0) then
@@ -434,7 +434,7 @@ contains
         exit
       end if
     enddo
-    return
+    
   end function findLammpsAtomType
 
   integer function findLammpsBondType(iout,idx)
@@ -461,7 +461,7 @@ contains
         findLammpsBondType = ibond
       end if
     enddo   
-    return
+    
   end function findLammpsBondType
 
   integer function findLammpsAngleType(iout,idx)
@@ -488,7 +488,7 @@ contains
         findLammpsAngleType = iangle
       end if
     enddo
-    return
+    
   end function findLammpsAngleType
 
   integer function findLammpsTorsionType(iout,idx)
@@ -516,7 +516,7 @@ contains
         findLammpsTorsionType = itors
       end if
     enddo
-    return
+    
   end function findLammpsTorsionType
 
   integer function findLammpsImproperType(iout,idx)
@@ -552,7 +552,7 @@ contains
         findLammpsImproperType = iimp
       end if
     end do
-    return
+    
   end function findLammpsImproperType
 
   logical function stopForMissingForceField(str,loverride)

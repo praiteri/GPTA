@@ -2,7 +2,7 @@
  *
  * $Id: xdrfile.h,v 1.1 2010/10/08 11:53:37 spoel Exp spoel $
  *
- /* -*- mode: c; tab-width: 4; indent-tabs-mode: t; c-basic-offset: 4 -*-
+ * -*- mode: c; tab-width: 4; indent-tabs-mode: t; c-basic-offset: 4 -*-
  *
  * $Id$
  *

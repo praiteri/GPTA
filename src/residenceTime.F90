@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleResidenceTime
 
   use moduleVariables
@@ -53,6 +53,8 @@ module moduleResidenceTime
   integer, pointer :: numberOfCentres
   integer, pointer :: MAX_NEIGH
   integer, pointer :: threshold
+
+  logical, pointer :: lsolute
 
 contains
 
@@ -94,6 +96,10 @@ contains
         call createSelectionList(a,2)
 
         numberOfCentres = count(a % isSelected(:,1))
+        if (numberOfCentres == 0) call message(-1,"--restime - no solute atoms selected")
+
+        if (count(a % isSelected(:,2)) == 0) call message(-1,"--restime - no solvent atoms selected")
+
         allocate(a % Iarray3D(MAX_NEIGH,numberOfCentres,numberOfBins) , source=0)
         call associatePointers(a)
 
@@ -129,27 +135,34 @@ contains
     MAX_NEIGH            => a % integerVariables(2)
     threshold            => a % integerVariables(3)
     coordinationList     => a % Iarray3D
+    lsolute              => a % logicalVariables(1)
 
   end subroutine associatePointers
 
   subroutine initialiseAction(a)
     use moduleStrings
     implicit none
-    type(actionTypeDef), target :: a
+    type(actionTypeDef), target :: a 
 
     a % actionInitialisation = .false.
-    a % requiresNeighboursList = .true.
-    a % requiresNeighboursListUpdates = .true.
-    a % requiresNeighboursListDouble = .true.
-    a % cutoffNeighboursList = 4.0d0
 
-    call assignFlagValue(actionCommand,"+rcut",cutoffRadius,a % cutoffNeighboursList)
+    call assignFlagValue(actionCommand,"+rcut",cutoffRadius,4.d0)
     call assignFlagValue(actionCommand,"+ntraj",numberOfBins,1000)
     call assignFlagValue(actionCommand,"+nmax",MAX_NEIGH,10)
     call assignFlagValue(actionCommand,"+thres",threshold,1)
     call assignFlagValue(actionCommand,"+out",outputFile % fname,'restime.out')
 
+    call assignFlagValue(actionCommand,"+solute",lsolute,.false.)
+    if (lsolute) then
+      a % requiresNeighboursList = .false.
+    else
+      a % requiresNeighboursList = .true.
+      a % requiresNeighboursListUpdates = .true.
+      a % requiresNeighboursListDouble = .true.
+    end if
+
     a % cutoffNeighboursList = cutoffRadius
+
     tallyExecutions = 0 
 
   end subroutine initialiseAction
@@ -169,30 +182,53 @@ contains
   subroutine computeAction(a)
     use moduleVariables
     use moduleSystem 
+    use moduleDistances
+    use moduleMessages
     implicit none
     type(actionTypeDef), target :: a
 
     integer :: iatm, jatm, ineigh
     integer, allocatable, dimension(:,:) :: localList
-    integer :: icentre, nshell, nsel
+    integer :: icentre, nshell, nsel, nsolvent
+    real(8) :: dij(3), rdist, r2
     
     allocate(localList(MAX_NEIGH,numberOfCentres), source=0)
     
     icentre = 0
     nsel = numberOfCentres
-    do icentre=1,nsel
-      iatm = a % idxSelection(icentre,1)
-      nshell = 0
-      do ineigh = 1 , nneigh(iatm)
-        if (rneigh(ineigh,iatm)>cutoffRadius) cycle
-        jatm = lneigh(ineigh,iatm)
-        if (a % isSelected(jatm,2)) then
+
+    if (lsolute) then
+      nsolvent = count(a % isSelected(:,2))
+      r2 = cutoffRadius**2
+      do icentre = 1 , nsel
+        iatm = a % idxSelection(icentre,1)
+        nshell = 0
+        do ineigh = 1 , nsolvent
+          jatm = a % idxSelection(ineigh,2)
+          dij = frame % pos(:,icentre) - frame % pos(:,jatm)
+          rdist = computeDistanceSquaredPBC(dij)
+          if (rdist > r2) cycle
           nshell = nshell + 1
           localList(nshell,icentre) = jatm
-        end if
+        end do
+        if (nshell > MAX_NEIGH) call message(-1,"--restime | too many neighbours (+nmax)",i=nshell)
       end do
-      if (nshell > MAX_NEIGH) call message(-1,"--restime | too many neighbours (+nmax)",i=nshell)
-    end do
+
+    else
+      do icentre=1,nsel
+        iatm = a % idxSelection(icentre,1)
+        nshell = 0
+        do ineigh = 1 , nneigh(iatm)
+          if (rneigh(ineigh,iatm)>cutoffRadius) cycle
+          jatm = lneigh(ineigh,iatm)
+          if (a % isSelected(jatm,2)) then
+            nshell = nshell + 1
+            localList(nshell,icentre) = jatm
+          end if
+        end do
+        if (nshell > MAX_NEIGH) call message(-1,"--restime | too many neighbours (+nmax)",i=nshell)
+      end do
+    end if
     if (frame % nframe > numberOfBins) call message(-1,"--restime | trajctory is too long (+ntraj)")
     coordinationList(:,:,frame % nframe) = localList
 
@@ -239,7 +275,7 @@ contains
     residenceTime = residenceTime / residenceTime(0)
 
     exchangeProbability = exchangeProbability / numberOfCentres
-    exchangeProbability = exchangeProbability / sum(exchangeProbability)
+!    exchangeProbability = exchangeProbability / sum(exchangeProbability)
 
     call initialiseFile(outputFile,outputFile % fname)
 

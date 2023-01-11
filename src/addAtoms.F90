@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleAddAtoms
   use moduleActions 
   use moduleMessages
@@ -56,13 +56,13 @@ contains
     call message(0,"The new species are added randomly to the cell.")
     call message(0,"This action is a wrapper for different actions (solute, solvent, centre, dummy), which work in slightly different ways.")
     call message(0,"Examples:")
-    call message(0,"  gpta.x --i coord.pdb --rescale +cell 10")
     call message(0,"  gpta.x --i coord.pdb --top --add solute +atom Na,Cl +n 2,2 +rmin 4.0")
     call message(0,"  gpta.x --i coord.pdb --top --add solvent +f benzene.pdb +n 5 +rmin 5.0 --o new.pdb")
-    call message(0,"  gpta.x --add solvent +f h2o.pdb +box 12. +n 57 +rmin 2 --top --o water.pdb")
     call message(0,"  gpta.x --i coord.pdb --top --add centre +f M1")
-    call message(0,"  gpta.x --i benzene.pdb --top --add centre +f M1 +i 1,3,5,7,9,11")
+    call message(0,"  gpta.x --i benzene.pdb --top --add centre +mol M1 +i 1,3,5,7,9,11")
     call message(0,"  gpta.x --i water.pdb --top --add dummy +i 1,2,3 +dist 0.1577 --o tip4p_ice.pdb")
+    call message(0,"  gpta.x --i coord.pdb --add merge +f kbr.pdb --top +update +ion K,Br --noclash +s K,Br +rmin 0.75 --o oo.pdb")
+    call message(0,"  gpta.x --add box 12. --add solvent +f h2o.pdb +box 12. +n 57 +rmin 2 --top --o water.pdb")
   end subroutine addAtomsHelp
   
   subroutine addAtoms(a)
@@ -75,6 +75,7 @@ contains
     use addMoleculesModule
     use addElementsModule
     use addCentresModule
+    use addFileModule
 
     implicit none
     type(actionTypeDef), target :: a
@@ -84,6 +85,10 @@ contains
     integer :: originalNumberOfMolecules
     logical :: updateTopology
 
+#ifdef DEBUG
+    write(0,*) " --> Entering addAtoms <-- "
+#endif
+
     if (frame % nframe > lastFrameCalled) then
       lastFrameCalled = frame % nframe
       nCalled = 0
@@ -91,6 +96,8 @@ contains
     nCalled = nCalled + 1
 
     read(a % actionDetails,*) option
+
+    if (.not. frameReadSuccessfully) return
 
     removeOverlap = 0
     select case (option)
@@ -136,6 +143,9 @@ contains
           removeOverlap = 2
         end if
 
+      case("merge")
+        addVirtualSite(nCalled) % work => addSystemFromFile
+
       case("dummy")
         updateTopology = .true.
         addVirtualSite(nCalled) % work => addDummyParticles
@@ -145,24 +155,38 @@ contains
         addVirtualSite(nCalled) % work => addCentresParticles
 
     end select
-    
+
+    ! if (numberOfMolecules == 0) then
+    !   call setUpNeigboursList()
+    !   call initialiseNeighboursList()
+    !   call updateNeighboursList(.true.)
+    !   call runInternalAction("topology","+update")
+    ! end if
+  
     originalNumberOfAtoms = frame % natoms
     originalNumberOfMolecules = numberOfMolecules
     
     if (frameReadSuccessfully) then
       call addVirtualSite(nCalled) % work(a)
 
-      if (originalNumberOfAtoms == 0) then
+      if (frame % natoms > 0) then
+        call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
         call setUpNeigboursList()
         call initialiseNeighboursList()
-      end if
+        call updateNeighboursList(.true.)
+        
+        !call computeMoleculesCOM(originalNumberOfMolecules)
+        if (removeOverlap /= 0) then
+          call removeClashes(frame,originalNumberOfMolecules,removeOverlap)
+          call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
+          call setUpNeigboursList()
+          call initialiseNeighboursList()
+          call updateNeighboursList(.true.)
   
-      call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
-      call updateNeighboursList(.true.)
-      !      if (updateTopology) call runInternalAction("topology","+update +reorder")
-      
-      !call computeMoleculesCOM(originalNumberOfMolecules)
-      if (removeOverlap /= 0) call removeClashes(frame,originalNumberOfMolecules,removeOverlap)
+          call runInternalAction("topology","+update")
+        end if
+      end if
+
     end if
 
   end subroutine addAtoms
@@ -174,7 +198,7 @@ contains
     implicit none
     type(frameTypeDef), intent(inout) :: f
     integer, intent(in) :: originalNumberOfMolecules
-    integer, intent(in) :: iType
+    integer, intent(inout) :: iType
 
     integer :: imol, jmol, idx, jdx, iatm, jatm
     real(8) :: rmax, distanceCOM, dij(3), rtmp
@@ -240,6 +264,7 @@ contains
       end do
     end do
     f % natoms = n0
+    numberOfMolecules = numberOfMolecules - count(ldelete)
 
   end subroutine removeClashes
 

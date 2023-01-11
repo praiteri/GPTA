@@ -32,6 +32,10 @@ contains
 
     integer :: n
 
+#ifdef DEBUG
+    write(0,*) " --> Entering addElements <-- "
+#endif
+
     call associatePointers(a)
 
     if (a % actionInitialisation) call initialiseAction(a)
@@ -86,6 +90,8 @@ contains
     call assignFlagValue(actionCommand,"+atom",newElementsLabels)
     
     call assignFlagValue(actionCommand,"+n",numberOfNewElements)
+    if (.not. allocated(numberOfNewElements) ) \
+      call message(-1,"--add | numner of new species must be specified using the +n flag")
     if (size(newElementsLabels) /= size(numberOfNewElements)) \
       call message(-1,"--add different nr of atoms' labels and nr of atoms tto add",iv=[size(localString) , numberOfNewElements])
 
@@ -113,6 +119,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine computeAction()
+    use moduleNeighbours
     implicit none
 
     if (fillSphere) then
@@ -120,6 +127,9 @@ contains
     else
       call createRandomPositionsBox()
     end if
+
+    ! call setUpNeigboursList()
+    ! call updateNeighboursList(.true.)
 
   end subroutine computeAction
 
@@ -190,9 +200,10 @@ contains
         write(str,'(i0)')iElement
         listOfMolecules(currentMolecules) % resname = "N"//trim(str)
         allocate(listOfMolecules(currentMolecules) % listOfAtoms(1))
-        listOfMolecules(currentMolecules) % listOfAtoms(1) = currentMolecules + 1
+        listOfMolecules(currentMolecules) % listOfAtoms(1) = currentAtoms + 1
         allocate(listOfMolecules(currentMolecules) % listOfLabels(1))
         listOfMolecules(currentMolecules) % listOfLabels(1) = newElementsLabels(iElement)
+        listOfMolecules(currentMolecules) % centreOfMass = centre
 
         ! add atom to frame
         currentAtoms = currentAtoms + 1
@@ -204,7 +215,7 @@ contains
     end do
 
     frame % natoms = currentAtoms
-    numberOfMolecules = currentAtoms
+    numberOfMolecules = currentMolecules
 
   end subroutine createRandomPositionsBox
 
@@ -214,6 +225,7 @@ contains
     integer :: iElement, imol
     integer :: addedMolecules
     real(8), dimension(3) :: centre
+    real(8), dimension(3,3) :: hmat
     real(8), allocatable, dimension(:) :: localSize
 
     real(8) :: theta, phi
@@ -233,13 +245,16 @@ contains
     do iElement=1,newSpecies
       imol=0
       add : do while (imol<numberOfNewElements(iElement))
-
         ! generate position inside a sphere
-        theta  = grnd() * pi
-        phi    = grnd() * twopi
-        centre = [sin(theta) * cos(phi) , sin(theta) * sin(phi) , cos(theta)] * grnd() * sphereRadius
-        centre = origin + centre
 
+        centre = 2.d0 * [grnd() , grnd() , grnd()] - 1
+        if ( sqrt(sum(centre**2)) > 1.d0 ) cycle add
+        centre = centre * sphereRadius + origin
+        ! theta  = grnd() * pi
+        ! phi    = grnd() * twopi
+        ! centre = [sin(theta) * cos(phi) , sin(theta) * sin(phi) , cos(theta)] * grnd() * sphereRadius
+        ! centre = origin + centre
+    
         block
           integer :: i
           real(8) :: dist, dij(3)
@@ -262,21 +277,22 @@ contains
         write(str,'(i0)')iElement
         listOfMolecules(currentMolecules) % resname = "N"//trim(str)
         allocate(listOfMolecules(currentMolecules) % listOfAtoms(1))
-        listOfMolecules(currentMolecules) % listOfAtoms(1) = currentMolecules + 1
+        listOfMolecules(currentMolecules) % listOfAtoms(1) = currentAtoms + 1
         allocate(listOfMolecules(currentMolecules) % listOfLabels(1))
         listOfMolecules(currentMolecules) % listOfLabels(1) = newElementsLabels(iElement)
+        listOfMolecules(currentMolecules) % centreOfMass = centre
 
         ! add atom to frame
         currentAtoms = currentAtoms + 1
         frame % pos(1:3,currentAtoms) = centre
         frame % lab(currentAtoms) = newElementsLabels(iElement)
         atomToMoleculeIndex(currentAtoms) = currentMolecules
-      
+
       end do add
     end do
 
     frame % natoms = currentAtoms
-    numberOfMolecules = currentAtoms
+    numberOfMolecules = currentMolecules
 
   end subroutine createRandomPositionsSphere
 

@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 subroutine initialiseActions()
   use moduleActions
   use moduleMessages
@@ -43,7 +43,8 @@ subroutine initialiseActions()
   use moduleReplaceMolecule
   use moduleDumpCoordinates
   use moduleCreateSurface
-
+  use moduleAlignMolecule
+  
   use moduleExtractSystemProperties
   use moduleRDF
   use moduleModifyCoordinates
@@ -68,7 +69,7 @@ subroutine initialiseActions()
 #endif
 
   implicit none
-  integer :: i, idx
+  integer :: i
   allocate(action(0:numberOfActions))
   do i=1,numberOfActions
     action(i) % name = actionType(i)
@@ -80,44 +81,39 @@ subroutine initialiseActions()
     ! print *, "WWWW",me, trim(actionType(i)),i
     nullify(allActions(i) % work)
 
-    if (actionType(i) == "--test"     ) allActions(i) % work => testAction
+    if (actionType(i) == "--test"             ) allActions(i) % work => testAction
+        
+    if (actionType(i) == "--top"              ) allActions(i) % work => computeTopology
+    if (actionType(i) == "--pbc"              ) allActions(i) % work => applyPeriodicboundaryConditions
+    if (actionType(i) == "--unwrap"           ) allActions(i) % work => unwrapCoordinates
+    if (actionType(i) == "--shift"            ) allActions(i) % work => shiftCoordinates
+    if (actionType(i) == "--rescale"          ) allActions(i) % work => rescaleCell
+    if (actionType(i) == "--fixcom"           ) allActions(i) % work => shiftCOM
+    if (actionType(i) == "--repl"             ) allActions(i) % work => replicateCell
+    if (actionType(i) == "--mirror"           ) allActions(i) % work => mirrorCell
+    if (actionType(i) == "--noclash"          ) allActions(i) % work => removeOverlappingMolecules
+    if (actionType(i) == "--delete"           ) allActions(i) % work => deleteAtoms
+    if (actionType(i) == "--set"              ) allActions(i) % work => setAtomAttributes
+    if (actionType(i) == "--replace"          ) allActions(i) % work => replaceMolecules
+    if (actionType(i) == "--add"              ) allActions(i) % work => addAtoms
+    if (actionType(i) == "--surface"          ) allActions(i) % work => createSurface
+    if (actionType(i) == "--align"            ) allActions(i) % work => alignMolecule
+         
+    if (actionType(i) == "--fixCell"          ) allActions(i) % work => fixCellJumps
 
-    if (actionType(i) == "--top"      ) allActions(i) % work => computeTopology
-    if (actionType(i) == "--pbc"      ) allActions(i) % work => applyPeriodicboundaryConditions
-    if (actionType(i) == "--unwrap"   ) allActions(i) % work => unwrapCoordinates
-    if (actionType(i) == "--shift"    ) allActions(i) % work => shiftCoordinates
-    if (actionType(i) == "--rescale"  ) allActions(i) % work => rescaleCell
-    if (actionType(i) == "--fixcom"   ) allActions(i) % work => shiftCOM
-    if (actionType(i) == "--repl"     ) allActions(i) % work => replicateCell
-    if (actionType(i) == "--mirror"   ) allActions(i) % work => mirrorCell
-    if (actionType(i) == "--noclash"  ) allActions(i) % work => removeOverlappingMolecules
-    if (actionType(i) == "--delete"   ) allActions(i) % work => deleteAtoms
-    if (actionType(i) == "--set"      ) allActions(i) % work => setAtomAttributes
-    if (actionType(i) == "--subs"     ) allActions(i) % work => replaceMolecules
-    if (actionType(i) == "--add"      ) allActions(i) % work => addAtoms
-    if (actionType(i) == "--surface"  ) allActions(i) % work => createSurface
+    if (actionType(i) == "--extract "         ) allActions(i) % work => extractSystemProperties
+    if (actionType(i) == "--cluster"          ) allActions(i) % work => extractClusters
+    if (actionType(i) == "--framesByProperty" ) allActions(i) % work => extractFramesByProperty
 
-    if (actionType(i) == "--extract"  ) then
-      if ( index(actionDetails(i),"+clusters") > 0) then
-        call removeFlag(action(i) % actionDetails , "+clusters")
-        allActions(i) % work => extractClusters
-      else if ( index(actionDetails(i),"+conf") > 0) then
-        call removeFlag(action(i) % actionDetails , "+conf")
-        allActions(i) % work => extractFrames
-      else
-        allActions(i) % work => extractSystemProperties
-      end if
-    end if
-
-    if (actionType(i) == "--gofr"     ) allActions(i) % work => computeRadialPairDistribution
-    if (actionType(i) == "--dmap1D"   ) allActions(i) % work => computeDensityProfile
-    if (actionType(i) == "--dmap2D"   ) allActions(i) % work => computeDensityMap2D 
-    if (actionType(i) == "--dmap3D"   ) allActions(i) % work => computeDensityMap3D 
-    if (actionType(i) == "--solvation") allActions(i) % work => solvationShell 
-    if (actionType(i) == "--molprop"  ) allActions(i) % work => computeMolecularProperties
-    if (actionType(i) == "--restime"  ) allActions(i) % work => computeResidenceTime
-    if (actionType(i) == "--xray"     ) allActions(i) % work => computeXrayPowder
-    if (actionType(i) == "--msd"      ) allActions(i) % work => computeMSD
+    if (actionType(i) == "--gofr"             ) allActions(i) % work => computeRadialPairDistribution
+    if (actionType(i) == "--dmap1D"           ) allActions(i) % work => computeDensityProfile
+    if (actionType(i) == "--dmap2D"           ) allActions(i) % work => computeDensityMap2D 
+    if (actionType(i) == "--dmap3D"           ) allActions(i) % work => computeDensityMap3D 
+    if (actionType(i) == "--solvation"        ) allActions(i) % work => solvationShell 
+    if (actionType(i) == "--molprop"          ) allActions(i) % work => computeMolecularProperties
+    if (actionType(i) == "--restime"          ) allActions(i) % work => computeResidenceTime
+    if (actionType(i) == "--xray"             ) allActions(i) % work => computeXrayPowder
+    if (actionType(i) == "--msd"              ) allActions(i) % work => computeMSD
 
 ! openMM driver for AMOEBA
 #ifdef GPTA_OPENMM

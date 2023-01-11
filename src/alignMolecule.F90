@@ -30,7 +30,7 @@
 ! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! ! 
-module moduleSolvationShell
+module moduleAlignMolecule
   use moduleVariables
   use moduleSystem
   use moduleStrings
@@ -41,7 +41,7 @@ module moduleSolvationShell
   
   implicit none
 
-  public :: solvationShell, solvationShellHelp
+  public :: alignMolecule, alignMoleculeHelp
   private
 
   character(:), pointer :: actionCommand
@@ -50,12 +50,8 @@ module moduleSolvationShell
   integer, pointer :: tallyExecutions
   
   integer, pointer :: moleculeID
-  integer, pointer :: smoothingType
   integer, pointer :: numberOfSwaps
-  integer, pointer :: numberOfEquiv
 
-  integer, pointer, dimension(:) :: numberOfBins
-  real(8), pointer, dimension(:) :: densityBox
   character(len=STRLEN), pointer, dimension(:) :: listOfSwaps
   character(len=STRLEN), pointer, dimension(:) :: listOfEquiv
 
@@ -65,24 +61,22 @@ module moduleSolvationShell
   integer, pointer, dimension(:) :: atomIndices
   real(8), pointer, dimension(:,:) :: referencePositions
   real(8), pointer, dimension(:,:) :: currentPositions
-  real(8), pointer, dimension(:,:) :: averagePositions
 
 contains
 
-  subroutine solvationShellHelp()
+  subroutine alignMoleculeHelp()
     implicit none
-    call message(0,"This action computes the 3D density map for the selected atoms around a solute molecule.")
-    call message(0,"The solvent density is computed only inside the largest ellipsoid the fits inside the box around the solvent.")
+    call message(0,"This action rotates the atomic coordinates to align the selected molecule to their initial position.")
+    call message(0,"It works best if before molecule is initially at the centre of the box.")
     call message(0,"Examples:")
-    call message(0,"  gpta.x --i coord.pdb --top --solvation +s O2 +id M2  +cell 10,12,14  +nbin 50,50,50")
-    call message(0,"  gpta.x --i coord.pdb --top --solvation +id M2 +s O +cell 9 +nbin 20,20,20 +smooth +ref ace.xyz")
-    call message(0,"  gpta.x --i coord.pdb --top --solvation +id M2 +s O +cell 9 +nbin 20,20,20 +ref ace.xyz +swap 2,3,4 6,7")
-    ! call message(0,"  gpta.x --i coord.pdb --top --solvation +id M2 +s O +cell 9 +nbin 20,20,20 +ref ace.xyz +equiv 2,3,4 6,7")
-  end subroutine solvationShellHelp
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --top --align +id M2")
+  end subroutine alignMoleculeHelp
 
-  subroutine solvationShell(a)
+  subroutine alignMolecule(a)
     implicit none
     type(actionTypeDef), target :: a
+    integer :: nsel
+    character(len=STRLEN) :: string
 
     call associatePointers(a)
 
@@ -106,7 +100,13 @@ contains
         call dumpScreenInfo()
 
         ! select two groups of atoms
-        call selectAtoms(1,actionCommand,a)
+        call getNumberOfAtomSelections(actionCommand,nsel)
+        if (nsel == 0) then
+          string = trim(actionCommand)//" +s all"
+          call selectAtoms(1,string,a)
+        else
+          call selectAtoms(1,actionCommand,a)
+        end if
 
         ! create a list of the atoms' indices for each group
         call createSelectionList(a,1)
@@ -121,12 +121,7 @@ contains
       call computeAction(a)
     end if
 
-    if (endOfCoordinatesFiles) then
-      if (smoothingType == 1) call smoothDistribution3D(numberOfBins(1),numberOfBins(2),numberOfBins(3),a % array3D)
-      call finaliseAction(a)
-    end if 
-
-  end subroutine solvationShell
+  end subroutine alignMolecule
 
   subroutine associatePointers(a)
     implicit none
@@ -139,12 +134,7 @@ contains
     outputFile           => a % outputFile
 
     moleculeID           => a % integerVariables(1)
-    numberOfBins(1:3)    => a % integerVariables(2:4)    
-    smoothingType        => a % integerVariables(5)
     numberOfSwaps        => a % integerVariables(6)
-    numberOfEquiv        => a % integerVariables(7)
-
-    densityBox(1:9)      => a % doubleVariables(1:9)
 
     fileName             => a % stringVariables(1)
     listOfSwaps(1:)      => a % stringVariables(2:)
@@ -165,7 +155,6 @@ contains
 
     referencePositions => a % localPositions(1:3,   1:n1)
     currentPositions   => a % localPositions(1:3,n1+1:n2)
-    averagePositions   => a % localPositions(1:3,n2+1:n3)
 
   end subroutine associatePositionsPointers
 
@@ -179,45 +168,14 @@ contains
     a % actionInitialisation = .false.
 
     ! get output file name from the command line, if present
-    call assignFlagValue(actionCommand,"+out",outputFile % fname,'solvation.cube')
-    
-    ! get number of bins for the distribution from the command line, if present
-    call assignFlagValue(actionCommand,"+nbin",numberOfBins,[50,50,50])
-    ! make sure nuberOfBins is an even number
-    numberOfBins = 2 * int(numberOfBins / 2)
-    allocate(a % array3D(numberOfBins(1),numberOfBins(2),numberOfBins(3)) , source=0.d0)
+    call assignFlagValue(actionCommand,"+out",outputFile % fname,'align.pdb')
+    call initialiseFile(outputFile,outputFile % fname)
 
     ! select molecule
     call assignFlagValue(actionCommand,"+id",moleculeName,"NULL")
-    if (moleculeName == "NULL") call message(-1,"--solvation - the solute molecule must be chosen with the +id flag")
+    if (moleculeName == "NULL") call message(-1,"--align - the solute molecule must be chosen with the +id flag")
 
     call assignFlagValue(actionCommand,"+ref",fileName,"NULL")
-
-    ! set size of the 3D volume
-    block
-      real(8), dimension(3,3) :: htmp
-      real(8) :: rtmp
-      character(len=STRLEN) :: stringCell
-  
-      call assignFlagValue(actionCommand,"+cell ", stringCell, "NONE")
-      if (stringCell == "NONE") then
-        stringCell = "10.d0, 0.d0, 0.d0, 0.d0, 10.d0, 0.d0, 0.d0, 0.d0, 10.d0"
-      end if
-      call readCellFreeFormat(stringCell, htmp)
-      densityBox = reshape(htmp,[9])
-      rtmp = htmp(1,1) + htmp(2,2) + htmp(3,3)
-      if ( sum(abs(densityBox)) - rtmp > 1e-6 ) then
-        call message(-1,"--solvation | currently only orthorhombic boxes can be used")
-      end if
-    end block
-
-    ! smoothing
-    call assignFlagValue(actionCommand,"+smooth",lflag,.false.)
-    if (lflag) then
-      smoothingType = 1
-    else
-      smoothingType = 0
-    end if
 
     call assignFlagValue(actionCommand,"+swap",lflag,.false.)
     if (lflag) then
@@ -227,86 +185,17 @@ contains
       numberOfSwaps = 0
     end if
 
-    call assignFlagValue(actionCommand,"+equi",lflag,.false.)
-    if (lflag) then
-      call extractFlag(actionCommand,"+equi",flagString)
-      call parse(flagString," ",listOfEquiv,numberOfEquiv)
-    else
-      numberOfEquiv = 0
-    end if
-
     tallyExecutions = 0
 
   end subroutine initialiseAction
-
-  subroutine finaliseAction(a)
-    use moduleElements
-
-    implicit none
-    type(actionTypeDef), target, intent(inout) :: a
-    
-    integer :: funit
-    real(8) :: hmat(3,3), hinv(3,3), dvol, dh(3,3), origin(3)
-    integer :: i, ix, iy, n
-
-    call initialiseFile(outputFile,outputFile % fname)
-  
-    ! write cube file
-    funit = outputFile % funit
-
-    hmat = reshape(densityBox,[3,3])
-    call getInverseCellMatrix(hmat,hinv,dvol)
-    dvol = dvol / product(numberOfBins)
-    a % array3D = a % array3D / dvol / tallyExecutions
-
-    do i=1,3
-      dh(:,i) = hmat(:,i) / numberOfBins(i)
-    end do
-
-    origin(1) = -densityBox(1) / 2.d0
-    origin(2) = -densityBox(5) / 2.d0
-    origin(3) = -densityBox(9) / 2.d0
-
-    n = size(a % localIndices)
-
-    write(funit,'("CUBE file generate by GPTA")')
-    write(funit,'("Density reported in atoms/angstom^3")')
-    write(funit,'(i6,3f13.5)')n, origin / rbohr
-
-    ! Cell
-    write(funit,'(i6,3f13.5)')numberOfBins(1),dh(:,1) / rbohr
-    write(funit,'(i6,3f13.5)')numberOfBins(2),dh(:,2) / rbohr
-    write(funit,'(i6,3f13.5)')numberOfBins(3),dh(:,3) / rbohr
-
-    ! average molecule
-    do i=1,n
-      ix = getAtomicNumber(a % localLabels(i))
-      write(funit,'(i6,4f13.5)')ix, 0.d0, averagePositions(1:3,i) / rbohr / tallyExecutions
-    end do
-
-    do ix=1,numberOfBins(1)
-      do iy=1,numberOfBins(2)
-        write(funit,'(6e13.5)') a % array3D(ix,iy,1:numberOfBins(3))
-      enddo
-    enddo
-    call flush(funit)
-
-    close(outputFile % funit)
-
-  end subroutine finaliseAction
 
   subroutine dumpScreenInfo()
     implicit none
     integer :: i
     character(len=STRLEN) :: str
-    call message(0,"Computing solvation shell")
+    call message(0,"Aligning molecules")
     call message(0,"...Solute molecule ID",str=moleculeName)
     call message(0,"...Output file",str=outputFile % fname)
-    call message(0,"...Number of bins",iv=numberOfBins)
-    call message(0,"...Region size A",rv=densityBox(1:3))
-    call message(0,"...Region size B",rv=densityBox(4:6))
-    call message(0,"...Region size C",rv=densityBox(7:9))
-    if (smoothingType == 1) call message(0,"...Density smoothing with tirnagular kernel")
     if (numberOfSwaps > 0) then
       str = listOfSwaps(1)
       do i=2,numberOfSwaps
@@ -314,41 +203,27 @@ contains
       end do
       call message(0,"...Checking atoms' permutations for rotation",str=str)
     end if
-    if (numberOfEquiv > 0) then
-      str = listOfEquiv(1)
-      do i=2,numberOfEquiv
-        str = trim(str) // " - " // trim(listOfEquiv(i))
-      end do
-      call message(0,"...Checking atoms' permutations for equivalent atoms",str=str)
-    end if
   end subroutine dumpScreenInfo
 
   subroutine computeAction(a)
     implicit none
     type(actionTypeDef), target :: a
 
-    integer :: i, idx, iatm, nRef, nSolvent
+    integer :: i, iatm, nRef, nSolvent
 
+    real(8), save :: shift0(3)
     real(8), dimension(3) :: shift, dij
     real(8), allocatable, dimension(:,:) :: tmpArray
-    real(8), allocatable, dimension(:,:) :: solventPositions
+    real(8), allocatable, dimension(:,:) :: systemPositions
     
     real(8), dimension(3,3) :: rotationalMatrix
     
-    real(8) :: pinv(3,3), dp(3), boundaries(3)
-    integer :: ipos(3)
-
     integer :: irot, nRotations
     integer, allocatable, dimension(:,:) :: localIndices
 
     nRef = size(atomIndices)
     nSolvent = count(a % isSelected(:,1))
 
-    ! Reference molecule's com is the origin
-    ! do i=1,nRef
-    !   write(0,*)i,referencePositions(1:3,i)
-    ! end do
-  
     allocate(localIndices(nRef,9))
     call rotateIndices(nRotations,localIndices)
 
@@ -360,116 +235,59 @@ contains
         currentPositions(1:3,i) =  frame % pos(1:3,iatm)
       end do
       call CenterCoords(shift, nRef, currentPositions)
-      ! Reference molecule's com is the origin
-      ! do i=1,nRef
-      !   write(0,*)i,currentPositions(1:3,i)
-      ! end do
+      if (tallyExecutions == 1) shift0 = shift
 
       ! ... and solvent atoms
-      allocate(solventPositions(3,nSolvent))
-      do i=1,nSolvent
-        iatm = a % idxSelection(i,1)
-        solventPositions(1:3,i) = frame % pos(1:3,iatm) - shift(1:3)
+      allocate(systemPositions(3,frame % natoms))
+      do i=1,frame % natoms
+        systemPositions(1:3,i) = frame % pos(1:3,i) - shift(1:3)
       enddo
-      allocate(tmpArray(3,nSolvent))
-      call cartesianToFractionalNINT(nSolvent, solventPositions, tmpArray)
-      call fractionalToCartesian(nSolvent, tmpArray, solventPositions)
-      deallocate(tmpArray)
       
-      ! Compute number of permutations to enhance statistics <-- hard task, need to preseve chirality -->
-  
+      allocate(tmpArray(3,frame % natoms))
+      call cartesianToFractionalNINT(frame % natoms, systemPositions, tmpArray)
+      call fractionalToCartesian(frame % natoms, tmpArray, systemPositions)
+      if (numberOfMolecules > 0) call reassembleAllMolecules2(frame % natoms , systemPositions)
+      
       ! Align current molcule to reference
-      ! -- currentPositions are updated inside
-      ! *=- check for rotations (+swap) is done inside -=*
       call findBestOverlap(nRef, referencePositions, currentPositions, rotationalMatrix)
-      ! write(0,*)rotationalMatrix
-      ! Average positions
-      do i=1,nRef
-        dij = matmul(rotationalMatrix, currentPositions(1:3,i))
-        averagePositions(1:3,i) = averagePositions(1:3,i) + dij / nRotations
-      end do
   
       ! Rotate all the solvent atoms
       do i=1,nSolvent
-        dij(1:3) = solventPositions(1:3,i)
-        solventPositions(1:3,i) = matmul(rotationalMatrix , dij(1:3))
+        iatm = a % idxSelection(i,1)
+        dij(1:3) = systemPositions(1:3,iatm)
+        tmpArray(1:3,i) = matmul(rotationalMatrix , dij(1:3)) + shift0(1:3)
       end do
 
-      allocate(tmpArray(3,nSolvent))
-      call cartesianToFractionalNINT(nSolvent, solventPositions, tmpArray)
-      call move_alloc(tmpArray, solventPositions)
-  
-      ! Tally the density map
-      call cartesianToFractionalNINT(3,densityBox/2.d0,pinv)
-      do idx=1,3
-        boundaries(idx) = abs(pinv(idx,idx))
-        dp(idx) = 2.d0 * pinv(idx,idx) / numberOfBins(idx)
-      end do
-  
-      do idx=1,nSolvent
-        ! consider only the points inside an ellypsoid that fits into the box
-        if ( sum( (solventPositions(:,idx) / boundaries(:))**2 ) > 1 ) cycle
-        ipos(1:3) = int( (solventPositions(1:3,idx) + boundaries(1:3)) / dp(1:3)) + 1
-        a % array3D(ipos(1),ipos(2),ipos(3)) = a % array3D(ipos(1),ipos(2),ipos(3))  + 1.d0/nRotations
-      end do    
-
-      deallocate(solventPositions)
+      block
+        character(len=cp), allocatable, dimension(:) :: tmpLab
+        integer :: xx
+        
+        if ( outputFile % ftype == "dcd" ) then
+          if (tallyExecutions == 1) then
+            call dumpDCD(outputFile % funit, nSolvent, tmpArray(1:3,1:nSolvent), frame%hmat, .true.)
+          else 
+            call dumpDCD(outputFile % funit, nSolvent, tmpArray(1:3,1:nSolvent), frame%hmat, .false.)
+          end if
+        else
+          allocate(tmpLab(nSolvent))
+          do xx=1,nSolvent
+            iatm = a % idxSelection(xx,1)
+            tmpLab(xx) = frame % lab(iatm)
+          enddo
+          call dumpPDB(outputFile % funit, nSolvent, tmpArray(1:3,1:nSolvent), tmpLab(1:nSolvent), frame%hmat)
+        end if
+      end block
 
     end do
-    ! stop
+
   end subroutine computeAction
 
   subroutine rotateIndices(nRot, localIndex)
     integer, intent(out) :: nRot
     integer, dimension(:,:), intent(inout) :: localIndex
 
-    integer :: i, j, nat, ntot
-
-    integer, allocatable, dimension(:) :: numberOfIndices
-    integer, allocatable, dimension(:) :: listOfIndices
-    character(len=200), dimension(100) :: tokens
-
-    nat = size(atomIndices)
-
-    if (numberOfEquiv == 0) then
       nRot = 1
       localIndex(:,nRot) = atomIndices
-    else
-
-      allocate(numberOfIndices(numberOfEquiv))
-      do i=1,numberOfEquiv
-        call parse(listOfEquiv(i),",",tokens,numberOfIndices(i))
-      end do
-      ntot = sum(numberOfIndices)
-      allocate(listOfIndices(ntot))
-      ntot = 0
-      do i=1,numberOfEquiv
-        call parse(listOfEquiv(i),",",tokens,nat)
-        do j=1,nat
-          read(tokens(j),*) listOfIndices(ntot+j)
-        end do
-        ntot = ntot + nat
-        
-        ! do j=1,nat
-        !   write(0,*)trim(tokens(j))
-        ! end do
-        
-        ! ... do something smart here ...
-
-      end do
-
-      nRot = 9
-      localIndex(:,1) = [1,2,3,4,5]
-      localIndex(:,2) = [1,2,4,5,3]
-      localIndex(:,3) = [1,2,5,3,4]
-      localIndex(:,4) = [1,4,3,5,2]
-      localIndex(:,5) = [1,5,3,2,4]
-      localIndex(:,6) = [1,3,5,4,2]
-      localIndex(:,7) = [1,5,2,4,3]
-      localIndex(:,8) = [1,3,4,2,5]
-      localIndex(:,9) = [1,4,2,3,5]
-
-    end if
 
   end subroutine rotateIndices
 
@@ -516,7 +334,6 @@ contains
         end do
         ntot = ntot + ntmp
       end do
-      ! write(0,*)listOfIndices
       allocate(order(ntot))
       do i=1,ntot
         order(i) = i
@@ -559,7 +376,7 @@ contains
     real(8), dimension(3) :: shift
     
     if (moleculeName == "NULL") then
-      call message(-1,"Solvation - +id flag is required")
+      call message(-1,"Align - +id flag is required")
     else
       do imol=1,numberOfMolecules
         if (listOfMolecules(imol) % resname == moleculeName) then
@@ -630,45 +447,4 @@ contains
 
   end subroutine selectCentralMoleculeFromFile
 
-end module moduleSolvationShell
-
-subroutine smoothDistribution3D(nx,ny,nz,array3D)
-  implicit none
-  integer, intent(in) :: nx, ny, nz
-  real(8), dimension(nx,ny,nz) :: array3D
-  integer :: ix, iy, iz
-  real(8) :: val
-  real(8), allocatable, dimension(:,:,:) :: smooth
-  
-  integer :: i, n
-  real(8), allocatable, dimension(:) :: w
-  
-  allocate(smooth(nx,ny,nz), source=0.d0)
-  n = 1
-  allocate(w(-n:n))
-
-  do i=-n,n
-    w(i) = abs(real(i,8))/real(n+1,8)
-  end do
-  
-  do ix=2,nx-1
-    do iy=2,ny-1
-      do iz=2,nz-1
-        val = array3D(ix,iy,iz)
-        smooth(ix,iy,iz) = val
-        do i=-n,n
-          smooth(ix+i,iy,iz) = smooth(ix+i,iy,iz) + val * w(i)
-        end do
-        do i=-n,n
-          smooth(ix,iy+i,iz) = smooth(ix,iy+i,iz) + val * w(i)
-        end do
-        do i=-n,n
-          smooth(ix,iy,iz+i) = smooth(ix,iy,iz+i) + val * w(i)
-        end do
-      enddo
-    enddo
-  enddo
-
-  array3D = smooth / sum(w)
-
-end subroutine smoothDistribution3D
+end module moduleAlignMolecule

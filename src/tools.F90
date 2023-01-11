@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 subroutine debugTiming_old(idx)
   use moduleVariables
   use moduleMessages
@@ -205,8 +205,11 @@ end subroutine lowercase
 subroutine cell2hmat(cell,h)
   use moduleVariables, only : pi, pih
   implicit none
+  real(8) :: cellInput(6)
   real(8) :: cell(6)
   real(8) :: h(3,3)
+
+  cellInput = cell
 
   if (any(cell(4:6)>pi)) then
     cell(4:6) = cell(4:6)*pi/180.0d0
@@ -231,6 +234,7 @@ subroutine cell2hmat(cell,h)
   if ( abs(h(1,3)) < 1.d-4 ) h(1,3) = 0.0d0
   if ( abs(h(2,3)) < 1.d-4 ) h(2,3) = 0.0d0
 !
+  cell = cellInput
   return
 end subroutine cell2hmat
 
@@ -738,7 +742,6 @@ subroutine defineSurfaceVectors(imiller, hmat, hsurf)
   vec0(1:3) = vec0(1:3) + imiller(2) * hinv(2,:)
   vec0(1:3) = vec0(1:3) + imiller(3) * hinv(3,:)
   vec0 = vec0 / sqrt(sum(vec0**2))
-
   kmax = 4
 100 continue
   maxsurf=(kmax*2+1)**3
@@ -781,11 +784,11 @@ subroutine defineSurfaceVectors(imiller, hmat, hsurf)
   do itmp=2,maxsurf
     ii=order(itmp)
     if ( (dist(ii) - d0) < 0.01) cycle
-
+    
     vec2(1:3) = hkl(1,ii) * hmat(:,1) + hkl(2,ii) * hmat(:,2) + hkl(3,ii) * hmat(:,3)
     nrm2=sqrt(sum(vec2*vec2))
     rtmp1 = dot_product(vec1,vec2) / nrm1 / nrm2
-
+    
     ! Limit the space to get the more orthorhombic possible - maybe useless/dangerous
     if (rtmp1 > 0.7 .or. rtmp1 < -0.7) cycle
 

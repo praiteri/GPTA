@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleExtractSystemProperties
   use moduleVariables
   use moduleFiles
@@ -67,14 +67,6 @@ module moduleExtractSystemProperties
   integer, pointer :: numberOfProperties
   real(8), pointer, dimension(:) :: localProperty
 
-!  interface
-!    subroutine stuff(np, property, numberOfSelectedAtoms, selectionList)
-!      integer, intent(inout) :: np
-!      real(8), dimension(*), intent(out) :: property
-!      integer, intent(in), optional :: numberOfSelectedAtoms
-!      integer, dimension(:), intent(in), optional :: selectionList
-!    end subroutine stuff
-!  end interface
   procedure(stuff) :: extractcell, extractHMatrix, extractVolume, extractDensity
   procedure(stuff) :: computeInertiaTensor
   procedure(stuff) :: dielectricConstant
@@ -88,15 +80,31 @@ contains
   subroutine extractSystemPropertiesHelp()
     implicit none
     call message(0,"This action extracts a property of the system, which can then be written to a file (+dump),")
-    call message(0,"averaged (+avg) or used to compute its distribution (+dist).")
+    call message(0,"averaged (+avg), the histogram (+histo) or used to compute the normalised distribution (+prob).")
+    call message(0,"Several properties are available:")
+    call message(0,"  +coord    : Position of a few atoms")
+    call message(0,"  +volume   : cell volume")
+    call message(0,"  +density  : system density")
+    call message(0,"  +cell     : cell lenghts and angles")
+    call message(0,"  +hmat     : metric matrix")
+    call message(0,"  +system   : average cell and positions (if required)")
+    call message(0,"  +inertia  : inertia tensor")
+    call message(0,"  +diel     : dielectric constant")
+    call message(0,"  +distance : distance between two atoms")
+    call message(0,"")
     call message(0,"Examples:")
-    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +vol +dist +out volume.dist")
-    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +system")
-    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +system +s Na,Cl")
-    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +inertia +dump +out inertia.dat")
-    call message(0,"gpta.x --i coord.pdb traj.dcd --extract +diel +out diel.dat")
-    call message(0,"gpta.x --i coord.pdb traj.dcd --frames 1000:2000 --extract +system +out averageSystem.pdb")
-  end subroutine extractSystemPropertiesHelp
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +coord +i 10,11")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +volume +dist +out volume.dist")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +density +avg")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +cell +out cell.out")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +hmat +avg")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +system")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +system +s Na,Cl")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +system +out averageSystem.pdb")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +inertia +dump +out inertia.dat")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +diel +out diel.dat")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --extract +distance +i 1,3")
+    end subroutine extractSystemPropertiesHelp
 
   subroutine extractSystemProperties(a)
     implicit none
@@ -386,7 +394,7 @@ contains
       a % sysprop % name = "Test Extract Routine"
     end if
          
-    if (flagExists(actionCommand,"+pos")) then
+    if (flagExists(actionCommand,"+coord")) then
       n = n + 1
       atomSelection = .true.
       a % sysprop % property => position
@@ -411,18 +419,6 @@ contains
       dumpCoordinatesLocal = .true.
 
       call assignFlagValue(actionCommand,"+out",coordinatesFile % fname,"averageSystem.pdb")
-!      call assignFlagValue(actionCommand,"+avg",averagePositions,.false.)
-!      if (averagePositions) then
-!        block 
-!          integer :: iarg
-!          iarg = countFlagArguments(actionCommand,"+avg")
-!          if (iarg == 0) then
-!            str = "all"
-!          else
-!            call assignFlagValue(actionCommand,"+avg",str,'none')
-!          end if
-!          actionCommand = trim(actionCommand) // " +s " // trim(str)
-!        end block
       call assignFlagValue(actionCommand,"+s ",averagePositions,.false.)
       if (averagePositions) then
         atomSelection = .true.
@@ -443,6 +439,7 @@ contains
     end if
     
     if (flagExists(actionCommand,"+inertia")) then
+      atomSelection = .true.
       n = n + 1
       a % sysprop % property => computeInertiaTensor
       a % sysprop % name = "Intertia tensor (eigenvalues)"
@@ -474,12 +471,14 @@ contains
 
 end module moduleExtractSystemProperties
 
-subroutine extractCell(n, cell)
+subroutine extractCell(n, cell, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: cell
-  
+  integer, intent(in), optional :: numberOfSelectedAtoms
+  integer, dimension(:), intent(in), optional :: selectionList
+
   ! set the number of properties computed
   if (n<0) then
     n = 6
@@ -489,12 +488,14 @@ subroutine extractCell(n, cell)
 
 end subroutine extractCell
 
-subroutine extractHMatrix(n, hmat)
+subroutine extractHMatrix(n, hmat, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: hmat
-  
+  integer, intent(in), optional :: numberOfSelectedAtoms
+  integer, dimension(:), intent(in), optional :: selectionList
+
   ! set the number of properties computed
   if (n<0) then
     n = 9
@@ -504,12 +505,14 @@ subroutine extractHMatrix(n, hmat)
 
 end subroutine extractHMatrix
 
-subroutine extractVolume(n, volume)
+subroutine extractVolume(n, volume, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: volume
-  
+  integer, intent(in), optional :: numberOfSelectedAtoms
+  integer, dimension(:), intent(in), optional :: selectionList
+
   ! set the number of properties computed
   if (n<0) then
     n = 1
@@ -519,12 +522,14 @@ subroutine extractVolume(n, volume)
 
 end subroutine extractVolume
 
-subroutine extractDensity(n, density)
+subroutine extractDensity(n, density, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: density
-  
+  integer, intent(in), optional :: numberOfSelectedAtoms
+  integer, dimension(:), intent(in), optional :: selectionList
+
   ! set the number of properties computed
   if (n<0) then
     n = 1
@@ -534,12 +539,14 @@ subroutine extractDensity(n, density)
 
 end subroutine extractDensity
 
-subroutine dielectricConstant(n, eps)
+subroutine dielectricConstant(n, eps, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: eps
-  
+  integer, intent(in), optional :: numberOfSelectedAtoms
+  integer, dimension(:), intent(in), optional :: selectionList
+
   real(8), parameter :: e0 = 0.00552642629948221d0 ! e^2/eV/angstrom
   real(8), parameter :: kbt = 0.025851d0 ! in eV
   
@@ -585,7 +592,7 @@ subroutine bondLength(n, val, nat, l)
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: val
   integer, intent(in), optional :: nat
-  integer, dimension(:), intent(in) :: l
+  integer, dimension(:), intent(in), optional :: l
   
   real(8), dimension(3) :: dij
   
@@ -608,7 +615,7 @@ subroutine position(n, val, nat, l)
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: val
   integer, intent(in), optional :: nat
-  integer, dimension(:), intent(in) :: l
+  integer, dimension(:), intent(in), optional :: l
   
   integer :: i, ntmp
 
@@ -633,7 +640,7 @@ subroutine averageSystem(n, val, nat, l)
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: val
   integer, intent(in), optional :: nat
-  integer, dimension(:), intent(in) :: l
+  integer, dimension(:), intent(in), optional :: l
   
   integer :: i, ntmp
   real(8), allocatable, dimension(:,:) :: localPositions
@@ -644,6 +651,8 @@ subroutine averageSystem(n, val, nat, l)
     return
   end if
   ntmp = 0
+
+  ! call fixCellJumps()
 
   do i=1,3
     val(ntmp+1:ntmp+3) = frame % hmat(:,i)
@@ -661,13 +670,15 @@ subroutine averageSystem(n, val, nat, l)
   
 end subroutine averageSystem
 
-subroutine averageSystemCell(n, val)
+subroutine averageSystemCell(n, val, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   use moduleDistances
   implicit none
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: val
-  
+  integer, intent(in), optional :: numberOfSelectedAtoms
+  integer, dimension(:), intent(in), optional :: selectionList
+
   integer :: i, ntmp
 
   ! set the number of properties computed
@@ -677,6 +688,7 @@ subroutine averageSystemCell(n, val)
   end if
   ntmp = 0
 
+  ! call fixCellJumps()
   do i=1,3
     val(ntmp+1:ntmp+3) = frame % hmat(:,i)
     ntmp = ntmp + 3
@@ -691,7 +703,7 @@ subroutine test(n, val, nat, l)
   integer, intent(inout) :: n
   real(8), dimension(*), intent(out) :: val
   integer, intent(in), optional :: nat
-  integer, dimension(:), intent(in) :: l
+  integer, dimension(:), intent(in), optional :: l
   
   ! set the number of properties computed
   if (n < 0) then

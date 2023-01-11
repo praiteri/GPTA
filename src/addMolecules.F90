@@ -105,10 +105,9 @@ contains
         call checkUsedFlags(actionCommand)
         firstAction = .false.
 
-      ! end if
-    
+        ! end if
       call computeAction()
-
+        
       deallocate(localMolecules)
       deallocate(inputFile)
 
@@ -251,6 +250,7 @@ contains
       imol=0
       add : do while (imol<numberOfNewMolecules(iFile))
         centre = [grnd() , grnd() , grnd()]
+
         localMolecules(iFile) % centre = matmul(hmat,centre) + origin
         
         ! random rotation around COM
@@ -260,6 +260,7 @@ contains
         vec(2) = sin(theta) * sin(phi)
         vec(3) = cos(theta)
         theta  = grnd() * twopi  
+
         call rotateMolecule(vec(1:3), theta, localMolecules(iFile) % natoms, localMolecules(iFile) % pos, 0)
 
         call checkMoleculesOverlap(1+initialMolecules, currentMolecules, localMolecules(iFile), overlapFlag)
@@ -293,7 +294,7 @@ contains
           integer :: i, j
           j = currentAtoms
           do i=1,localMolecules(iFile) % natoms
-          j = j + 1
+            j = j + 1
             frame % pos(1:3,j) = localMolecules(iFile) % pos(1:3,i) + localMolecules(iFile) % centre(1:3)
           end do
           j = currentAtoms
@@ -415,7 +416,6 @@ contains
     real(8), dimension(3) :: dij
     real(8) :: dist
 
-!    allocate(pos , source=mol % pos)
     allocate(pos(3,mol % natoms))
     pos = mol % pos
     do iatm=1,mol % natoms

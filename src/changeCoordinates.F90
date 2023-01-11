@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleModifyCoordinates
 
 contains
@@ -37,7 +37,10 @@ contains
   subroutine rescaleCellHelp()
     use moduleMessages
     implicit none
-    call message(0,"This action changes the system cell and rescales the atomic coordinates.")
+    call message(0,"This action changes the system cell and rescales the atomic coordinates, if required.")
+    call message(0,"The new cell can be given using the +cell flag or as a scale version of the input one. (+scale)")
+    call message(0,"If +scale is used the lenght of the lattice vectors are scaled, but the angles are kept constant.")
+    call message(0,"The +nopos option can be used to leave the coordinates unchanged, useful to create a vaccum gap.")
     call message(0,"The cell can be expressed as:")
     call message(0,"  1 number -> cubic")
     call message(0,"  3 number -> orthorhombic")
@@ -48,6 +51,7 @@ contains
     call message(0,"  gpta.x --i coord.pdb --rescale +cell 10,20,30")
     call message(0,"  gpta.x --i coord.pdb --rescale +cell 10,10,10,90,90,120")
     call message(0,"  gpta.x --i coord.pdb --rescale +cell 10,0,0,0,10,0,0,0,10")
+    call message(0,"  gpta.x --i coord.pdb --rescale +scale 1,1,3 +nopos")
   end subroutine rescaleCellHelp
 
   subroutine shiftCoordinatesHelp()
@@ -64,11 +68,12 @@ contains
     call message(0,"This actions shifts the centre of mass of the selected atoms to:")
     call message(0,"  * the centre of the cell (+centre)")
     call message(0,"  * the same position as the first frame (+initial)")
-    call message(0,"  * a user defined point (+pos)")
+    call message(0,"  * a user defined location (+loc)")
     call message(0,"Examples:")
-    call message(0,"  gpta.x --i coord.pdb --fixcom +c Ca +centre")
-    call message(0,"  gpta.x --i coord.pdb --fixcom +c Ca +initial")
-    call message(0,"  gpta.x --i coord.pdb --fixcom +c Ca +pos 10,20,30")
+    call message(0,"  gpta.x --i coord.pdb --fixcom +s Ca +centre")
+    call message(0,"  gpta.x --i coord.pdb --fixcom +s Ca +initial")
+    call message(0,"  gpta.x --i coord.pdb --fixcom +s Ca +loc 10,20,30")
+    call message(0,"  gpta.x --i coord.pdb traj.dcd --fixcom +s Ca +initial")
   end subroutine shiftCOMHelp
 
   subroutine applyPeriodicboundaryConditionsHelp()
@@ -79,6 +84,7 @@ contains
     call message(0,"Examples:")
     call message(0,"  gpta.x --i coord.pdb --pbc")
     call message(0,"  gpta.x --i coord.pdb --top --pbc")
+    call message(0,"  gpta.x --i coord.pdb --top --pbc +nint")
   end subroutine applyPeriodicboundaryConditionsHelp
 
   subroutine unwrapCoordinatesHelp()
@@ -114,15 +120,26 @@ contains
   subroutine removeOverlappingMoleculesHelp()
     use moduleMessages
     implicit none
-    call message(0,"This action remove molecules that overlap.")
+    call message(0,"This action remove molecules that overlap. The atoms with the larger index are removed")
     call message(0,"The minimum distance between atoms can be specified by the +rmin flag.")
-    call message(0,"If the topology is known the the entire molecule is removed.")
-    call message(0,"It is also possoble to do a dry run to see how many atoms/molecules will be removed with certain distances.")
+    call message(0,"The topology is calculated by default and the the entire molecules are removed.")
+    call message(0,"If the selectoin flag is used the overla with only the selected atoms is considered.")
+    call message(0,"It is also possible to do a dry run to see how many atoms/molecules would be removed with certain distances.")
     call message(0,"Examples:")
     call message(0,"  gpta.x --i coord.pdb --noclash +rmin 1.1")
     call message(0,"  gpta.x --i coord.pdb --top --noclash +rmin 1.1")
+    call message(0,"  gpta.x --i coord.pdb --top --noclash +rmin 1.1 +s K,Br")
     call message(0,"  gpta.x --i coord.pdb --top --noclash +rmin 1.1 +dry")
   end subroutine removeOverlappingMoleculesHelp
+
+  subroutine fixCellJumpsHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This action remove discontinuities in the cell evolution due to the code flipping the axis.")
+    call message(0,"Partial implementation, it currently works only the the b axis.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb t.dcd --fixCell ")
+  end subroutine fixCellJumpsHelp
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine rescaleCell(a)
@@ -142,10 +159,15 @@ contains
     character(len=100) :: stringCell
     real(8), dimension(3,3), save :: hmat, hinv
     real(8), save :: volume, cell(6)
+    real(8), dimension(3) :: cScaling
+
+    logical :: lflag
+    logical, pointer :: cellOnly
 
     ! Associate variables
     actionCommand        => a % actionDetails
     actionInitialisation => a % actionInitialisation
+    cellOnly => a % logicalVariables(1)
     
     if (actionInitialisation) then
       actionInitialisation = .false.
@@ -155,10 +177,27 @@ contains
 
       if (numberOfWords==0) call message(-1,"--rescale : nothing to do")
 
+      hmat = frame % hmat
+      call hmat2cell(hmat,cell,"DEG")
+
+      call assignFlagValue(actionCommand,"+nopos ",cellOnly,.false.)
+
       call assignFlagValue(actionCommand,"+cell ", stringCell, "NONE")
-      call readCellFreeFormat(stringCell, hmat)
-      call getInverseCellMatrix(hmat,hinv,volume)
-      call hmat2cell (hmat, cell, "DEG")
+      if (trim(stringCell) /= "NONE") then
+        call readCellFreeFormat(stringCell, hmat)
+        call getInverseCellMatrix(hmat,hinv,volume)
+        call hmat2cell (hmat, cell, "DEG")
+      end if
+
+      call assignFlagValue(actionCommand,"+scale ", stringCell, "NONE")
+      if (trim(stringCell) /= "NONE") then
+        read(stringCell,*) cScaling(1:3)
+        cell(1) = cell(1) * cScaling(1)
+        cell(2) = cell(2) * cScaling(2)
+        cell(3) = cell(3) * cScaling(3)
+        call cell2hmat(cell,hmat)
+        call getInverseCellMatrix(hmat,hinv,volume)
+      end if
 
       call message(0,"Rescaled cell")
       call message(0,"...Cell vector A",rv=hmat(1:3,1))
@@ -177,7 +216,10 @@ contains
       frame % hinv = hinv
       frame % volume = volume
       frame % cell = cell
-      call fractionalToCartesian(frame % natoms, frame % frac, frame % pos)
+    
+      if (.not. cellOnly) then
+        call fractionalToCartesian(frame % natoms, frame % frac, frame % pos)
+      end if
     end if
 
     if (endOfCoordinatesFiles) return
@@ -289,7 +331,7 @@ contains
       ! fix the centre of mass intial position
       call assignFlagValue(actionCommand,"+initial",linitial,.false.)
 
-      if (.not. lcentre) call assignFlagValue(actionCommand,"+pos",dpos,[0.d0,0.d0,0.d0])
+      if (.not. lcentre) call assignFlagValue(actionCommand,"+loc",dpos,[0.d0,0.d0,0.d0])
 
       ! call checkUsedFlags(actionCommand)
 
@@ -389,16 +431,36 @@ contains
     use moduleDistances
     implicit none
     type(actionTypeDef), target :: a
+    integer :: i
+    logical, pointer :: lnint
+    real(8), allocatable, dimension(:,:) :: tmpArray
+
+    lnint => a % logicalVariables(1)
 
     if (a % actionInitialisation) then
       a % actionInitialisation = .false.
       a % requiresNeighboursList = .false.
-      call message(1,"Applying periodic boundary conditions",str='[0:1]')
+
+      ! fix the centre of mass to the cell centre
+      call assignFlagValue(a % actionDetails,"+nint",lnint,.false.)
+      if (lnint) then
+        call message(1,"Applying periodic boundary conditions",str='[-0.5:+0.5]')
+      else
+        call message(1,"Applying periodic boundary conditions",str='[0:1]')
+      endif
       return
     end if
     
     if (frameReadSuccessfully) then 
-      call fractionalToCartesian(frame % natoms,frame % frac,frame % pos)
+      if (lnint) then
+        allocate(tmpArray(3,frame % natoms))
+        do i=1,frame % natoms
+          tmpArray(1:3,i) = frame % frac(1:3,i) - nint(frame % frac(1:3,i))
+        end do
+        call fractionalToCartesian(frame % natoms, tmpArray, frame % pos)
+      else
+        call fractionalToCartesian(frame % natoms,frame % frac,frame % pos)
+      endif
       if (numberOfMolecules > 0) call reassembleAllMolecules()
     end if
 
@@ -432,19 +494,14 @@ contains
         allocate(a % localPositions(3,frame % natoms), source=frame % pos)
         call checkUsedFlags(a % actionDetails)
         a % firstAction = .false.
+        return
       endif
 
       do iatm=1,frame % natoms
-        if (any(frame % frac(:,iatm) < 0.d0) .or. any(frame % frac(:,iatm) > 1.d0)) then
-          dij = frame % pos(:,iatm) - a % localPositions(:,iatm)
-          dist = computeDistanceSquaredPBC(dij)
-          frame % pos(:,iatm) = a % localPositions(:,iatm) + dij
-        end if
-       ! dij = frame % pos(:,iatm) - a % localPositions(:,iatm)
-       ! dist = computeDistanceSquaredPBC(dij)
-       ! frame % pos(:,iatm) = a % localPositions(:,iatm) + dij
+        dij = frame % pos(:,iatm) - a % localPositions(:,iatm)
+        dist = computeDistanceSquaredPBC(dij)
+        frame % pos(:,iatm) = a % localPositions(:,iatm) + dij
       end do
-
       a % localPositions = frame % pos
 
       if (numberOfMolecules > 0) call reassembleAllMolecules()
@@ -676,7 +733,7 @@ contains
       call setUpNeigboursList()
       call updateNeighboursList(.true.)
       
-      if (numberOfMolecules > 0) call runInternalAction("topology","+update +reorder +rebuild")
+      if (numberOfMolecules > 0) call runInternalAction("topology","+update +rebuild")
 
     end if
 
@@ -696,29 +753,32 @@ contains
     type(actionTypeDef), target :: a
     character(:), pointer :: actionCommand  
     logical, pointer :: firstAction
-    logical, pointer :: dryRun
+    logical, pointer :: dryRun, lselect
 
     real(8), pointer :: overlapDistance
-    integer :: nmol0, natm0
-    integer :: nmol1, natm1
-    
+    integer ::natm0, natm1
+    integer :: idx
+
     ! Associate variables
     actionCommand        => a % actionDetails
     firstAction          => a % firstAction
 
     overlapDistance      => a % doubleVariables(1)
     dryRun               => a % logicalVariables(1)
+    lselect              => a % logicalVariables(2)
 
     if (a % actionInitialisation) then
       a % actionInitialisation = .false.
       a % requiresNeighboursList = .true.
       a % requiresNeighboursListUpdates = .true.
-      a % requiresNeighboursListDouble = .false.
+      a % requiresNeighboursListDouble = .true.
       
-      call assignFlagValue(actionCommand,"+rmin",overlapDistance,0.5d0)
+      call assignFlagValue(actionCommand,"+rmin",overlapDistance,1.0d0)
       a % cutoffNeighboursList = overlapDistance
 
       call assignFlagValue(actionCommand,"+dry",dryRun,.false.)
+
+      call assignFlagValue(actionCommand,"+s",lselect,.false.)
 
       call checkUsedFlags(actionCommand)
 
@@ -728,10 +788,15 @@ contains
     if (frameReadSuccessfully) then 
 
       if (firstAction) then
-        call message(0,"Removing overlap")
-        call message(0,"...Minimum overlap distance",r=overlapDistance)
+        call message(0,"Removing overlaping molecules")
         call checkUsedFlags(actionCommand)
         firstAction = .false.
+
+        if (lselect) then
+          call selectAtoms(1,actionCommand,a)
+          call createSelectionList(a,1)
+        endif
+  
       end if
       
       block
@@ -740,65 +805,114 @@ contains
         integer :: ndist1 = 0
         integer :: ndist2 = 0
         integer :: ndist3 = 0
-        real(8) :: rdist1 = 0.1d0
-        real(8) :: rdist2 = 0.5d0
-        real(8) :: rdist3 = 1.0d0
+        real(8) :: rdist1 = 0.75d0
+        real(8) :: rdist2 = 0.50d0
+        real(8) :: rdist3 = 0.10d0
         character(len=5) :: str
         do iatm=1,frame % natoms
           do ineigh=1,nneigh(iatm)
-
-            if (rneigh(ineigh,iatm) < rdist1) then
-              ndist1 = ndist1 + 1
-            else if (rneigh(ineigh,iatm) < rdist2) then
-              ndist2 = ndist2 + 1
-            else if (rneigh(ineigh,iatm) < rdist3) then
-              ndist3 = ndist3 + 1
-            end if
-          
             if (rneigh(ineigh,iatm) < overlapDistance) ndist0 = ndist0 + 1
-            
+            if (rneigh(ineigh,iatm) < rdist1) ndist1 = ndist1 + 1
+            if (rneigh(ineigh,iatm) < rdist2) ndist2 = ndist2 + 1
+            if (rneigh(ineigh,iatm) < rdist3) ndist3 = ndist3 + 1
           end do
         end do
 
         write(str,'(f5.3)')overlapDistance
         call message(0,"...Number of contacts below "//trim(str)//" A",i=ndist0)
-        write(str,'(f3.1)')rdist1
+        write(str,'(f5.2)')rdist1
         call message(0,"...Number of contacts below "//trim(str)//" A",i=ndist1)
-        write(str,'(f3.1)')rdist2
+        write(str,'(f5.2)')rdist2
         call message(0,"...Number of contacts below "//trim(str)//" A",i=ndist2)
-        write(str,'(f3.1)')rdist3
-        call message(1,"...Number of contacts below "//trim(str)//" A",i=ndist3)
+        write(str,'(f5.2)')rdist3
+        call message(0,"...Number of contacts below "//trim(str)//" A",i=ndist3)
       end block
         
-      if (dryRun) return
+      if (dryRun) then
+        call message(1,"...Dry run - no molecules removed !!")
+        return
+      else
+        call message(0,"...Minimum overlap distance",r=overlapDistance)
+      end if
 
       natm0 = frame % natoms
-      nmol0 = numberOfMolecules
+      ! if (numberOfMolecules == 0) call runInternalAction("topology","NULL")
 
-      if (numberOfMolecules == 0) then
-        call deleteOverlapAllAtoms(overlapDistance,.true.)
+      if (lselect) then
+        call deleteOverlapAllMolecules(overlapDistance, \
+                                        size(a % idxSelection(:,1)), \
+                                        a % idxSelection(:,1))
       else
-        call deleteOverlapAllMolecules(overlapDistance,.true.)
+        call deleteOverlapAllMolecules(overlapDistance)
       end if
+                                                                      
       call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
 
       ! update neighbours' list
       call updateNeighboursList(.true.)
       
       natm1 = frame % natoms
-      call message(0,"...Number of atoms removed",natm0-natm1)
-      if (numberOfMolecules > 0) then
-        call runInternalAction("topology","+update")
-        nmol1 = numberOfMolecules
-        call message(0,"...Number of molecules removed",nmol0-nmol1)
-      end if
+      call message(0,"...Number of atoms removed",i=natm0-natm1)
       call message(2)
+      !if (numberOfMolecules > 0) then
+      !  call runInternalAction("topology","+update")
+      !end if
 
     end if
 
     if (endOfCoordinatesFiles) return
     
   end subroutine removeOverlappingMolecules
+
+  subroutine fixCellJumps(a)
+    use moduleSystem
+    use moduleVariables
+    use moduleDistances, only : cartesianToFractional
+    implicit none
+    type(actionTypeDef), target :: a
+  
+    logical, save :: firstTimeIn = .true.
+    integer :: iVal(3)
+    real(8) :: rtmp(3,3), rVec
+    real(8), save :: box(3,3)
+  
+    if (a % actionInitialisation) then
+      a % actionInitialisation = .false.
+      box = frame % hmat
+      return
+    end if
+
+    rtmp = (box - frame % hmat)
+
+    iVal = 0
+    iVal(1) = nint(sqrt(sum(rtmp(1:1,2)**2)) / frame % cell(1))
+    ! iVal(2) = nint(sqrt(sum(rtmp(1,3)**2)) / frame % cell(1))
+    ! iVal(3) = nint(sqrt(sum(rtmp(1:2,3)**2)) / frame % cell(2))
+
+    if (iVal(1) > 0) then
+      rVec = sign(dble(iVal(1)), box(1,2))
+      frame % hmat(:,2) = frame % hmat(:,2) + rVec * frame % hmat(:,1)
+    end if
+
+    ! if (iVal(2) > 0) then
+    !   rVec = sign(dble(iVal(2)), box(1,3))
+    !   frame % hmat(:,3) = frame % hmat(:,3) + rVec * frame % hmat(:,1)
+    ! end if
+
+    ! if (iVal(3) > 0) then
+    !   rVec = sign(dble(iVal(2)), box(2,3))
+    !   frame % hmat(:,3) = frame % hmat(:,3) + rVec * frame % hmat(:,2)
+    ! end if
+
+    if (any(iVal>0)) then
+      call hmat2cell (frame % hmat, frame % cell, "DEG")
+      call getInverseCellMatrix(frame % hmat,frame % hinv,frame % volume)
+      call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
+    end if
+    
+    box = frame % hmat
+
+  end subroutine fixCellJumps
 
 end module moduleModifyCoordinates
 
@@ -853,6 +967,30 @@ subroutine reassembleAllMolecules()
 
 end subroutine reassembleAllMolecules
 
+subroutine reassembleAllMolecules2(n,pos)
+  use moduleVariables
+  use moduleSystem 
+  use moduleDistances
+  implicit none
+
+  integer :: n
+  real(8), dimension(3,n) :: pos
+
+  integer :: imol, idx, iatm, jatm
+  real(8) :: dij(3), rtmp
+
+  do imol=1,numberOfMolecules
+    iatm = listOfMolecules(imol) % listOfAtoms(1)
+    do idx=2,listOfMolecules(imol) % numberOfAtoms
+      jatm = listOfMolecules(imol) % listOfAtoms(idx)
+      dij(1:3) = frame % pos(1:3,jatm) - frame % pos(1:3,iatm)
+      rtmp = computeDistanceSquaredPBC(dij)
+      pos(1:3,jatm) = pos(1:3,iatm) + dij(1:3)
+    enddo
+  enddo
+
+end subroutine reassembleAllMolecules2
+
 subroutine reassembleBrokenMolecules()
   use moduleVariables
   use moduleSystem 
@@ -880,7 +1018,7 @@ end subroutine reassembleBrokenMolecules
 subroutine computeMoleculesCOM(mol0)
   use moduleSystem 
   use moduleElements 
-  use moduleAlignMolecules, only : computeCenter
+  use moduleSuperimposeMolecules, only : computeCenter
 
   implicit none
 
@@ -902,115 +1040,56 @@ subroutine computeMoleculesCOM(mol0)
 
 end subroutine computeMoleculesCOM
 
-subroutine deleteOverlapAllMolecules(rcut,removeSecond)
+subroutine deleteOverlapAllMolecules(rcut,n,alist)
   use moduleSystem
   use moduleVariables
   use moduleDistances
   implicit none
   real(8), intent(in) :: rcut
-  logical, intent(in) :: removeSecond
+  integer, intent(in), optional :: n
+  integer, dimension(*), intent(in), optional :: alist
 
   logical, allocatable, dimension(:) :: lremove
-  integer, target :: imol, jmol
+  integer :: imol, jmol
   integer :: idx
   integer :: iatm, jatm, ineigh
   real(8) :: dij(3), rtmp, rmax
   integer :: n0
-  integer, pointer :: kdx
+  integer :: kdx
 
-  if (removeSecond) then
-    kdx => jmol
+  integer, allocatable, dimension(:) :: tmpIDX
+
+  if (.not. present(n)) then
+    allocate(tmpIDX(frame % natoms))
+    do idx=1,frame % natoms
+      tmpIDX(idx) = idx
+    end do
   else
-    kdx => imol
+    allocate(tmpIDX(n),source=alist(1:n))
   end if
 
-  allocate(lremove(numberOfMolecules), source=.false.)
-
-  rmax = rcut**2
-  m1 : do imol=1,numberOfMolecules
-    if (lremove(imol)) cycle
-    do idx=1,listOfMolecules(imol) % numberOfAtoms
-      iatm = listOfMolecules(imol) % listOfAtoms(idx)
-      m2 : do ineigh=1,nneigh(iatm)
-        jatm = lneigh(ineigh,iatm)
-        jmol = atomtomoleculeindex(jatm)
-        if (imol == jmol) cycle
-        if (lremove(jmol)) cycle
-        dij = frame % pos(1:3,iatm) - frame % pos(1:3,jatm)
-        rtmp = computeDistanceSquaredPBC(dij) 
-        if (rtmp < rmax) then
-          lremove(kdx) = .true.
-          if (kdx == imol) then
-            cycle m1
-          else
-            cycle m2
-          end if
-        end if
-      end do m2
-    end do
-  end do m1
-
-  n0 = 0
-  do imol=1,numberOfMolecules
-    if (lremove(imol)) cycle
-    do idx=1,listOfMolecules(imol) % numberOfAtoms
-      iatm = listOfMolecules(imol) % listOfAtoms(idx)
-
-      n0 = n0 + 1
-      frame % lab(n0) = frame % lab(iatm)
-      frame % chg(n0) = frame % chg(iatm)
-      frame % pos(:,n0) = frame % pos(:,iatm)
+  allocate(lremove(frame % natoms), source=.false.)
+  do idx=1,size(tmpIDX)
+    iatm = tmpIDX(idx)
+    if (lremove(iatm)) cycle
+    do ineigh=1,nneigh(iatm)
+      jatm = lneigh(ineigh,iatm)
+      if (rneigh(ineigh,iatm) < rcut) lremove(jatm) = .true.
     end do
   end do
-  frame % natoms = n0
-
-end subroutine deleteOverlapAllMolecules
-
-subroutine deleteOverlapAllAtoms(rcut,removeSecond)
-  use moduleSystem
-  use moduleVariables
-  use moduleDistances
-  implicit none
-  real(8), intent(in) :: rcut
-  logical, intent(in) :: removeSecond
-
-  logical, allocatable, dimension(:) :: lremove
-  integer, target :: iatm, jatm, ineigh
-  real(8) :: dij(3), rtmp, rmax
-  integer :: n0
-  integer, pointer :: idx
-
-  rmax = rcut**2
-
-  n0 = frame % natoms
-  allocate(lremove(n0), source=.false.)
-
-  if (removeSecond) then
-    idx => jatm
-  else
-    idx => iatm
-  end if
-
-  m1 : do iatm=1,n0
-    if (lremove(iatm)) cycle
-
-    m2 : do ineigh=1,nneigh(iatm)
-      jatm=lneigh(ineigh,iatm)
-      if (lremove(jatm)) cycle
-
-      dij = frame % pos(1:3,iatm) - frame % pos(1:3,jatm)
-      rtmp = computeDistanceSquaredPBC(dij) 
-      if (rtmp < rmax) then
-        lremove(idx) = .true.
-        if (idx == iatm) then
-          cycle m1
-        else
-          cycle m2
-        end if
+  
+  if (numberOfMolecules > 0) then
+    do jatm=1,frame % natoms
+      if (lremove(jatm)) then
+        jmol = atomToMoleculeIndex(jatm)
+        do idx=1,listOfMolecules(jmol) % numberOfAtoms
+          iatm = listOfMolecules(jmol) % listOfAtoms(idx)
+          imol = atomToMoleculeIndex(iatm)
+          lremove(iatm) = .true.
+        end do
       end if
-
-    end do m2
-  end do m1
+    end do
+  end if
 
   n0 = 0
   do iatm=1,frame % natoms
@@ -1022,4 +1101,127 @@ subroutine deleteOverlapAllAtoms(rcut,removeSecond)
   end do
   frame % natoms = n0
 
-end subroutine deleteOverlapAllAtoms
+end subroutine deleteOverlapAllMolecules
+
+! subroutine deleteOverlapAllAtoms(rcut,removeSecond)
+!   use moduleSystem
+!   use moduleVariables
+!   use moduleDistances
+!   implicit none
+!   real(8), intent(in) :: rcut
+!   logical, intent(in) :: removeSecond
+
+!   logical, allocatable, dimension(:) :: lremove
+!   integer, target :: iatm, jatm, ineigh
+!   real(8) :: dij(3), rtmp, rmax
+!   integer :: n0
+!   integer, pointer :: idx
+
+!   rmax = rcut**2
+
+!   n0 = frame % natoms
+!   allocate(lremove(n0), source=.false.)
+
+!   if (removeSecond) then
+!     idx => jatm
+!   else
+!     idx => iatm
+!   end if
+
+!   m1 : do iatm=1,n0
+!     if (lremove(iatm)) cycle
+
+!     m2 : do ineigh=1,nneigh(iatm)
+!       jatm=lneigh(ineigh,iatm)
+!       if (lremove(jatm)) cycle
+
+!       dij = frame % pos(1:3,iatm) - frame % pos(1:3,jatm)
+!       rtmp = computeDistanceSquaredPBC(dij) 
+!       if (rtmp < rmax) then
+!         lremove(idx) = .true.
+!         if (idx == iatm) then
+!           cycle m1
+!         else
+!           cycle m2
+!         end if
+!       end if
+
+!     end do m2
+!   end do m1
+
+!   n0 = 0
+!   do iatm=1,frame % natoms
+!     if (lremove(iatm)) cycle
+!     n0 = n0 + 1
+!     frame % lab(n0) = frame % lab(iatm)
+!     frame % chg(n0) = frame % chg(iatm)
+!     frame % pos(:,n0) = frame % pos(:,iatm)
+!   end do
+!   frame % natoms = n0
+
+! end subroutine deleteOverlapAllAtoms
+
+
+! subroutine deleteOverlapAllMolecules(rcut,removeSecond)
+!   use moduleSystem
+!   use moduleVariables
+!   use moduleDistances
+!   implicit none
+!   real(8), intent(in) :: rcut
+!   logical, intent(in) :: removeSecond
+
+!   logical, allocatable, dimension(:) :: lremove
+!   integer :: imol, jmol
+!   integer :: idx
+!   integer :: iatm, jatm, ineigh
+!   real(8) :: dij(3), rtmp, rmax
+!   integer :: n0
+!   integer :: kdx
+
+!   allocate(lremove(numberOfMolecules), source=.false.)
+
+!   rmax = rcut**2
+!   m1 : do imol=1,numberOfMolecules
+!     if (lremove(imol)) cycle
+!     do idx=1,listOfMolecules(imol) % numberOfAtoms
+!       iatm = listOfMolecules(imol) % listOfAtoms(idx)
+!       m2 : do ineigh=1,nneigh(iatm)
+!         jatm = lneigh(ineigh,iatm)
+!         jmol = atomtomoleculeindex(jatm)
+!         if (imol == jmol) cycle
+!         if (lremove(jmol)) cycle
+!         dij = frame % pos(1:3,iatm) - frame % pos(1:3,jatm)
+!         rtmp = computeDistanceSquaredPBC(dij)
+!         if (rtmp < rmax) then
+!           kdx = imol
+!           if (removeSecond) then
+!             if (jmol > imol) kdx = jmol
+!           else
+!             if (jmol < imol) kdx = jmol
+!           end if
+!           lremove(kdx) = .true.
+!           if (kdx == imol) then
+!             cycle m1
+!           else
+!             cycle m2
+!           end if
+!         end if
+!       end do m2
+!     end do
+!   end do m1
+
+!   n0 = 0
+!   do imol=1,numberOfMolecules
+!     if (lremove(imol)) cycle
+!     do idx=1,listOfMolecules(imol) % numberOfAtoms
+!       iatm = listOfMolecules(imol) % listOfAtoms(idx)
+
+!       n0 = n0 + 1
+!       frame % lab(n0) = frame % lab(iatm)
+!       frame % chg(n0) = frame % chg(iatm)
+!       frame % pos(:,n0) = frame % pos(:,iatm)
+!     end do
+!   end do
+!   frame % natoms = n0
+
+! end subroutine deleteOverlapAllMolecules

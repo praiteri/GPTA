@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleMolecularTopology
   use moduleVariables
   use moduleFiles
@@ -146,7 +146,7 @@ contains
       if (n == 0) cycle
       
       call message(3)
-      call message(0,"....Molecule type M"//trim(str1))
+      call message(0,"....Molecule type "//trim(listOfMolecules(kdx) % resname))
 
       call message(0,"......Number of molecules",i=n)
       call message(0,"......Number of atoms in molecule",i=listOfMolecules(kdx) % numberOfAtoms)
@@ -159,7 +159,6 @@ contains
 
       call message(0,"......Number of atoms in molecule",i=listOfMolecules(kdx) % numberOfAtoms)
 
-      
       iatm = listOfMolecules(kdx) % listOfAtoms(1)
       molecularCharge = frame % chg(iatm)
       do jdx=2,listOfMolecules(kdx) % numberOfAtoms
@@ -170,6 +169,18 @@ contains
       if (frame % volume > 1e-6) &
         call message(0,"......Concentration [M]",r=1660.5d0*n/frame % volume)
     enddo
+
+    call message(3)
+    call message(0,"Connectivity summary")
+    call message(0,"  Number of bonds",i=numberOfUniqueBonds)
+    if (numberOfUniqueBonds > 0) call writeUniqueCovalentTypes(1)
+    call message(0,"  Number of angles",i=numberOfUniqueAngles)
+    if (numberOfUniqueAngles > 0) call writeUniqueCovalentTypes(2)
+    call message(0,"  Number of torsions",i=numberOfUniqueTorsions)
+    if (numberOfUniqueTorsions > 0) call writeUniqueCovalentTypes(3)
+    call message(0,"  Number of impropers",i=numberOfUniqueOutOfPlane)
+    if (numberOfUniqueOutOfPlane > 0) call writeUniqueCovalentTypes(4)
+  
     call message(2)
 
   end subroutine dumpScreenInfo
@@ -184,6 +195,12 @@ contains
 
     logical, allocatable, dimension(:) :: atomsUsed
     type(moleculeTypeDef), allocatable, dimension(:) :: m
+
+    if (allocated(numberOfCovalentBondsPerAtom)) then
+      deallocate(numberOfCovalentBondsPerAtom)
+      deallocate(listOfCovalentBondsPerAtom)
+      deallocate(atomToMoleculeIndex)
+    end if    
 
     allocate(numberOfCovalentBondsPerAtom(frame % natoms), source=0)
     allocate(listOfCovalentBondsPerAtom(neighmax,frame % natoms), source=0)
@@ -225,13 +242,13 @@ contains
     end if
     ! Search for molecules
     allocate(atomsUsed(frame % natoms), source=.false.)
-
     allocate(m(frame % natoms))
     do idx=1,frame % natoms
       allocate(m(idx) % listOfAtoms(200))
     enddo
     iatm = 0
     numberOfMolecules = 0
+    
     do while (iatm<frame % natoms)
       iatm = iatm + 1
       if (atomsUsed(iatm)) cycle
@@ -278,6 +295,7 @@ contains
   subroutine finaliseTopology()
     implicit none
     integer :: idx, jdx, kdx, itmp, i, j, n
+    integer :: isWater, indices(3)
     character(len=30) :: str
 
     ! Search for unique molecules' types
@@ -307,10 +325,27 @@ contains
     enddo 
     numberOfUniqueMoleculeTypes = itmp
 
+    ! identity water molecules
+    isWater=-1
+    do idx=1,numberOfUniqueMoleculeTypes
+      itmp = uniqueMoleculesID(idx)
+      if (listOfMolecules(itmp) % numberOfAtoms == 3) then
+        do jdx=1,listOfMolecules(itmp) % numberOfAtoms
+          indices(jdx) = getAtomicNumber(listOfMolecules(itmp) % listOfLabels(jdx))
+        end do
+        if (count(indices ==8)==1 .and. count(indices==1)==2) isWater = idx
+      end if
+    end do
+
+
     ! Assign a name to the molecules
     do idx=1,numberOfMolecules
-      write(str,'(i0)') listOfMolecules(idx) % ID
-      listOfMolecules(idx) % resname = "M"//trim(str) 
+      if (isWater==listOfMolecules(idx) % ID) then
+        listOfMolecules(idx) % resname = "HOH"
+      else
+        write(str,'(i0)') listOfMolecules(idx) % ID
+        listOfMolecules(idx) % resname = "M"//trim(str) 
+      end if
     enddo
 
     ! Upper limit for bonds
@@ -435,7 +470,12 @@ contains
           exit
         end if
       end do
-      if (imol > numberOfUniqueMoleculeTypes) call message(-1,"--top +def | No Molecule for atom ",i=iatm+1)
+      if (imol > numberOfUniqueMoleculeTypes) then
+        write(0,*)tmplab(1:midx(imol-1))
+        write(0,*)mlab(1:midx(imol-1),imol-1)
+        write(0,*)tmplab(1:midx(imol-1)) == mlab(1:midx(imol-1),imol-1)        
+        call message(1,"--top +def | No Molecule for atom ",i=iatm+1)
+      end if
     end do
 
     ! Consolidate list of molecules into the global array
@@ -501,6 +541,10 @@ contains
     type(actionTypeDef), target :: a
     logical :: brokenMolecules
 
+#ifdef DEBUG
+    write(0,*) " --> Entering computeTopology <-- "
+#endif
+
     call associatePointers(a)
 
     if (a % actionInitialisation) then
@@ -518,6 +562,11 @@ contains
         if (allocated(listOfCovalentBondsPerAtom  ))  deallocate(listOfCovalentBondsPerAtom)
         if (allocated(listOfUniqueBonds           ))  deallocate(listOfUniqueBonds)
 
+        
+        if (allocated(numberOfCovalentBondsPerAtom)) deallocate(numberOfCovalentBondsPerAtom)
+        if (allocated(listOfCovalentBondsPerAtom  )) deallocate(listOfCovalentBondsPerAtom)
+        if (allocated(atomToMoleculeIndex         )) deallocate(atomToMoleculeIndex)
+    
         if (userDefinedMolecules) then
           call defineMoleculesFromLabels()
         else
@@ -525,8 +574,10 @@ contains
           if (reorderAtoms) call reoderAtomsByMolecule()
         end if
         if (updateTopologyOnce) updateTopology = .false.
-        call dumpScreenInfo()
         
+        call computeConnectivity() 
+        call dumpScreenInfo()
+
         call checkUsedFlags(actionCommand)
       end if
       
@@ -538,6 +589,7 @@ contains
       end if
 
       call computeMoleculesCOM(0)
+
     end if
 
   end subroutine computeTopology
@@ -661,6 +713,7 @@ subroutine computeConnectivity()
   numberOfUniqueOutOfPlane = 0
   
   ! Upper limit for angles
+  if (allocated(listOfUniqueAngles)) deallocate(listOfUniqueAngles)
   n = numberOfUniqueBonds * 4
   allocate(listOfUniqueAngles(3,n))
 
@@ -683,6 +736,7 @@ subroutine computeConnectivity()
   if (any(listOfMolecules(:) % numberOfAtoms > 3)) then
     ! Upper limit for torsions
     n = numberOfUniqueBonds*4
+    if (allocated(listOfUniqueTorsions)) deallocate(listOfUniqueTorsions)
     allocate(listOfUniqueTorsions(4,n))
     do i=1,numberOfUniqueAngles-1
       idx = listOfUniqueAngles(2,i)
@@ -722,6 +776,8 @@ subroutine computeConnectivity()
     call resizeArray(listOfUniqueTorsions,numberOfUniqueTorsions)
 
     ! Upper limit for improper torsions
+    if (allocated(listOfUniqueOutOfPlane)) deallocate(listOfUniqueOutOfPlane)
+
     n = frame % natoms
     allocate(listOfUniqueOutOfPlane(4,n))
     do i=1,frame % natoms
@@ -735,6 +791,13 @@ subroutine computeConnectivity()
 
   ! Compute list of 1-n interactions
   nShape = 2*shape(listOfCovalentBondsPerAtom)
+  if (allocated(numberOf_13_InteractionsPerAtom)) then
+    deallocate(numberOf_13_InteractionsPerAtom)
+    deallocate(numberOf_14_InteractionsPerAtom)
+    deallocate(listOf_13_InteractionsAtom)
+    deallocate(listOf_14_InteractionsAtom)
+  end if
+
   allocate(numberOf_13_InteractionsPerAtom(frame % natoms), source=0)
   allocate(numberOf_14_InteractionsPerAtom(frame % natoms), source=0)
   allocate(listOf_13_InteractionsAtom(nShape(1),frame % natoms))
@@ -758,10 +821,146 @@ subroutine computeConnectivity()
     listOf_14_InteractionsAtom(numberOf_14_InteractionsPerAtom(jatm),jatm) = iatm
   enddo
 
-  call message(0,"Connectivity summary")
-  call message(0,"...Number of bonds",i=numberOfUniqueBonds)
-  call message(0,"...Number of angles",i=numberOfUniqueAngles)
-  call message(0,"...Number of dihedrals",i=numberOfUniqueTorsions)
-  call message(1,"...Number of impropers",i=numberOfUniqueOutOfPlane)
-
 end subroutine computeConnectivity
+
+subroutine writeUniqueCovalentTypes(ntype)
+  use moduleVariables
+  use moduleMessages 
+  use moduleSystem 
+
+  integer, intent(in) :: ntype
+
+  integer :: i, j, nlist
+  character(cp), allocatable, dimension(:,:) :: list
+  character(cp), dimension(4) :: labels
+  character(len=100) :: str
+
+  if (ntype == 1) then
+    allocate(list(2,numberOfUniqueBonds))
+    nlist = 1
+    labels(1:2) = [frame%lab(listOfUniqueBonds(1,nlist)), \
+                   frame%lab(listOfUniqueBonds(2,nlist))]
+    list(1:2,nlist) = labels(1:2)
+    a : do i=2,numberOfUniqueBonds
+      labels(1:2) = [frame%lab(listOfUniqueBonds(1,i)), \
+                     frame%lab(listOfUniqueBonds(2,i))]
+
+      do j=1,nlist
+        if ( (list(1,j) == labels(1)) .and. (list(2,j) == labels(2)) ) cycle a
+        if ( (list(1,j) == labels(2)) .and. (list(2,j) == labels(1)) ) cycle a
+      end do
+      nlist = nlist + 1 
+      labels(1:2) = [frame%lab(listOfUniqueBonds(1,i)), \
+                     frame%lab(listOfUniqueBonds(2,i))]
+      list(1:2,nlist) = labels(1:2)
+    end do a
+
+    call message(0,"    Number of unique bond types",i=nlist)
+    do i=1,nlist
+      str = list(1,i)//" - "//list(2,i)
+      call message(0,"      "//trim(str))
+    end do
+
+  else if (ntype == 2) then
+    allocate(list(3,numberOfUniqueAngles))
+
+    nlist = 1
+    labels(1:3) = [frame%lab(listOfUniqueAngles(1,nlist)), \
+                   frame%lab(listOfUniqueAngles(2,nlist)), \
+                   frame%lab(listOfUniqueAngles(3,nlist))]
+    list(1:3,nlist) = labels(1:3)
+    b : do i=2,numberOfUniqueAngles
+      labels(1:3) = [frame%lab(listOfUniqueAngles(1,i)), \
+                     frame%lab(listOfUniqueAngles(2,i)), \
+                     frame%lab(listOfUniqueAngles(3,i))]
+
+      do j=1,nlist
+        if ( (list(1,j) == labels(1)) .and. (list(2,j) == labels(2)) .and. (list(3,j) == labels(3)) ) cycle b
+        if ( (list(1,j) == labels(3)) .and. (list(2,j) == labels(2)) .and. (list(3,j) == labels(1)) ) cycle b
+      end do
+      nlist = nlist + 1 
+      labels(1:3) = [frame%lab(listOfUniqueAngles(1,i)), \
+                     frame%lab(listOfUniqueAngles(2,i)), \
+                     frame%lab(listOfUniqueAngles(3,i))]
+      list(1:3,nlist) = labels(1:3)
+    end do b
+
+    call message(0,"    Number of unique angle types",i=nlist)
+    do i=1,nlist
+      str = list(1,i)//" - "//list(2,i)//" - "//list(3,i)
+      call message(0,"      "//trim(str))
+    end do
+
+  else if (ntype == 3) then
+    allocate(list(4,numberOfUniqueTorsions))
+
+    nlist = 1
+    labels(1:4) = [frame%lab(listOfUniqueTorsions(1,nlist)), \
+                   frame%lab(listOfUniqueTorsions(2,nlist)), \
+                   frame%lab(listOfUniqueTorsions(3,nlist)), \
+                   frame%lab(listOfUniqueTorsions(4,nlist))]
+    list(1:4,nlist) = labels(1:4)
+    c : do i=2,numberOfUniqueTorsions
+      labels(1:4) = [frame%lab(listOfUniqueTorsions(1,i)), \
+                     frame%lab(listOfUniqueTorsions(2,i)), \
+                     frame%lab(listOfUniqueTorsions(3,i)), \
+                     frame%lab(listOfUniqueTorsions(4,i))]
+
+      do j=1,nlist
+        if ( (list(1,j) == labels(1)) .and. (list(2,j) == labels(2)) .and. (list(3,j) == labels(3)) .and. (list(4,j) == labels(4)) ) cycle c
+        if ( (list(1,j) == labels(4)) .and. (list(2,j) == labels(3)) .and. (list(3,j) == labels(2)) .and. (list(4,j) == labels(1)) ) cycle c
+      end do
+      nlist = nlist + 1 
+      labels(1:4) = [frame%lab(listOfUniqueTorsions(1,i)), \
+                     frame%lab(listOfUniqueTorsions(2,i)), \
+                     frame%lab(listOfUniqueTorsions(3,i)), \
+                     frame%lab(listOfUniqueTorsions(4,i))]
+      list(1:4,nlist) = labels(1:4)
+    end do c
+
+    call message(0,"    Number of unique torsion types",i=nlist)
+    do i=1,nlist
+      str = list(1,i)//" - "//list(2,i)//" - "//list(3,i)//" - "//list(4,i)
+      call message(0,"      "//trim(str))
+    end do
+
+  else if (ntype == 4) then
+    allocate(list(4,numberOfUniqueOutOfPlane))
+
+    nlist = 1
+    labels(1:4) = [frame%lab(listOfUniqueOutOfPlane(1,nlist)), \
+                   frame%lab(listOfUniqueOutOfPlane(2,nlist)), \
+                   frame%lab(listOfUniqueOutOfPlane(3,nlist)), \
+                   frame%lab(listOfUniqueOutOfPlane(4,nlist))]
+    list(1:4,nlist) = labels(1:4)
+    d : do i=2,numberOfUniqueOutOfPlane
+      labels(1:4) = [frame%lab(listOfUniqueOutOfPlane(1,i)), \
+                     frame%lab(listOfUniqueOutOfPlane(2,i)), \
+                     frame%lab(listOfUniqueOutOfPlane(3,i)), \
+                     frame%lab(listOfUniqueOutOfPlane(4,i))]
+
+      do j=1,nlist
+        if ( (list(1,j) == labels(1)) .and. (list(2,j) == labels(2)) .and. (list(3,j) == labels(3)) .and. (list(4,j) == labels(4)) ) cycle d
+        if ( (list(1,j) == labels(1)) .and. (list(2,j) == labels(2)) .and. (list(3,j) == labels(4)) .and. (list(4,j) == labels(3)) ) cycle d
+        if ( (list(1,j) == labels(1)) .and. (list(2,j) == labels(3)) .and. (list(3,j) == labels(2)) .and. (list(4,j) == labels(4)) ) cycle d
+        if ( (list(1,j) == labels(1)) .and. (list(2,j) == labels(3)) .and. (list(3,j) == labels(4)) .and. (list(4,j) == labels(2)) ) cycle d
+        if ( (list(1,j) == labels(1)) .and. (list(2,j) == labels(4)) .and. (list(3,j) == labels(2)) .and. (list(4,j) == labels(3)) ) cycle d
+        if ( (list(1,j) == labels(1)) .and. (list(2,j) == labels(4)) .and. (list(3,j) == labels(3)) .and. (list(4,j) == labels(2)) ) cycle d
+      end do
+      nlist = nlist + 1 
+      labels(1:4) = [frame%lab(listOfUniqueOutOfPlane(1,i)), \
+                     frame%lab(listOfUniqueOutOfPlane(2,i)), \
+                     frame%lab(listOfUniqueOutOfPlane(3,i)), \
+                     frame%lab(listOfUniqueOutOfPlane(4,i))]
+      list(1:4,nlist) = labels(1:4)
+    end do d
+
+    call message(0,"    Number of unique improper types",i=nlist)
+    do i=1,nlist
+      str = list(1,i)//" - "//list(2,i)//" - "//list(3,i)//" - "//list(4,i)
+      call message(0,"      "//trim(str))
+    end do
+
+  end if
+  
+end subroutine writeUniqueCovalentTypes

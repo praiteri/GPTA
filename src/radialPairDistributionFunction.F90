@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleRDF
 
   use moduleVariables
@@ -52,6 +52,7 @@ module moduleRDF
   real(8), pointer :: averageVolume
   real(8), pointer, dimension(:) :: dist
   logical, pointer :: soluteRDF
+  logical, pointer :: logscale
 
 contains
 
@@ -100,12 +101,20 @@ contains
         firstAction = .false.
 
       else
-        if (a % updateAtomsSelection) call selectAtoms(2,actionCommand,a)
+
+        if (a % updateAtomsSelection) then
+          call selectAtoms(2,actionCommand,a)
+          call createSelectionList(a,2)
+        end if
 
       end if
 
       if (soluteRDF) then
-        call computeActionSolute(a)
+        if (logscale) then
+          call computeActionSoluteLogScale(a)
+        else
+          call computeActionSolute(a)
+        endif
       else
         call computeAction(a)
       end if
@@ -113,7 +122,13 @@ contains
     end if
 
     ! Normal processing of the frame - finalise calculation and write output
-    if (endOfCoordinatesFiles) call finaliseAction(a)
+    if (endOfCoordinatesFiles) then
+      if (logscale) then
+        call finaliseActionLogScale(a)
+      else
+        call finaliseAction(a)
+      end if
+    endif
 
   end subroutine computeRadialPairDistribution
 
@@ -129,6 +144,7 @@ contains
     rcut                 => a % doubleVariables(1)
     averageVolume        => a % doubleVariables(2)
     soluteRDF            => a % logicalVariables(1)
+    logscale             => a % logicalVariables(2)
     dist                 => a % array1D
     
   end subroutine  
@@ -141,6 +157,7 @@ contains
     a % cutoffNeighboursList = 6.0d0
 
     call assignFlagValue(actionCommand,"+solute",soluteRDF,.false.)
+    call assignFlagValue(actionCommand,"+log",logscale,.false.)
     
     if (soluteRDF) then
       a % requiresNeighboursList = .false.
@@ -178,6 +195,7 @@ contains
     type(actionTypeDef), target :: a
 
     integer :: iatm, ineigh, jatm, idx
+    integer :: imol, jmol
     real(8) :: dr, dn
     real(8), allocatable, dimension(:) :: local_dist
 
@@ -190,20 +208,41 @@ contains
     averageVolume = averageVolume + frame % volume
 
     allocate(local_dist(numberOfBins) , source=0.d0)
+
+    if (numberOfMolecules > 0) then
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE (iatm,ineigh,jatm,idx)
 !$OMP DO REDUCTION(+:local_dist)
-    do iatm=1,frame % natoms
-      do ineigh=1,nneigh(iatm)
-        if (rneigh(ineigh,iatm) > rcut) cycle
-        jatm=lneigh(ineigh,iatm)
-        idx = int(rneigh(ineigh,iatm)/dr) + 1
-        if ( (a % isSelected(iatm,1) .and. a % isSelected(jatm,2))) local_dist(idx) = local_dist(idx) + dn
-        if ( (a % isSelected(iatm,2) .and. a % isSelected(jatm,1))) local_dist(idx) = local_dist(idx) + dn
+      do iatm=1,frame % natoms
+        imol = atomToMoleculeIndex(iatm)
+        do ineigh=1,nneigh(iatm)
+          if (rneigh(ineigh,iatm) > rcut) cycle
+          jatm=lneigh(ineigh,iatm)
+          jmol = atomToMoleculeIndex(jatm)
+          if (imol == jmol) cycle
+          idx = int(rneigh(ineigh,iatm)/dr) + 1
+          if ( (a % isSelected(iatm,1) .and. a % isSelected(jatm,2))) local_dist(idx) = local_dist(idx) + dn
+          if ( (a % isSelected(iatm,2) .and. a % isSelected(jatm,1))) local_dist(idx) = local_dist(idx) + dn
+        enddo
       enddo
-    enddo
 !$OMP END DO
 !$OMP END PARALLEL
+    else
+!$OMP PARALLEL DEFAULT(SHARED) &
+!$OMP PRIVATE (iatm,ineigh,jatm,idx)
+!$OMP DO REDUCTION(+:local_dist)
+      do iatm=1,frame % natoms
+        do ineigh=1,nneigh(iatm)
+          if (rneigh(ineigh,iatm) > rcut) cycle
+          jatm=lneigh(ineigh,iatm)
+          idx = int(rneigh(ineigh,iatm)/dr) + 1
+          if ( (a % isSelected(iatm,1) .and. a % isSelected(jatm,2))) local_dist(idx) = local_dist(idx) + dn
+          if ( (a % isSelected(iatm,2) .and. a % isSelected(jatm,1))) local_dist(idx) = local_dist(idx) + dn
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+    end if
 
     dist = dist + local_dist
     deallocate(local_dist)
@@ -234,6 +273,7 @@ contains
 !$OMP DO REDUCTION(+:local_dist)
     do i=1,nsel1
       iatm = a % idxSelection(i,1)
+      ! write(0,*)tallyExecutions,iatm
       do j=1,nsel2
         jatm = a % idxSelection(j,2)
 
@@ -260,30 +300,119 @@ contains
     integer :: i
     integer :: nsel1, nsel2
     real(8) :: dr, rtmp, rtmp1, rtmp2, integral, nn, numberDensity
-    real(8) :: pi43
+    real(8) :: pi43, avg
 
 #ifdef GPTA_MPI
     call actionCommunication()
     if (me /= 0) return
 #endif
 
+    call initialiseFile(outputFile,outputFile % fname)
+
     dr = rcut / dble(numberOfBins)
-    averageVolume = averageVolume / dble(tallyExecutions)
+    avg = averageVolume / dble(tallyExecutions)
     
     nsel1 = count(a % isSelected(:,1))
     nsel2 = count(a % isSelected(:,2))
-    numberDensity = nsel2 / averageVolume
+    numberDensity = nsel2 / avg
     
     rtmp = nsel1 * dble(tallyExecutions)
     dist = dist / rtmp 
-    
-    call initialiseFile(outputFile,outputFile % fname)
+
     write(outputFile % funit,"(a)") "# Distance | g(r) | Coordination Number | KB integral"
     integral = 0.d0
     pi43 = 4.0d0/3.0d0*pi
     do i=2,numberOfBins
       rtmp1 = dr*(i)
       rtmp2 = dr*(i-1)
+      nn = pi43*(rtmp1**3-rtmp2**3)*numberDensity
+      integral = integral + dist(i)
+      write(outputFile % funit,'(4(f15.5,1x))') &
+        0.5d0*(rtmp1+rtmp2),                    & ! distance
+        dist(i)/nn,                             & ! g(r)
+        integral,                               & ! coordination number
+        integral/numberDensity - pi43*rtmp1**3    ! Kirkwood-Buff integral
+    enddo
+    close(outputFile % funit)
+
+  end subroutine finaliseAction
+
+  subroutine computeActionSoluteLogScale(a)
+    use moduleVariables
+    use moduleSystem 
+    use moduleDistances
+    implicit none
+    type(actionTypeDef), target :: a
+
+    integer :: i, j, iatm, jatm, idx, nsel1, nsel2
+    real(8) :: dr, dij(3), r2, dist2, dd
+    integer, allocatable, dimension(:) :: local_dist
+
+    dr = log(rcut) / dble(numberOfBins)
+    r2 = rcut**2
+    averageVolume = averageVolume + frame % volume
+
+    nsel1 = count(a % isSelected(:,1))
+    nsel2 = count(a % isSelected(:,2))
+
+    allocate(local_dist(numberOfBins) , source=0)
+!$OMP PARALLEL DEFAULT(SHARED) &
+!$OMP PRIVATE (i,j,iatm,jatm,dij,dist2,idx)
+!$OMP DO REDUCTION(+:local_dist)
+    do i=1,nsel1
+      iatm = a % idxSelection(i,1)
+      do j=1,nsel2
+        jatm = a % idxSelection(j,2)
+
+        dij = frame % pos(:,jatm) - frame % pos(:,iatm)
+        dist2 = computeDistanceSquaredPBC(dij)
+
+        if (dist2 > r2) cycle
+
+        dd = sqrt(dist2)
+        idx = int(log(dd)/dr) + 1
+        local_dist(idx) = local_dist(idx) + 1
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    dist = dist + real(local_dist,8)
+
+  end subroutine computeActionSoluteLogScale
+
+  subroutine finaliseActionLogScale(a)
+    implicit none
+    type(actionTypeDef), target :: a
+
+    integer :: i
+    integer :: nsel1, nsel2
+    real(8) :: dr, rtmp, rtmp1, rtmp2, integral, nn, numberDensity
+    real(8) :: pi43, avg
+
+#ifdef GPTA_MPI
+    call actionCommunication()
+    if (me /= 0) return
+#endif
+
+    call initialiseFile(outputFile,outputFile % fname)
+
+    dr = log(rcut) / dble(numberOfBins)
+    avg = averageVolume / dble(tallyExecutions)
+    
+    nsel1 = count(a % isSelected(:,1))
+    nsel2 = count(a % isSelected(:,2))
+    numberDensity = nsel2 / avg
+    
+    rtmp = nsel1 * dble(tallyExecutions)
+    dist = dist / rtmp 
+    
+    write(outputFile % funit,"(a)") "# Distance | g(r) | Coordination Number | KB integral"
+    integral = 0.d0
+    pi43 = 4.0d0/3.0d0*pi
+    do i=2,numberOfBins
+      rtmp1 = exp(dr*(i))
+      rtmp2 = exp(dr*(i-1))
       nn = pi43*(rtmp1**3-rtmp2**3)*numberDensity
       integral = integral + dist(i)
       write(outputFile % funit,'(4(f10.5,1x))') &
@@ -294,7 +423,7 @@ contains
     enddo
     close(outputFile % funit)
 
-  end subroutine finaliseAction
+  end subroutine finaliseActionLogScale
 
 #ifdef GPTA_MPI
   subroutine actionCommunication()

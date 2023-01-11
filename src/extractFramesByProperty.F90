@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleExtractFramesByProperty
   use moduleVariables
   use moduleSystem
@@ -41,7 +41,7 @@ module moduleExtractFramesByProperty
   
   implicit none
 
-  public :: extractFrames
+  public :: extractFramesByProperty, extractFramesByPropertyHelp
   private
 
   character(:), pointer :: actionCommand
@@ -57,7 +57,16 @@ module moduleExtractFramesByProperty
 
 contains
 
-  subroutine extractFrames(a)
+  subroutine extractFramesByPropertyHelp()
+    implicit none
+    call message(0,"This action extracts frames based on properties read from a file.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --framesByProperty +f colvar_gpta +out out.1.dcd \\")
+    call message(0,"     +min *,1.15,-1.0,0.0 +max *,1.30,-0.9,0.2")
+  end subroutine extractFramesByPropertyHelp
+
+
+  subroutine extractFramesByProperty(a)
     implicit none
     type(actionTypeDef), target :: a
 
@@ -88,7 +97,7 @@ contains
       ! call finaliseAction(a)
     end if 
 
-  end subroutine extractFrames
+  end subroutine extractFramesByProperty
 
   subroutine associatePointers(a)
     implicit none
@@ -129,6 +138,7 @@ contains
       character(len=200) :: line, words(10)
       open(newunit=io, file= a % inputfile % fname, status='old')
 
+      nProperties = 0
       ! count the number of lines
       nl = 0
       do
@@ -137,22 +147,32 @@ contains
         if (len_trim(line) == 0) cycle ! skip empty lines
         if (ierr/=0) exit ! exit if EOF or EOL
         nl = nl + 1
+        if (nProperties == 0) then
+          do nProperties=1,20
+            read(line,*,iostat=ierr)words(1:nProperties)
+            if (ierr/=0) exit
+          end do
+          nProperties = nProperties - 1
+        end if
       end do
       rewind(io)
 
       ! count the number of properties in the line
-      do nProperties=1,20
-        read(line,*,iostat=ierr)words(1:nProperties)
-        if (ierr/=0) exit
-      end do
-      nProperties = nProperties - 1
       allocate(a % array2D(nProperties,nl))
 
-      read(io,'(a200)',iostat=ierr)line
-      do i=1,nl
-        read(io,*)a % array2D(:,i)
+      i=0
+      do while (i<nl)
+        read(io,'(a200)',iostat=ierr)line
+        if (index(line,"#") > 0) cycle ! skip comments
+        if (len_trim(line) == 0) cycle ! skip empty lines
+        i = i + 1
+        read(line,*,iostat=ierr)a % array2D(:,i)
+        if (ierr/=0) then
+          write(0,*)trim(line)
+          stop
+        endif
       end do
-
+      close(io)
     end block
 
     call extractFlag(actionCommand,"+min",flagString)

@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleHelp
   
   implicit none
@@ -79,7 +79,7 @@ contains
     call message(0," --noclash     :: removes overlapping molecules")
     call message(0," --delete      :: deletes atoms/molecules in the system")
     call message(0," --set         :: changes the properties of the atoms")
-    call message(0," --subs        :: replace molecules in the system")
+    call message(0," --replace     :: replace molecules in the system")
     call message(0," --add         :: adds atoms/molecules to the system")
     call message(0," --surface     :: creates a surface of a crystal")
     call message(0," --cluster     :: extract spherical clusters from the coordinates")
@@ -130,7 +130,8 @@ contains
     use moduleReplaceMolecule
     use moduleDumpCoordinates
     use moduleCreateSurface
-
+    use moduleAlignMolecule
+    
     use moduleExtractSystemProperties
     use moduleRDF
     use moduleModifyCoordinates
@@ -144,6 +145,7 @@ contains
     use moduleMeanSquareDisplacement
     use moduleExtractClustersAction
     use moduleSolvationShell
+    use moduleExtractFramesByProperty
 
 #ifdef GPTA_OPENMM
     use moduleAmoeba
@@ -219,34 +221,38 @@ contains
       call message(0,"  gpta.x --i coord.pdb --top")
     end if
 
-    if (cmd == "--define"   ) call defineVariablesHelp()
+    if (cmd == "--define"           ) call defineVariablesHelp()
 
-    if (cmd == "--rescale"  ) call rescaleCellHelp()
-    if (cmd == "--shift"    ) call shiftCoordinatesHelp()
-    if (cmd == "--fixcom"   ) call shiftCOMHelp()
-    if (cmd == "--pbc"      ) call applyPeriodicboundaryConditionsHelp()
-    if (cmd == "--unwrap"   ) call unwrapCoordinatesHelp()
-    if (cmd == "--repl"     ) call replicateCellHelp()
-    if (cmd == "--mirror"   ) call mirrorCellHelp()
-    if (cmd == "--noclash"  ) call removeOverlappingMoleculesHelp()
-    
-    if (cmd == "--delete"   ) call deleteAtomsHelp()
-    if (cmd == "--set"      ) call setAtomAttributesHelp()
-    if (cmd == "--subs"     ) call replaceMoleculesHelp()
-    if (cmd == "--add"      ) call addAtomsHelp()
-    if (cmd == "--surface"  ) call createSurfaceHelp()
-    if (cmd == "--cluster"  ) call extractClustersHelp()
-
-    if (cmd == "--extract"  ) call extractSystemPropertiesHelp()
-    if (cmd == "--gofr"     ) call computeRadialPairDistributionHelp()
-    if (cmd == "--dmap1D"   ) call computeDensityProfileHelp()
-    if (cmd == "--dmap2D"   ) call computeDensityMap2DHelp()
-    if (cmd == "--dmap3D"   ) call computeDensityMap3DHelp()
-    if (cmd == "--solvation") call solvationShellHelp()
-    if (cmd == "--molprop"  ) call computeMolecularPropertiesHelp()
-    if (cmd == "--restime"  ) call computeResidenceTimeHelp()
-    if (cmd == "--xray"     ) call computeXrayPowderHelp()
-    if (cmd == "--msd"      ) call computeMSDHelp()
+    if (cmd == "--rescale"          ) call rescaleCellHelp()
+    if (cmd == "--shift"            ) call shiftCoordinatesHelp()
+    if (cmd == "--fixcom"           ) call shiftCOMHelp()
+    if (cmd == "--pbc"              ) call applyPeriodicboundaryConditionsHelp()
+    if (cmd == "--unwrap"           ) call unwrapCoordinatesHelp()
+    if (cmd == "--repl"             ) call replicateCellHelp()
+    if (cmd == "--mirror"           ) call mirrorCellHelp()
+    if (cmd == "--noclash"          ) call removeOverlappingMoleculesHelp()
+        
+    if (cmd == "--delete"           ) call deleteAtomsHelp()
+    if (cmd == "--set"              ) call setAtomAttributesHelp()
+    if (cmd == "--replace"          ) call replaceMoleculesHelp()
+    if (cmd == "--add"              ) call addAtomsHelp()
+    if (cmd == "--surface"          ) call createSurfaceHelp()
+    if (cmd == "--cluster"          ) call extractClustersHelp()
+        
+    if (cmd == "--align"            ) call alignMoleculeHelp()
+    if (cmd == "--fixCell"          ) call fixCellJumpsHelp()
+        
+    if (cmd == "--extract"          ) call extractSystemPropertiesHelp()
+    if (cmd == "--framesByProperty" ) call extractFramesByPropertyHelp()
+    if (cmd == "--gofr"             ) call computeRadialPairDistributionHelp()
+    if (cmd == "--dmap1D"           ) call computeDensityProfileHelp()
+    if (cmd == "--dmap2D"           ) call computeDensityMap2DHelp()
+    if (cmd == "--dmap3D"           ) call computeDensityMap3DHelp()
+    if (cmd == "--solvation"        ) call solvationShellHelp()
+    if (cmd == "--molprop"          ) call computeMolecularPropertiesHelp()
+    if (cmd == "--restime"          ) call computeResidenceTimeHelp()
+    if (cmd == "--xray"             ) call computeXrayPowderHelp()
+    if (cmd == "--msd"              ) call computeMSDHelp()
 
 ! openMM driver for AMOEBA
 #ifdef GPTA_OPENMM

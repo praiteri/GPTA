@@ -1,35 +1,35 @@
-! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! All rights reserved.
-! 
-! This program is free software; you can redistribute it and/or modify it 
-! under the terms of the GNU General Public License as published by the 
-! Free Software Foundation; either version 3 of the License, or 
-! (at your option) any later version.
-!  
-! Redistribution and use in source and binary forms, with or without 
-! modification, are permitted provided that the following conditions are met:
-! 
-! * Redistributions of source code must retain the above copyright notice, 
-!   this list of conditions and the following disclaimer.
-! * Redistributions in binary form must reproduce the above copyright notice, 
-!   this list of conditions and the following disclaimer in the documentation 
-!   and/or other materials provided with the distribution.
-! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-!   may be used to endorse or promote products derived from this software 
-!   without specific prior written permission.
-! 
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! 
+! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
+! ! All rights reserved.
+! ! 
+! ! This program is free software; you can redistribute it and/or modify it 
+! ! under the terms of the GNU General Public License as published by the 
+! ! Free Software Foundation; either version 3 of the License, or 
+! ! (at your option) any later version.
+! !  
+! ! Redistribution and use in source and binary forms, with or without 
+! ! modification, are permitted provided that the following conditions are met:
+! ! 
+! ! * Redistributions of source code must retain the above copyright notice, 
+! !   this list of conditions and the following disclaimer.
+! ! * Redistributions in binary form must reproduce the above copyright notice, 
+! !   this list of conditions and the following disclaimer in the documentation 
+! !   and/or other materials provided with the distribution.
+! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
+! !   may be used to endorse or promote products derived from this software 
+! !   without specific prior written permission.
+! ! 
+! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! ! 
 module moduleMolecularProperties
   use moduleVariables
   use moduleFiles
@@ -64,10 +64,12 @@ module moduleMolecularProperties
   logical, pointer :: distProperty    ! Distribution (normalised)
   logical, pointer :: distZProperty   ! Distribution of Averages (z)
   logical, pointer :: distZProperty2D
+  logical, pointer :: degrees
 
   integer, pointer, dimension(:) :: torsionIndices
   integer, pointer, dimension(:) :: normalIndices
   integer, pointer, dimension(:) :: angleIndices
+  integer, pointer, dimension(:) :: bondIndices
 
 contains
 
@@ -83,6 +85,7 @@ contains
     call message(0,"  the torsional angle between four atoms in the molecule.")
     call message(0,"  the radius of gyration.")
     call message(0,"Examples:")
+    call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +bond 1,2 +avg")
     call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +angle 1,2,3 +avg")
     call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +torsion 1,2,3,4 +histo -pi,pi +nbin 180")
     call message(0,"  gpta.x --i c.pdb --top --molprop +id M1 +torsion 1,2,3,4 +dist -pi,pi +nbin 180")
@@ -155,6 +158,9 @@ contains
       allocate(localProperty(numberOfLocalMolecules), source=0.d0)
       call a % molprop % property(numberOfLocalMolecules, localIndices, localProperty)
       
+      if ( trim(a % molprop % command) == "+angle" .or. trim(a % molprop % command) == "+torsion") then
+        if (degrees) localProperty = localProperty / pi * 180
+      end if
       call workData % compute(ID, numberOfValues=numberOfLocalMolecules, xValues=localProperty, yValues=fractionalCoord(3,:))
 
     end if
@@ -185,6 +191,7 @@ contains
     distProperty            => a % logicalVariables(5) ! Distribution (normalised)
     distZProperty           => a % logicalVariables(6) ! Distribution of Averages (z)
     distZProperty2D         => a % logicalVariables(7) ! 2D map
+    degrees                 => a % logicalVariables(8) ! angles in degrees
 
     numberOfLocalMolecules  => a % integerVariables(1)
     localIndices            => a % localIndices
@@ -196,6 +203,7 @@ contains
     torsionIndices(1:4)     => a % integerVariables(3:6)
     normalIndices(1:3)      => a % integerVariables(7:9)
     angleIndices(1:3)       => a % integerVariables(10:12)
+    bondIndices(1:2)       => a % integerVariables(13:14)
 
     distributionLimits(1:2) => a % doubleVariables(1:2)
 
@@ -259,6 +267,14 @@ contains
       call assignFlagValue(actionCommand,"+angle",angleIndices(1:3),[0,0,0])
     end if
   
+    if (flagExists(actionCommand,"+bond ")) then
+      n = n + 1
+      a % molprop % command  = "+bond"
+      a % molprop % name     =  "Covalent bond length"
+      a % molprop % property => computeBond
+      call assignFlagValue(actionCommand,"+bond",bondIndices(1:2),[0,0])
+    end if
+  
     if (flagExists(actionCommand,"+rgyr" )) then
       n = n + 1
       a % molprop % command  = "+rgyr"
@@ -278,6 +294,8 @@ contains
     call assignFlagValue(actionCommand,"+dist "   ,distProperty   , .false.) ! Distribution (normalised)
     call assignFlagValue(actionCommand,"+distZ "  ,distZProperty  , .false.) ! Distribution of Averages (z)
     call assignFlagValue(actionCommand,"+dist2D " ,distZProperty2D, .false.) ! Distribution of Averages (z)
+
+    call assignFlagValue(actionCommand,"+deg " ,degrees, .false.) ! Distribution of Averages (z)
 
     if (dumpProperty) then 
       call workData % initialise(ID, "dump", iounit=outputFile % funit)
@@ -335,6 +353,7 @@ contains
     if (a % molprop % command == "+torsion") call message(0,"......Atom indices used",iv=torsionIndices(1:4))
     if (a % molprop % command == "+normal")  call message(0,"......Atom indices used",iv=normalIndices(1:3))
     if (a % molprop % command == "+angle")  call message(0,"......Atom indices used",iv=angleIndices(1:3))
+    if (a % molprop % command == "+bond")  call message(0,"......Atom indices used",iv=bondIndices(1:2))
     
     if (averageProperty) then
       call message(0,"...Computing the average property")
@@ -359,25 +378,39 @@ contains
       call message(0,"......Number of bins for the property",i=numberOfBins2D(1))
       call message(0,"......Number of bins for z",i=numberOfBins2D(2))
     end if
-
     call message(2)
 
   end subroutine dumpScreenInfo
 
   subroutine finaliseAction()
     use moduleSystem
+    use moduleMessages
     implicit none
+    real(8), allocatable, dimension(:) :: values
+    character(len=100) :: str
 
-    if (distZProperty2D) then
-       call workData % dump(ID, outputFile % funit, upperLimits=[distributionLimits(2), frame % hmat(3,3)])
-    else if (distZProperty) then
-      call workData % dump(ID, outputFile % funit, upperLimits=[frame % hmat(3,3)])
-    else if (distProperty) then
-      call workData % dump(ID, outputFile % funit, normalisation="probability")
+    if ( trim(outputFile % fname) == "stdout") then
+      call message(0,"Molecular properties")
+      call workData % extract(ID, values)
+      if (averageProperty) call message(0,"...Average value",r=values(1))
+      
     else
-      call workData % dump(ID, outputFile % funit, normalisation="none")
+      call message(0,"# Molecular properties")
+      if (distZProperty2D) then
+         call workData % dump(ID, outputFile % funit, upperLimits=[distributionLimits(2), frame % hmat(3,3)])
+      else if (distZProperty) then
+        call workData % dump(ID, outputFile % funit, upperLimits=[frame % hmat(3,3)])
+      else if (histoProperty) then
+        call workData % dump(ID, outputFile % funit, normalisation="none")
+      else if (distProperty) then
+        call workData % dump(ID, outputFile % funit, normalisation="probability")
+      else
+        call workData % dump(ID, outputFile % funit, normalisation="none")
+      end if
+      close(outputFile % funit)
+
     end if
-    close(outputFile % funit)
+    call message(2)
 
   end subroutine finaliseAction
 
@@ -438,9 +471,9 @@ contains
         dij = frame % pos(1:3,jatm) - frame % pos(1:3,iatm)
         dipoleVector(1:3) = dipoleVector(1:3) + frame % chg(jatm) * dij
       enddo
+      ! z component of the molecular dipole
       rtmp = sqrt(sum(dipoleVector*dipoleVector))
-      property(ilocal) = dipoleVector(3) / rtmp
-      ! property(ilocal) = acos(dipoleVector(3) / rtmp)
+      property(ilocal) = dipoleVector(3) * 4.8032047d0
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
@@ -557,8 +590,8 @@ contains
       do ilocal=1,numberOfLocalMolecules
         imol = list(ilocal)
       
-        iatm = listOfMolecules(imol) % listOfAtoms(angleIndices(1))
-        jatm = listOfMolecules(imol) % listOfAtoms(angleIndices(2))
+        jatm = listOfMolecules(imol) % listOfAtoms(angleIndices(1))
+        iatm = listOfMolecules(imol) % listOfAtoms(angleIndices(2))
         katm = listOfMolecules(imol) % listOfAtoms(angleIndices(3))
         dij = frame % pos(1:3,jatm) - frame % pos(1:3,iatm)
         dik = frame % pos(1:3,katm) - frame % pos(1:3,iatm)
@@ -567,7 +600,6 @@ contains
         dik = dik / sqrt(sum(dik*dik))
 
         dprod = dot_product(dij,dik)
-!        property(ilocal) = 180.d0 * acos(dprod) / pi
         property(ilocal) = acos(dprod)
       
       enddo
@@ -576,7 +608,37 @@ contains
 
   end subroutine computeAngle
 
-  subroutine computeRadiusOfGyration(numberOfLocalMolecules,list,property) 
+  subroutine computeBond(numberOfLocalMolecules,list,property) 
+    use moduleActions, only : actionTypeDef
+    use moduleSystem 
+    use moduleMessages
+    implicit none
+    integer, intent(in) :: numberOfLocalMolecules
+    integer, dimension(:), intent(in) :: list
+    real(8), dimension(:), intent(out) :: property
+
+    integer :: ilocal, imol, iatm, jatm, katm
+    real(8), dimension(3) :: dij, dik
+    real(8) :: dprod
+
+!$OMP PARALLEL DEFAULT(SHARED) &
+!$OMP PRIVATE (ilocal, imol, iatm, jatm, katm, dij, dik, dprod)
+!$OMP DO
+    do ilocal=1,numberOfLocalMolecules
+      imol = list(ilocal)
+    
+      jatm = listOfMolecules(imol) % listOfAtoms(bondIndices(1))
+      iatm = listOfMolecules(imol) % listOfAtoms(bondIndices(2))
+      dij = frame % pos(1:3,jatm) - frame % pos(1:3,iatm)
+      property(ilocal) = sqrt(sum(dij*dij))
+    
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+end subroutine computeBond
+
+subroutine computeRadiusOfGyration(numberOfLocalMolecules,list,property) 
     use moduleActions, only : actionTypeDef
     use moduleSystem 
     use moduleElements
@@ -593,7 +655,6 @@ contains
     logical, save :: firstTimeIn = .true.
     real(8), save, allocatable, dimension(:) :: rmass
     real(8), save :: moleculeMass
-
     
     if (firstTimeIn) then
       firstTimeIn = .false.
