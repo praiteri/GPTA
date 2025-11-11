@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleRDF
 
   use moduleVariables
@@ -48,9 +17,9 @@ module moduleRDF
   
   integer, pointer :: numberOfBins
   integer, pointer :: tallyExecutions
-  real(8), pointer :: rcut
-  real(8), pointer :: averageVolume
-  real(8), pointer, dimension(:) :: dist
+  real(real64), pointer :: rcut
+  real(real64), pointer :: averageVolume
+  real(real64), pointer, dimension(:) :: dist
   logical, pointer :: soluteRDF
   logical, pointer :: logscale
 
@@ -154,7 +123,7 @@ contains
     type(actionTypeDef), target :: a
 
     a % actionInitialisation = .false.
-    a % cutoffNeighboursList = 6.0d0
+    a % cutoffNeighboursList = 6.0_real64
 
     call assignFlagValue(actionCommand,"+solute",soluteRDF,.false.)
     call assignFlagValue(actionCommand,"+log",logscale,.false.)
@@ -171,7 +140,7 @@ contains
     call assignFlagValue(actionCommand,"+rcut",rcut,a % cutoffNeighboursList)
     call assignFlagValue(actionCommand,"+nbin",numberOfBins,100)
     call assignFlagValue(actionCommand,"+out",outputFile % fname,'gofr.out')
-    allocate(a % array1D(numberOfBins) , source=0.d0)
+    allocate(a % array1D(numberOfBins) , source=0.0_real64)
 
     a % cutoffNeighboursList = rcut
     tallyExecutions = 0 
@@ -196,19 +165,19 @@ contains
 
     integer :: iatm, ineigh, jatm, idx
     integer :: imol, jmol
-    real(8) :: dr, dn
-    real(8), allocatable, dimension(:) :: local_dist
+    real(real64) :: dr, dn
+    real(real64), allocatable, dimension(:) :: local_dist
 
     dr = rcut / dble(numberOfBins)
     if (computeNeighboursListDouble) then
-      dn = 0.5d0
+      dn = 0.5_real64
     else
-      dn = 1.0d0
+      dn = 1.0_real64
     end if
     averageVolume = averageVolume + frame % volume
 
-    allocate(local_dist(numberOfBins) , source=0.d0)
-
+    allocate(local_dist(numberOfBins) , source=0.0_real64)
+    write(0,*)numberOfBins
     if (numberOfMolecules > 0) then
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE (iatm,ineigh,jatm,idx)
@@ -216,7 +185,7 @@ contains
       do iatm=1,frame % natoms
         imol = atomToMoleculeIndex(iatm)
         do ineigh=1,nneigh(iatm)
-          if (rneigh(ineigh,iatm) > rcut) cycle
+          if (rneigh(ineigh,iatm) >= rcut) cycle
           jatm=lneigh(ineigh,iatm)
           jmol = atomToMoleculeIndex(jatm)
           if (imol == jmol) cycle
@@ -233,7 +202,7 @@ contains
 !$OMP DO REDUCTION(+:local_dist)
       do iatm=1,frame % natoms
         do ineigh=1,nneigh(iatm)
-          if (rneigh(ineigh,iatm) > rcut) cycle
+          if (rneigh(ineigh,iatm) >= rcut) cycle
           jatm=lneigh(ineigh,iatm)
           idx = int(rneigh(ineigh,iatm)/dr) + 1
           if ( (a % isSelected(iatm,1) .and. a % isSelected(jatm,2))) local_dist(idx) = local_dist(idx) + dn
@@ -257,7 +226,7 @@ contains
     type(actionTypeDef), target :: a
 
     integer :: i, j, iatm, jatm, idx, nsel1, nsel2
-    real(8) :: dr, dij(3), r2, dist2
+    real(real64) :: dr, dij(3), r2, dist2
     integer, allocatable, dimension(:) :: local_dist
 
     dr = rcut / dble(numberOfBins)
@@ -299,8 +268,9 @@ contains
 
     integer :: i
     integer :: nsel1, nsel2
-    real(8) :: dr, rtmp, rtmp1, rtmp2, integral, nn, numberDensity
-    real(8) :: pi43, avg
+    real(real64) :: dr, rtmp, rtmp1, rtmp2, integral, nn, numberDensity
+    real(real64) :: pi43, avg
+    real(real64) :: ntmp
 
 #ifdef GPTA_MPI
     call actionCommunication()
@@ -319,19 +289,20 @@ contains
     rtmp = nsel1 * dble(tallyExecutions)
     dist = dist / rtmp 
 
-    write(outputFile % funit,"(a)") "# Distance | g(r) | Coordination Number | KB integral"
-    integral = 0.d0
-    pi43 = 4.0d0/3.0d0*pi
+    pi43 = 4.0_real64/3.0_real64*pi
+
+    write(outputFile % funit,"(a)") "# Distance | g(r) | Coordination Number"
+    integral = 0.0_real64
+    ntmp = 0
     do i=2,numberOfBins
       rtmp1 = dr*(i)
       rtmp2 = dr*(i-1)
-      nn = pi43*(rtmp1**3-rtmp2**3)*numberDensity
-      integral = integral + dist(i)
-      write(outputFile % funit,'(4(f15.5,1x))') &
-        0.5d0*(rtmp1+rtmp2),                    & ! distance
-        dist(i)/nn,                             & ! g(r)
-        integral,                               & ! coordination number
-        integral/numberDensity - pi43*rtmp1**3    ! Kirkwood-Buff integral
+      nn = pi43*(rtmp1**3-rtmp2**3) * numberDensity
+      ntmp = ntmp + dist(i)
+      write(outputFile % funit,'(4(f10.5,1x))') &
+        0.5_real64*(rtmp1+rtmp2), & ! distance
+        dist(i)/nn,               & ! g(r)
+        ntmp                        ! coordination number
     enddo
     close(outputFile % funit)
 
@@ -345,7 +316,7 @@ contains
     type(actionTypeDef), target :: a
 
     integer :: i, j, iatm, jatm, idx, nsel1, nsel2
-    real(8) :: dr, dij(3), r2, dist2, dd
+    real(real64) :: dr, dij(3), r2, dist2, dd
     integer, allocatable, dimension(:) :: local_dist
 
     dr = log(rcut) / dble(numberOfBins)
@@ -387,8 +358,9 @@ contains
 
     integer :: i
     integer :: nsel1, nsel2
-    real(8) :: dr, rtmp, rtmp1, rtmp2, integral, nn, numberDensity
-    real(8) :: pi43, avg
+    real(real64) :: dr, rtmp, rtmp1, rtmp2, integral, nn, numberDensity
+    real(real64) :: pi43, avg
+    real(real64) :: ntmp
 
 #ifdef GPTA_MPI
     call actionCommunication()
@@ -406,20 +378,21 @@ contains
     
     rtmp = nsel1 * dble(tallyExecutions)
     dist = dist / rtmp 
-    
-    write(outputFile % funit,"(a)") "# Distance | g(r) | Coordination Number | KB integral"
-    integral = 0.d0
-    pi43 = 4.0d0/3.0d0*pi
+
+    pi43 = 4.0_real64/3.0_real64*pi
+
+    write(outputFile % funit,"(a)") "# Distance | g(r) | Coordination Number"
+    integral = 0.0_real64
+    pi43 = 4.0_real64/3.0_real64*pi
     do i=2,numberOfBins
       rtmp1 = exp(dr*(i))
       rtmp2 = exp(dr*(i-1))
-      nn = pi43*(rtmp1**3-rtmp2**3)*numberDensity
-      integral = integral + dist(i)
+      nn = pi43*(rtmp1**3-rtmp2**3) * numberDensity
+      ntmp = ntmp + dist(i)
       write(outputFile % funit,'(4(f10.5,1x))') &
-        0.5d0*(rtmp1+rtmp2),                    & ! distance
-        dist(i)/nn,                             & ! g(r)
-        integral,                               & ! coordination number
-        integral/numberDensity - pi43*rtmp1**3    ! Kirkwood-Buff integral
+        0.5_real64*(rtmp1+rtmp2), & ! distance
+        dist(i)/nn,               & ! g(r)
+        ntmp                        ! coordination number
     enddo
     close(outputFile % funit)
 

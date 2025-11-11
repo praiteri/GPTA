@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleMeanSquareDisplacement
   use moduleVariables
   use moduleFiles
@@ -51,7 +20,7 @@ module moduleMeanSquareDisplacement
 
   integer, pointer :: numberOfBins
   integer, pointer :: ID
-  real(8), pointer :: timeInterval
+  real(real64), pointer :: timeInterval
 
 contains
 
@@ -70,6 +39,7 @@ contains
     type(actionTypeDef), target :: a
     integer :: nsel, i
 
+    call associatePointers(a)
     if (a % actionInitialisation) then
       call initialiseAction(a)
       return
@@ -123,13 +93,11 @@ contains
     end if 
   end subroutine computeMSD
 
-  subroutine initialiseAction(a)
+
+  subroutine associatePointers(a)
     implicit none
     type(actionTypeDef), target :: a
 
-    a % actionInitialisation = .false.
-
-    ! Local pointers
     actionCommand        => a % actionDetails
     firstAction          => a % firstAction
     tallyExecutions      => a % tallyExecutions
@@ -138,6 +106,16 @@ contains
     numberOfBins         => a % numberOfBins    
     ID                   => a % integerVariables(1)
     timeInterval         => a % doubleVariables(1)
+    
+  end subroutine associatePointers
+
+  subroutine initialiseAction(a)
+    implicit none
+    type(actionTypeDef), target :: a
+
+    a % actionInitialisation = .false.
+
+    ! Local pointers
 
     a % actionInitialisation = .false.
     a % requiresNeighboursList = .false.
@@ -145,9 +123,9 @@ contains
     call assignFlagValue(actionCommand,"+out",outputFile % fname,'msd.out')
     
     call assignFlagValue(actionCommand,"+nt",numberOfBins,1000)
-    call assignFlagValue(actionCommand,"+dt",timeInterval,1.d0)
+    call assignFlagValue(actionCommand,"+dt",timeInterval,1.0_real64)
     
-    call workData % initialise(ID, "avgDist ", numberOfBins=[numberOfBins], lowerLimits=[0.d0], upperLimits=[dble(numberOfBins)])
+    call workData % initialise(ID, "avgDist ", numberOfBins=[numberOfBins], lowerLimits=[0.0_real64], upperLimits=[dble(numberOfBins)])
 
     tallyExecutions = 0
   end subroutine initialiseAction
@@ -166,11 +144,11 @@ contains
     type(actionTypeDef), target :: a
 
     integer :: i, nsel, iatm
-    real(8) :: msd, dij(3)
-    real(8) :: time
+    real(real64) :: msd, dij(3)
+    real(real64) :: time
 
     nsel = count(a % isSelected(:,1))
-    msd = 0.d0
+    msd = 0.0_real64
     do i=1,nsel
       iatm = a % idxSelection(i,1)
       dij = frame % pos(1:3,iatm) - a % localPositions(1:3,i)
@@ -190,9 +168,9 @@ contains
     logical, save :: firstTimeIn = .true.
 
     integer :: i, nsel, iatm
-    real(8) :: msd, dij(3), plocal(3)
-    real(8), save :: psave(3)
-    real(8) :: time, rtmp
+    real(real64) :: msd, dij(3), plocal(3)
+    real(real64), save :: psave(3)
+    real(real64) :: time, rtmp
 
     nsel = count(a % isSelected(:,1))
 
@@ -203,7 +181,7 @@ contains
       psave = frame % pos(1:3,iatm)
     end if    
     
-    msd = 0.d0
+    msd = 0.0_real64
     do i=1,nsel
       iatm = a % idxSelection(i,1)
 
@@ -223,11 +201,11 @@ contains
 
   subroutine finaliseAction()
     implicit none
-    real(8), allocatable, dimension(:) :: msd
+    real(real64), allocatable, dimension(:) :: msd
     integer, allocatable, dimension(:) :: tally
-    real(8), allocatable, dimension(:) :: time
+    real(real64), allocatable, dimension(:) :: time
     integer :: i, idx, nbin, n
-    real(8) :: alpha, beta, rfact
+    real(real64) :: alpha, beta, rfact
 
     ! call workData % extract(ID, msd)
 
@@ -257,8 +235,8 @@ contains
     ! y = alpha + beta*x
     call linearRegression(n,time(idx:nbin),msd(idx:nbin),alpha,beta,rfact)
 
-    beta = beta / 6.d0
-    beta = beta * 10.d0 ! conversion from angstrom^2/ps to 10^-5 cm^2/s
+    beta = beta / 6.0_real64
+    beta = beta * 10.0_real64 ! conversion from angstrom^2/ps to 10^-5 cm^2/s
 
     call message(2)
     call message(0,"Self diffusion coefficient calculation")
@@ -277,7 +255,7 @@ contains
     implicit none
     integer, intent(in) :: natoms
     integer, intent(in), dimension(natoms) :: isel
-    real(8), intent(out), dimension(:,:) :: pos
+    real(real64), intent(out), dimension(:,:) :: pos
 
     integer :: iatm
 

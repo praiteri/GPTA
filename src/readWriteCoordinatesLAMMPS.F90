@@ -1,38 +1,7 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleLammps 
 
-  use moduleVariables, only : cp
+  use moduleVariables, only : cp, real64
   implicit none
 
   logical :: lmpMap = .false.
@@ -51,12 +20,12 @@ module moduleLammps
   character(cp), allocatable, dimension(:,:) :: lammpsTorsionTypes
   character(cp), allocatable, dimension(:,:) :: lammpsImproperTypes
   character(len=20), allocatable, dimension(:) :: lammpsImproperForcefield
-  character(len=8), dimension(6) :: lammpsImproperCentralFirst = ["distance", &
+  character(len=8), dimension(5) :: lammpsImproperCentralFirst = ["distance", &
                                                                   "fourier ", &
                                                                   "harmonic", &
-                                                                  "cvff    ", &
                                                                   "gulp    ", &
                                                                   "umbrella"]
+!                                                                  "cvff    ", &
 
 
   type :: lammpsForceFieldType
@@ -81,6 +50,50 @@ module moduleLammps
   integer :: numberOfIgnoredTerms
   character(len=30), dimension(maxIgnored) :: missingTermsIgnored
 
+contains
+
+  subroutine split_string(input_str, parts, num_parts)
+    character(len=*), intent(in) :: input_str
+    character(len=:), allocatable, intent(out) :: parts(:)
+    integer, intent(out) :: num_parts
+    
+    integer :: i, pos, prev_pos, str_len, count_dashes
+    
+    ! Count the number of dashes to determine array size
+    count_dashes = 0
+    do i = 1, LEN_TRIM(input_str)
+        if (input_str(i:i) == '-') count_dashes = count_dashes + 1
+    end do
+    
+    ! Number of parts is one more than number of dashes
+    num_parts = count_dashes + 1
+    
+    ! Allocate the array with the right size
+    if (allocated(parts)) deallocate(parts)
+    allocate(character(len=LEN_TRIM(input_str)) :: parts(num_parts))
+    
+    ! Split the string
+    str_len = LEN_TRIM(input_str)
+    prev_pos = 1
+    count_dashes = 0
+    
+    do i = 1, str_len
+        if (input_str(i:i) == '-' .or. i == str_len) then
+            if (i == str_len .and. input_str(i:i) /= '-') then
+                ! Handle the last part when the last character isn't a dash
+                pos = i
+                parts(count_dashes+1) = input_str(prev_pos:pos)
+            else
+                ! Handle parts ending with a dash
+                pos = i - 1
+                parts(count_dashes+1) = input_str(prev_pos:pos)
+                prev_pos = i + 1
+                count_dashes = count_dashes + 1
+            end if
+        end if
+    end do
+  end subroutine split_string
+
 end module moduleLammps 
 
 subroutine readLammpsForcefieldFile(forcefieldFile)
@@ -88,6 +101,7 @@ subroutine readLammpsForcefieldFile(forcefieldFile)
   use moduleLammps 
   use moduleStrings
   use moduleMessages 
+  use moduleVariables, only: real64
   implicit none
   character(len=*), intent(in) :: forcefieldFile
 
@@ -124,7 +138,10 @@ subroutine readLammpsForcefieldFile(forcefieldFile)
         enddo
       
       else if (index(line,"bond") > 0) then
-        read (line(3:),*) lammpsNumberOfBonds
+        read (line(3:),*,iostat=ios) lammpsNumberOfbonds
+        if (ios /= 0) then
+          call message(-1,line)
+        endif
         allocate(lammpsBondTypes(2,lammpsNumberOfBonds))
         allocate(lmp_bonds(lammpsNumberOfBonds))
 
@@ -258,10 +275,174 @@ subroutine readLammpsForcefieldFile(forcefieldFile)
 
 end subroutine readLammpsForcefieldFile
 
+subroutine readLammpsForcefieldFile_new(forcefieldFile)
+  use moduleFiles
+  use moduleLammps 
+  use moduleStrings
+  use moduleMessages 
+  use moduleVariables, only: real64
+  implicit none
+  character(len=*), intent(in) :: forcefieldFile
+
+  integer :: numberOfWords
+  character(len=STRLEN), dimension(100) :: listOfWords
+
+  integer :: iounit, ios
+  integer, parameter :: lineLength = 500
+  character(len=lineLength) :: line, wline
+  character(len=:), allocatable :: parts(:)
+
+  character(len=20) :: dummy
+  character(len=8) :: fmt
+  integer :: idx, jdx, num_parts, itmp
+
+  logical :: read_improper_coeff = .false.
+
+  write(fmt,'("(a",i0,")")') lineLength
+  open(newunit=iounit,file=forcefieldFile,status='old')
+
+  do
+    read(iounit,fmt,iostat=ios) line
+    if (ios/=0) exit
+
+    if (line(1:8) == "labelmap") then
+      idx = len_trim(line)
+      do while (line(idx:idx) == "&")
+        read(iounit,'(a)',iostat=ios) wline
+        line = line(1:idx-1) // wline
+        idx = len_trim(line)
+      enddo
+
+      call parse(line," ",listOfWords,numberOfWords)
+
+      if (listOfWords(2) == "atom") then
+        lammpsNumberOfAtoms = (numberOfWords -2) / 2
+        allocate(lammpsAtomTypes(lammpsNumberOfAtoms))
+        allocate(lmp_atoms(lammpsNumberOfAtoms))
+
+        do idx=3,numberOfWords,2
+          read(listOfWords(idx),*) jdx
+          lammpsAtomTypes(jdx) = trim(listOfWords(idx+1))
+        end do
+      end if
+
+      if (listOfWords(2) == "bond") then
+        lammpsNumberOfBonds = (numberOfWords -2) / 2
+        allocate(lammpsBondTypes(2,lammpsNumberOfBonds))
+        allocate(lmp_bonds(lammpsNumberOfBonds))
+
+        do idx=3,numberOfWords,2
+          read(listOfWords(idx),*) jdx
+          call split_string( listOfWords(idx+1), parts, num_parts)
+          if (num_parts /= 2) then
+            write(0,*)"Wrong number of atom types for bond: "//listOfWords(idx+1)
+          end if
+          lammpsBondTypes(1:2,jdx) = parts(1:2)
+          lmp_bonds(jdx) % ID = jdx
+          lmp_bonds(jdx) % types(1:2) = lammpsBondTypes(1:2,jdx)
+        end do
+      end if
+
+      if (listOfWords(2) == "angle") then
+        lammpsNumberOfAngles = (numberOfWords -2) / 2
+        allocate(lammpsAngleTypes(3,lammpsNumberOfAngles))
+        allocate(lmp_angles(lammpsNumberOfAngles))
+
+        do idx=3,numberOfWords,2
+          read(listOfWords(idx),*) jdx
+          call split_string( listOfWords(idx+1), parts, num_parts)
+          if (num_parts /= 3) then
+            write(0,*)"Wrong number of atom types for angle: "//listOfWords(idx+1)
+          end if
+          lammpsAngleTypes(1:3,jdx) = parts(1:3)
+          lmp_angles(jdx) % ID = jdx
+          lmp_angles(jdx) % types(1:3) = lammpsAngleTypes(1:3,jdx)
+        end do
+      end if
+
+      if (listOfWords(2) == "dihedral") then
+        lammpsNumberOfTorsions = (numberOfWords -2) / 2
+        allocate(lammpsTorsionTypes(4,lammpsNumberOfTorsions))
+        allocate(lmp_torsions(lammpsNumberOfTorsions))
+  
+        do idx=3,numberOfWords,2
+          read(listOfWords(idx),*) jdx
+          call split_string( listOfWords(idx+1), parts, num_parts)
+          if (num_parts /= 4) then
+            write(0,*)"Wrong number of atom types for dihedral: "//listOfWords(idx+1)
+          end if
+          lammpsTorsionTypes(1:4,jdx) = parts(1:4)
+          lmp_torsions(jdx) % ID = jdx
+          lmp_torsions(jdx) % types(1:4) = lammpsTorsionTypes(1:4,jdx)
+        end do
+      end if
+
+      if (listOfWords(2) == "improper") then
+        lammpsNumberOfOutOfPlane = (numberOfWords -2) / 2
+        allocate(lammpsImproperTypes(4,lammpsNumberOfOutOfPlane))
+        allocate(lmp_impropers(lammpsNumberOfOutOfPlane))
+  
+        do idx=3,numberOfWords,2
+          read(listOfWords(idx),*) jdx
+          call split_string( listOfWords(idx+1), parts, num_parts)
+          if (num_parts /= 4) then
+            write(0,*)"Wrong number of atom types for improper: "//listOfWords(idx+1)
+          end if
+          lammpsImproperTypes(1:4,jdx) = parts(1:4)
+          lmp_impropers(jdx) % ID = jdx
+          lmp_impropers(jdx) % types(1:4) = lammpsImproperTypes(1:4,jdx)
+        end do
+      end if
+
+    end if
+
+    if (line(1:14) == "improper_style") then
+      allocate(lammpsImproperForcefield(lammpsNumberOfOutOfPlane))
+      call parse(line," ",listOfWords,numberOfWords)
+      if (numberOfWords == 2) then
+        read(listOfWords(2),*) lammpsImproperForcefield(1)
+        lammpsImproperForcefield(2:) = lammpsImproperForcefield(1)
+      else
+        lammpsImproperForcefield = "None"
+        read_improper_coeff = .true.
+      end if
+    end if
+
+    if (line(1:14) == "improper_coeff" .and. read_improper_coeff) then
+      call parse(line(3:)," ",listOfWords,numberOfWords)
+
+      read(listOfWords(2),*,iostat=ios)jdx
+      if (ios /= 0) then
+        jdx = 0
+        do idx=1,lammpsNumberOfOutOfPlane
+          dummy = trim(lammpsImproperTypes(1,idx))
+          do itmp=2,4
+            dummy = trim(dummy) // "-" // trim(lammpsImproperTypes(itmp,idx))
+          end do  
+          if ( dummy == listOfWords(2) ) then
+            jdx = idx
+            exit
+          end if
+        end do
+      end if
+      if (jdx == 0 .or. jdx > lammpsNumberOfOutOfPlane) then
+        write(0,*)"Error in reading the improper torsion type"
+      end if
+                  
+      read(listOfWords(3),*) lammpsImproperForcefield(jdx)
+      lmp_impropers(jdx) % types(1:4) = lammpsImproperTypes(1:4,jdx)
+
+    end if
+
+  enddo
+
+end subroutine readLammpsForcefieldFile_new
+
 subroutine writeLammpsCoordinates(iout)
   use moduleSystem 
   use moduleLammps 
   use moduleMessages
+  use moduleVariables, only: real64
   implicit none
   integer, intent(in) :: iout
   integer :: i, itype, idx
@@ -346,22 +527,22 @@ subroutine writeLammpsCoordinates(iout)
   write(iout,'(i8,a15)') lammpsNumberOfOutOfPlane , adjustr("improper types")
   write(iout,'(i8,a15)')
 
-  if (frame % volume > 1.1d0) then
-    write(iout,'(/,g15.8,g15.8," xlo xhi")')0.0d0,frame % hmat(1,1)
-    write(iout,'(  g15.8,g15.8," ylo yhi")')0.0d0,frame % hmat(2,2)
-    write(iout,'(  g15.8,g15.8," zlo zhi")')0.0d0,frame % hmat(3,3)
-    if (abs(frame % hmat(1,2))+abs(frame % hmat(1,3))+abs(frame % hmat(2,3))>1.d-8) &
+  if (frame % volume > 1.1_real64) then
+    write(iout,'(/,g15.8,g15.8," xlo xhi")')0.0_real64,frame % hmat(1,1)
+    write(iout,'(  g15.8,g15.8," ylo yhi")')0.0_real64,frame % hmat(2,2)
+    write(iout,'(  g15.8,g15.8," zlo zhi")')0.0_real64,frame % hmat(3,3)
+    if (abs(frame % hmat(1,2))+abs(frame % hmat(1,3))+abs(frame % hmat(2,3))>1.0e-8_real64) &
       write(iout,'(3g15.8," xy xz yz")')frame % hmat(1,2),frame % hmat(1,3),frame % hmat(2,3)
   else
     block
-      real(8), dimension(3) :: pmin, pmax
-      real(8) :: xmin, xmax, dx
+      real(real64), dimension(3) :: pmin, pmax
+      real(real64) :: xmin, xmax, dx
       
       pmin = minval(frame % pos, dim=2)
       pmax = maxval(frame % pos, dim=2)
       dx = maxval(pmax - pmin)
-      xmin = minval(pmin) - 2.d0 * dx
-      xmax = maxval(pmax) + 2.d0 * dx
+      xmin = minval(pmin) - 2.0_real64 * dx
+      xmax = maxval(pmax) + 2.0_real64 * dx
 
       write(iout,'(/,g15.8,g15.8," xlo xhi")')xmin , xmax
       write(iout,'(  g15.8,g15.8," ylo yhi")')xmin , xmax
@@ -381,7 +562,7 @@ subroutine writeLammpsCoordinates(iout)
   do i=1,numberOfUniqueBonds
     itype = findLammpsBondType(iout,listOfUniqueBonds(1:2,i))
      if (itype==0) then
-      str = trim(frame % lab(listOfUniqueBonds(1,i)))//" - "//trim(frame % lab(listOfUniqueBonds(2,i)))
+      str = trim("bond: "//frame % lab(listOfUniqueBonds(1,i)))//" - "//trim(frame % lab(listOfUniqueBonds(2,i)))
       if (stopForMissingForceField(str,ignoreMissingBonds)) call message(-1,"Cannot find bond type for atom types",str=str)
     end if
   enddo
@@ -394,20 +575,20 @@ subroutine writeLammpsCoordinates(iout)
       do idx=2,3
         str = trim(str)//" - "//trim(frame % lab(listOfUniqueAngles(idx,i)))
       end do
-      if (stopForMissingForceField(str,ignoreMissingAngles)) call message(-1,"Cannot find angle type for atom types",str=str)
+      if (stopForMissingForceField("angle: "//str,ignoreMissingAngles)) call message(-1,"Cannot find angle type for atom types",str=str)
     end if
   enddo
 
   if (numberOfTorsionTerms>0) write(iout,'(/" Dihedrals"/)')
   numberOfTorsionTerms = 0
   do i=1,numberOfUniqueTorsions
-    jtype = findLammpsTorsionType(iout,listOfUniqueTorsions(1:4,i))
+    itype = findLammpsTorsionType(iout,listOfUniqueTorsions(1:4,i))
     if (itype==0) then
       str = trim(frame % lab(listOfUniqueTorsions(1,i)))
       do idx=2,4
         str = trim(str)//" - "//trim(frame % lab(listOfUniqueTorsions(idx,i)))
       end do
-      if (stopForMissingForceField(str,ignoreMissingTorsions)) call message(-1,"Cannot find torsion type for atom types",str=str)
+      if (stopForMissingForceField("torsion: "//str,ignoreMissingTorsions)) call message(-1,"Cannot find torsion type for atom types",str=str)
     end if
   end do
   
@@ -419,7 +600,7 @@ subroutine writeLammpsCoordinates(iout)
       do idx=2,4
         str = trim(str)//" - "//trim(frame % lab(listOfUniqueOutOfPlane(idx,i)))
       end do
-      if (stopForMissingForceField(str,ignoreMissingImpropers)) call message(-1,"Cannot find improper type for atom types",str=str)
+      if (stopForMissingForceField("improper: "//str,ignoreMissingImpropers)) call message(-1,"Cannot find improper type for atom types",str=str)
     end if
   enddo
 
@@ -496,26 +677,68 @@ contains
     implicit none
     integer, intent(in) :: iout
     integer, intent(in) :: idx(4)
-    character(len=cp) :: l(4)
+    character(len=cp) :: l1(4), l2(4), lmp_l(4)
     integer :: i
     integer, save :: itors = 0
+    logical :: found
 
-    l = [ frame % lab(idx(1)) , frame % lab(idx(2)) , frame % lab(idx(3)) , frame % lab(idx(4)) ]
+    l1 = [ frame % lab(idx(1)) , frame % lab(idx(2)) , frame % lab(idx(3)) , frame % lab(idx(4)) ]
+    l2 = [ frame % lab(idx(4)) , frame % lab(idx(3)) , frame % lab(idx(2)) , frame % lab(idx(1)) ]
     findLammpsTorsionType = 0
-    do i=lammpsNumberOfTorsions,1,-1
-      if ( all( [l(1),l(2),l(3),l(4)] == lmp_torsions(i) % types(1:4)) .or. &
-           all( [l(4),l(3),l(2),l(1)] == lmp_torsions(i) % types(1:4)) ) then
 
-        if (iout /= 0) then
-          itors = itors + 1
-          write(iout,'(6i8)')itors, lmp_torsions(i) % ID, idx(1), idx(2), idx(3), idx(4)
-        else
-          lmp_torsions(i) % number = lmp_torsions(i) % number + 1
-        endif
-  
-        findLammpsTorsionType = itors
+    ! Standard case where all labels match
+    do i=lammpsNumberOfTorsions,1,-1
+      lmp_l = lmp_torsions(i) % types(1:4)
+      found = .false.
+      if ( all( l1(1:4) == lmp_l(1:4) ) .or. all( l2(1:4) == lmp_l(1:4) ) ) then
+        found = .true.
+        exit
       end if
-    enddo
+    end do
+
+    ! Handle 1 wildcard
+    if (.not. found) then
+      do i=lammpsNumberOfTorsions,1,-1
+        lmp_l = lmp_torsions(i) % types(1:4)
+        if (lmp_l(1) == "X" .and. lmp_l(4) /= "X") then
+          if ( all( l1(2:4) == lmp_l(2:4) ) .or. all( l2(2:4) == lmp_l(2:4) ) ) then
+            found = .true.
+            exit
+          end if
+        end if
+
+        if (lmp_l(4) == "X" .and. lmp_l(1) /= "X") then
+          if ( all( l1(1:3) == lmp_l(1:3) ) .or. all( l2(1:3) == lmp_l(1:3) ) ) then
+            found = .true.
+            exit
+          end if
+        end if
+      enddo
+    end if
+
+    ! Handle 2 wildcards
+    if (.not. found) then
+      do i=lammpsNumberOfTorsions,1,-1
+        lmp_l = lmp_torsions(i) % types(1:4)
+        if (lmp_l(1) == "X" .and. lmp_l(4) == "X") then
+          if ( all( l1(2:3) == lmp_l(2:3) ).or. all( l2(2:3) == lmp_l(2:3) ) ) then
+            found = .true.
+            exit
+          end if
+        end if
+      end do
+    end if
+
+    if (found) then
+      if (iout /= 0) then
+        itors = itors + 1
+        write(iout,'(6i8)')itors, lmp_torsions(i) % ID, idx(1), idx(2), idx(3), idx(4)
+      else
+        lmp_torsions(i) % number = lmp_torsions(i) % number + 1
+      end if
+
+      findLammpsTorsionType = itors
+    end if
     
   end function findLammpsTorsionType
 
@@ -525,19 +748,49 @@ contains
     integer, intent(in) :: iout
     integer, intent(in) :: idx(4)
     character(len=cp) :: l(4)
-    integer :: i
+    integer :: i, nwc
     integer, save :: iimp = 0
+    logical :: match_found 
+
     l = [ frame % lab(idx(1)) , frame % lab(idx(2)) , frame % lab(idx(3)) , frame % lab(idx(4)) ]
+
     findLammpsImproperType = 0
     do i=lammpsNumberOfOutOfPlane,1,-1
-      if (l(1) /= lmp_impropers(i) % types(1)) cycle
-      if ( all( [l(2),l(3),l(4)] == lmp_impropers(i) % types(2:4)) .or. &
-           all( [l(2),l(4),l(3)] == lmp_impropers(i) % types(2:4)) .or. &
-           all( [l(3),l(2),l(4)] == lmp_impropers(i) % types(2:4)) .or. &
-           all( [l(3),l(4),l(2)] == lmp_impropers(i) % types(2:4)) .or. &
-           all( [l(4),l(2),l(3)] == lmp_impropers(i) % types(2:4)) .or. &
-           all( [l(4),l(3),l(2)] == lmp_impropers(i) % types(2:4)) ) then
 
+      ! Central atom is different
+      if (l(1) /= lmp_impropers(i) % types(1)) cycle
+
+      match_found = .false.
+
+      nwc = count( lmp_impropers(i) % types(2:4) == "X" )
+
+      if (nwc == 3) then
+        match_found = .true.
+
+      else if (nwc == 2) then
+        if ( l(2) == lmp_impropers(i) % types(2) .or. &
+             l(3) == lmp_impropers(i) % types(2) .or. &
+             l(4) == lmp_impropers(i) % types(2) ) match_found = .true.
+      
+      else if (nwc == 1) then
+        if ( all( [l(2),l(3)] == lmp_impropers(i) % types(2:3)) .or. &
+             all( [l(2),l(4)] == lmp_impropers(i) % types(2:3)) .or. &
+             all( [l(3),l(2)] == lmp_impropers(i) % types(2:3)) .or. &
+             all( [l(3),l(4)] == lmp_impropers(i) % types(2:3)) .or. &
+             all( [l(4),l(2)] == lmp_impropers(i) % types(2:3)) .or. &
+             all( [l(4),l(3)] == lmp_impropers(i) % types(2:3)) ) match_found = .true.
+      
+      else
+        if ( all( [l(2),l(3),l(4)] == lmp_impropers(i) % types(2:4)) .or. &
+             all( [l(2),l(4),l(3)] == lmp_impropers(i) % types(2:4)) .or. &
+             all( [l(3),l(2),l(4)] == lmp_impropers(i) % types(2:4)) .or. &
+             all( [l(3),l(4),l(2)] == lmp_impropers(i) % types(2:4)) .or. &
+             all( [l(4),l(2),l(3)] == lmp_impropers(i) % types(2:4)) .or. &
+             all( [l(4),l(3),l(2)] == lmp_impropers(i) % types(2:4)) ) match_found = .true.
+
+      end if
+
+      if (match_found) then
         if (iout /= 0) then
           iimp = iimp + 1
           if ( any(lammpsImproperForcefield(i) == lammpsImproperCentralFirst) ) then
@@ -598,16 +851,88 @@ contains
   
 end subroutine writeLammpsCoordinates
 
+!----------------------------------------------------------
+subroutine writeLammpsCoordinatesAtomic(iout)
+  use moduleSystem 
+  use moduleLammps 
+  use moduleMessages
+  implicit none
+  integer, intent(in) :: iout
+  integer :: i, itype, idx
+  integer :: jtype
+  character(len=100) :: str
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! do i=1,frame % natoms
+  !   itype = findLammpsAtomType(frame % lab(i))
+  ! enddo
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  write(iout,'("LAMMPS description"/)')
+
+  write(iout,'(i8,a15)') frame % natoms      , adjustr("atoms    ")
+  write(iout,'(i8,a15)') numberOfLammpsTypes , adjustr("atom types    ")
+  write(iout,'(i8,a15)')
+
+  if (frame % volume > 1.1_real64) then
+    write(iout,'(/,g15.8,g15.8," xlo xhi")')0.0_real64,frame % hmat(1,1)
+    write(iout,'(  g15.8,g15.8," ylo yhi")')0.0_real64,frame % hmat(2,2)
+    write(iout,'(  g15.8,g15.8," zlo zhi")')0.0_real64,frame % hmat(3,3)
+    if (abs(frame % hmat(1,2))+abs(frame % hmat(1,3))+abs(frame % hmat(2,3))>1.0e-8_real64) &
+      write(iout,'(3g15.8," xy xz yz")')frame % hmat(1,2),frame % hmat(1,3),frame % hmat(2,3)
+  else
+    block
+      real(real64), dimension(3) :: pmin, pmax
+      real(real64) :: xmin, xmax, dx
+      
+      pmin = minval(frame % pos, dim=2)
+      pmax = maxval(frame % pos, dim=2)
+      dx = maxval(pmax - pmin)
+      xmin = minval(pmin) - 2.0_real64 * dx
+      xmax = maxval(pmax) + 2.0_real64 * dx
+
+      write(iout,'(/,g15.8,g15.8," xlo xhi")')xmin , xmax
+      write(iout,'(  g15.8,g15.8," ylo yhi")')xmin , xmax
+      write(iout,'(  g15.8,g15.8," zlo zhi")')xmin , xmax
+
+    end block
+  end if
+
+  write(iout,'(/" Atoms"/)')
+  do i=1,frame % natoms
+    itype = findLammpsAtomTypes(frame % lab(i))
+    write(iout,'(2i7,3f15.7)') i, itype, frame % pos(:,i)
+  enddo
+
+  contains
+
+  integer function findLammpsAtomTypes(l) result(idx)
+    implicit none
+    integer :: ii
+    character(len=*), intent(in) :: l
+    idx = 0
+    do ii=1,numberOfLammpsTypes
+      if (l == mapLabelsTypes(ii)) then
+        idx = ii
+        exit
+      end if
+    enddo
+    
+  end function findLammpsAtomTypes
+
+end subroutine writeLammpsCoordinatesAtomic
+
 !------ reading lammps coordinates ------!
 subroutine getNumberOfAtomsLammps(uinp, n, hmat)
+  use moduleVariables, only: real64
   implicit none
   integer, intent(in)  :: uinp
   integer, intent(out) :: n
-  real(8), dimension(3,3), intent(out) :: hmat
+  real(real64), dimension(3,3), intent(out) :: hmat
   
   integer :: ios
   character(len=200)  :: line
-  real(8) :: rtmp(2)
+  real(real64) :: rtmp(2)
   
   n = 0
   do
@@ -654,15 +979,16 @@ subroutine getNumberOfAtomsLammps(uinp, n, hmat)
 end subroutine getNumberOfAtomsLammps
 
 subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
+  use moduleVariables, only: real64
   use moduleMessages
   use moduleLammps
   implicit none
   integer, intent(in) :: uinp
   integer, intent(in) :: natoms
-  real(8), dimension(3,natoms), intent(inout) :: pos
+  real(real64), dimension(3,natoms), intent(inout) :: pos
   character(*), dimension(natoms), intent(inout) :: label
-  real(8), dimension(natoms), intent(inout) :: charge
-  real(8), dimension(3,3), intent(inout) :: hmat
+  real(real64), dimension(natoms), intent(inout) :: charge
+  real(real64), dimension(3,3), intent(inout) :: hmat
   logical, intent(inout) :: go
 
   character(len=10) :: fmtline
@@ -670,7 +996,7 @@ subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
   character(len=maxCharacters)  :: line
 
   integer :: ios
-  real(8) :: rtmp(2)
+  real(real64) :: rtmp(2)
   integer :: idx, iatm, itmp
 
   write(fmtline,'("(a",i0,")")') maxCharacters
@@ -718,6 +1044,7 @@ subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
         go = .false.
         exit
       end if
+      charge = 0.0_real64
 
       ! read all atoms
       do idx=1,natoms
@@ -726,7 +1053,15 @@ subroutine readCoordinatesLammps(uinp,natoms,pos,label,charge,hmat,go)
           go = .false.
           exit
         end if
-        read(line,*) iatm, itmp, label(iatm), charge(iatm), pos(1:3,iatm)
+        read(line,*,iostat=ios) iatm, itmp, label(iatm), charge(iatm), pos(1:3,iatm)
+        if (ios /= 0) then
+          read(line,*,iostat=ios) iatm, label(iatm), pos(1:3,iatm)
+          if (ios /= 0) then
+            go = .false.
+            exit
+          end if
+        end if
+
       end do
       return
     end if
@@ -739,17 +1074,18 @@ end subroutine readCoordinatesLammps
 
 ! ---------------- LAMMPS trajectory files ----------------
 subroutine getNumberOfAtomsLammpsTrajectory(uinp, n, hmat)
+  use moduleVariables, only: real64
   implicit none
   integer, intent(in)  :: uinp
   integer, intent(out) :: n
-  real(8), dimension(3,3), intent(out) :: hmat
+  real(real64), dimension(3,3), intent(out) :: hmat
   
   integer :: ios
   integer :: pbcType
   character(len=10) :: fmtline
   integer, parameter :: maxCharacters = 200
   character(len=maxCharacters)  :: line
-  real(8) :: rtmp(2)
+  real(real64) :: rtmp(2)
   
   write(fmtline,'("(a",i0,")")') maxCharacters
 
@@ -789,12 +1125,12 @@ subroutine getNumberOfAtomsLammpsTrajectory(uinp, n, hmat)
      ! read a triclinic cell
       else if (pbcType == 2) then
         block
-          real(8) :: xlo_bound, xhi_bound, xy
-          real(8) :: ylo_bound, yhi_bound, xz
-          real(8) :: zlo_bound, zhi_bound, yz
-          real(8) :: xlo, xhi
-          real(8) :: ylo, yhi
-          real(8) :: zlo, zhi
+          real(real64) :: xlo_bound, xhi_bound, xy
+          real(real64) :: ylo_bound, yhi_bound, xz
+          real(real64) :: zlo_bound, zhi_bound, yz
+          real(real64) :: xlo, xhi
+          real(real64) :: ylo, yhi
+          real(real64) :: zlo, zhi
           
           read(uinp,*) xlo_bound, xhi_bound, xy
           read(uinp,*) ylo_bound, yhi_bound, xz
@@ -827,15 +1163,15 @@ end subroutine getNumberOfAtomsLammpsTrajectory
 subroutine readCoordinatesLammpsTrajectory(uinp,natoms,pos,label,charge,hmat,go)
   use moduleMessages
   use moduleStrings
-  use moduleVariables, only : MAXWORDS
+  use moduleVariables, only : MAXWORDS, real64
 
   implicit none
   integer, intent(in) :: uinp
   integer, intent(in) :: natoms
-  real(8), dimension(3,natoms), intent(inout) :: pos
+  real(real64), dimension(3,natoms), intent(inout) :: pos
   character(*), dimension(natoms), intent(inout) :: label
-  real(8), dimension(natoms), intent(inout) :: charge
-  real(8), dimension(3,3), intent(inout) :: hmat
+  real(real64), dimension(natoms), intent(inout) :: charge
+  real(real64), dimension(3,3), intent(inout) :: hmat
   logical, intent(inout) :: go
 
   integer :: ios
@@ -844,9 +1180,9 @@ subroutine readCoordinatesLammpsTrajectory(uinp,natoms,pos,label,charge,hmat,go)
   character(len=maxCharacters)  :: line
 
   integer :: pbcType, n
-  real(8) :: rtmp(2)
+  real(real64) :: rtmp(2)
 
-  charge=0.d0
+  charge=0.0_real64
   
   write(fmtline,'("(a",i0,")")') maxCharacters
   go = .true.
@@ -893,12 +1229,12 @@ subroutine readCoordinatesLammpsTrajectory(uinp,natoms,pos,label,charge,hmat,go)
         ! read a triclinic cell
         else if (pbcType == 2) then
           block
-            real(8) :: xlo_bound, xhi_bound, xy
-            real(8) :: ylo_bound, yhi_bound, xz
-            real(8) :: zlo_bound, zhi_bound, yz
-            real(8) :: xlo, xhi
-            real(8) :: ylo, yhi
-            real(8) :: zlo, zhi
+            real(real64) :: xlo_bound, xhi_bound, xy
+            real(real64) :: ylo_bound, yhi_bound, xz
+            real(real64) :: zlo_bound, zhi_bound, yz
+            real(real64) :: xlo, xhi
+            real(real64) :: ylo, yhi
+            real(real64) :: zlo, zhi
             
             read(uinp,*) xlo_bound, xhi_bound, xy
             read(uinp,*) ylo_bound, yhi_bound, xz
@@ -933,9 +1269,12 @@ subroutine readCoordinatesLammpsTrajectory(uinp,natoms,pos,label,charge,hmat,go)
           do idx=1,numberOfFields
             if (index(fields(idx), "id")   > 0) iatm = idx - 2
             if (index(fields(idx), "type") > 0) ilab = idx - 2
-            if (index(fields(idx), "x")    > 0) ix   = idx - 2
-            if (index(fields(idx), "y")    > 0) iy   = idx - 2
-            if (index(fields(idx), "z")    > 0) iz   = idx - 2
+            if ( fields(idx) == "x" ) ix   = idx - 2
+            if ( fields(idx) == "y" ) iy   = idx - 2
+            if ( fields(idx) == "z" ) iz   = idx - 2
+            if ( fields(idx) == "xs" ) ix   = idx - 2
+            if ( fields(idx) == "ys" ) iy   = idx - 2
+            if ( fields(idx) == "zs" ) iz   = idx - 2
           end do
 
           do idx=1,natoms
@@ -965,7 +1304,7 @@ subroutine readCoordinatesLammpsTrajectory(uinp,natoms,pos,label,charge,hmat,go)
 end subroutine readCoordinatesLammpsTrajectory
 
 subroutine writeCoordinatesLammpsTrajectory(io)
-  use moduleVariables, only : cp
+  use moduleVariables, only : cp, real64
   use moduleSystem, only : frame
   use moduleLammps
   use moduleMessages
@@ -990,48 +1329,7 @@ subroutine writeCoordinatesLammpsTrajectory(io)
 
   if (firstTimeIn) then
     firstTimeIn = .false.
-
     allocate(atomTypes(frame % natoms), source=0)
-
-    ! if (.false.) then
-    if (lmpMap) then
-      block
-        integer :: idx, iatm
-        integer :: nlab, mlab
-        character(cp), dimension(50) :: li, lo
-
-        call parse(mapLabelsTypes(1),",",li,nlab)
-        call parse(mapLabelsTypes(2),",",lo,mlab)
-        if (nlab /= mlab) call message(0,'Inconsistent number of labels for the lmptrj map',iv=[nlab,mlab])
-
-        do iatm=1,frame % natoms
-          do idx=1,nlab
-            if (frame % lab(iatm) == li(idx)) then
-              read(lo(idx),*) atomTypes(iatm) 
-              exit
-            end if
-          end do
-        end do
-      end block
-
-    else
-      nTypes = 0
-      block
-        integer :: i, j
-        do i=1,frame % natoms
-          do j=1,nTypes
-            if (uniqueTypes(j) == frame % lab(i)) exit
-          end do
-          if (j > nTypes) then
-            nTypes = nTypes + 1
-            uniqueTypes(nTypes) = frame % lab(i)
-            j = nTypes
-          end if
-          atomTypes(i) = j
-        end do
-      end block
-    end if
-
   end if
 
   write(io,'("ITEM: TIMESTEP")')
@@ -1040,51 +1338,53 @@ subroutine writeCoordinatesLammpsTrajectory(io)
   write(io,'("ITEM: NUMBER OF ATOMS")')
   write(io,'(i0)') frame % natoms
   
-  if (abs(frame % hmat(2,1)) + abs(frame % hmat(3,1)) + abs(frame % hmat(3,2)) .gt. 1.0d-6) then
+  if (abs(frame % hmat(1,2)) + abs(frame % hmat(1,3)) + abs(frame % hmat(2,3)) .gt. 1.0e-6_real64) then
     block
-      real(8) :: xlo_bound, xhi_bound, xy
-      real(8) :: ylo_bound, yhi_bound, xz
-      real(8) :: zlo_bound, zhi_bound, yz
-      real(8) :: xlo, xhi
-      real(8) :: ylo, yhi
-      real(8) :: zlo, zhi
+      real(real64) :: xlo_bound, xhi_bound, xy
+      real(real64) :: ylo_bound, yhi_bound, xz
+      real(real64) :: zlo_bound, zhi_bound, yz
+      real(real64) :: xlo, xhi
+      real(real64) :: ylo, yhi
+      real(real64) :: zlo, zhi
 
-      xlo = 0.d0
-      ylo = 0.d0
-      zlo = 0.d0
+      xlo = 0.0_real64
+      ylo = 0.0_real64
+      zlo = 0.0_real64
       xhi = frame % hmat(1,1)
       yhi = frame % hmat(2,2)
       zhi = frame % hmat(3,3)
       xy = frame % hmat(1,2)
-      xz = frame % hmat(2,3)
-      yz = frame % hmat(3,3)
+      xz = frame % hmat(1,3)
+      yz = frame % hmat(2,3)
 
-      xlo_bound = xlo + MIN(0.d0,xy,xz,xy+xz)
-      xhi_bound = xhi + MAX(0.d0,xy,xz,xy+xz)
-      ylo_bound = ylo + MIN(0.d0,yz)
-      yhi_bound = yhi + MAX(0.d0,yz)
+      xlo_bound = xlo + MIN(0.0_real64,xy,xz,xy+xz)
+      xhi_bound = xhi + MAX(0.0_real64,xy,xz,xy+xz)
+      ylo_bound = ylo + MIN(0.0_real64,yz)
+      yhi_bound = yhi + MAX(0.0_real64,yz)
       zlo_bound = zlo
       zhi_bound = zhi
 
-      write(io,'(3(e20.15,1x))') xlo_bound, xhi_bound, xy
-      write(io,'(3(e20.15,1x))') ylo_bound, yhi_bound, xz
-      write(io,'(3(e20.15,1x))') zlo_bound, zhi_bound, yz
+      write(io,'("ITEM: BOX BOUNDS xy xz yz pp pp pp")')
+      write(io,'(3(e20.13,1x))') xlo_bound, xhi_bound, xy
+      write(io,'(3(e20.13,1x))') ylo_bound, yhi_bound, xz
+      write(io,'(3(e20.13,1x))') zlo_bound, zhi_bound, yz
     end block      
 
   else
     write(io,'("ITEM: BOX BOUNDS pp pp pp")')
-    write(io,'(2(e20.15,1x))') 0.d0, frame % hmat(1,1)
-    write(io,'(2(e20.15,1x))') 0.d0, frame % hmat(2,2)
-    write(io,'(2(e20.15,1x))') 0.d0, frame % hmat(3,3)
+    write(io,'(2(e20.15,1x))') 0.0_real64, frame % hmat(1,1)
+    write(io,'(2(e20.15,1x))') 0.0_real64, frame % hmat(2,2)
+    write(io,'(2(e20.15,1x))') 0.0_real64, frame % hmat(3,3)
   end if
 
-
-  write(io,'("ITEM: ATOMS id type x y z")')
+  write(io,'("ITEM: ATOMS id element x y z")')
+  ! write(io,'("ITEM: ATOMS id type x y z")')
   block
     integer :: i
     character(len=200) :: str
     do i=1,frame % natoms
-      write(str,'(2(i0,1x),3(f13.6,1x))')i, atomTypes(i), frame % pos(:,i)
+      write(str,'(i0,1x,a4,1x,3(f13.6,1x))')i, frame % lab(i), frame % pos(:,i)
+      ! write(str,'(2(i0,1x),3(f13.6,1x))')i, atomTypes(i), frame % pos(:,i)
       call compact(str)
       write(io,'(a)')trim(str)
     end do

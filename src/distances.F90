@@ -1,71 +1,46 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleDistances
+  use moduleVariables, only : real64
   implicit none
 
   interface
     function func_vec(dij)
+      use, intrinsic :: iso_fortran_env, only: real64
       implicit none
-      real(8)                :: func_vec
-      real(8), intent(inout) :: dij(3)
+      real(real64)                :: func_vec
+      real(real64), intent(inout) :: dij(3)
     end function func_vec
 
     subroutine cart2frac(n,cart,frac)
+      use, intrinsic :: iso_fortran_env, only: real64
       implicit none
       integer, intent(in) :: n
-      real(8), dimension(3,n), intent(in) :: cart
-      real(8), dimension(3,n), intent(out) :: frac
+      real(real64), dimension(3,n), intent(in) :: cart
+      real(real64), dimension(3,n), intent(out) :: frac
     end subroutine cart2frac
 
     subroutine frac2cart(n,cart,frac)
+      use, intrinsic :: iso_fortran_env, only: real64
       implicit none
       integer, intent(in) :: n
-      real(8), dimension(3,n), intent(in) :: cart
-      real(8), dimension(3,n), intent(out) :: frac
+      real(real64), dimension(3,n), intent(in) :: cart
+      real(real64), dimension(3,n), intent(out) :: frac
     end subroutine frac2cart
 
     subroutine cart2fracNINT(n,cart,frac)
+      use, intrinsic :: iso_fortran_env, only: real64
       implicit none
       integer, intent(in) :: n
-      real(8), dimension(3,n), intent(in) :: cart
-      real(8), dimension(3,n), intent(out) :: frac
+      real(real64), dimension(3,n), intent(in) :: cart
+      real(real64), dimension(3,n), intent(out) :: frac
     end subroutine cart2fracNINT
 
     subroutine cart2fracNoWrap(n,cart,frac)
+      use, intrinsic :: iso_fortran_env, only: real64
       implicit none
       integer, intent(in) :: n
-      real(8), dimension(3,n), intent(in) :: cart
-      real(8), dimension(3,n), intent(out) :: frac
+      real(real64), dimension(3,n), intent(in) :: cart
+      real(real64), dimension(3,n), intent(out) :: frac
     end subroutine cart2fracNoWrap
 
   end interface
@@ -115,14 +90,15 @@ contains
   end subroutine initialisePBC
 
   function computeDistanceSquaredSafe(dij) result(distance)
+    use, intrinsic :: iso_fortran_env, only: real64
     use moduleSystem , only : frame
     implicit none
-    real(8) :: distance
-    real(8), dimension(3), intent(inout) :: dij
-    real(8), dimension(3) :: sij, lsafe_pbc_vec
+    real(real64) :: distance
+    real(real64), dimension(3), intent(inout) :: dij
+    real(real64), dimension(3) :: sij, lsafe_pbc_vec
     
     integer :: i, j, k
-    real(8) :: rtmp
+    real(real64) :: rtmp
    
     distance = sum(dij*dij)
     lsafe_pbc_vec(1:3) = dij(1:3)
@@ -144,20 +120,22 @@ contains
   end function computeDistanceSquaredSafe
 
   function computeDistanceSquaredVacuum(dij) result(distance)
+    use, intrinsic :: iso_fortran_env, only: real64
     implicit none
-    real(8) :: distance
-    real(8), dimension(3), intent(inout) :: dij
+    real(real64) :: distance
+    real(real64), dimension(3), intent(inout) :: dij
 
     distance = sum(dij*dij)
 
   end function computeDistanceSquaredVacuum
 
   function computeDistanceSquaredOrthogonal(dij) result(distance)
+    use, intrinsic :: iso_fortran_env, only: real64
     use moduleSystem , only : frame
     implicit none
-    real(8) :: distance
-    real(8), dimension(3), intent(inout) :: dij
-    real(8), dimension(3) :: sij
+    real(real64) :: distance
+    real(real64), dimension(3), intent(inout) :: dij
+    real(real64), dimension(3) :: sij
 
     sij(1) = dij(1) / frame % cell(1)
     sij(2) = dij(2) / frame % cell(2)
@@ -171,11 +149,12 @@ contains
   end function computeDistanceSquaredOrthogonal
 
   function computeDistanceSquaredTriclinic(dij) result(distance)
+    use, intrinsic :: iso_fortran_env, only: real64
     use moduleSystem , only : frame
     implicit none
-    real(8) :: distance
-    real(8), dimension(3), intent(inout) :: dij
-    real(8), dimension(3) :: sij
+    real(real64) :: distance
+    real(real64), dimension(3), intent(inout) :: dij
+    real(real64), dimension(3) :: sij
     
     ! sij(1) = frame % hinv(1,1)*dij(1) + frame % hinv(1,2)*dij(2) + frame % hinv(1,3)*dij(3)
     ! sij(2) = frame % hinv(2,1)*dij(1) + frame % hinv(2,2)*dij(2) + frame % hinv(2,3)*dij(3)
@@ -195,8 +174,8 @@ contains
   subroutine copyCoordinates(n,cart,frac)
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(in) :: cart
-    real(8), dimension(3,n), intent(out) :: frac
+    real(real64), dimension(3,n), intent(in) :: cart
+    real(real64), dimension(3,n), intent(out) :: frac
 
     integer :: i
     do i=1,n
@@ -208,8 +187,8 @@ contains
     use moduleSystem , only : frame
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(in) :: cart
-    real(8), dimension(3,n), intent(out) :: frac
+    real(real64), dimension(3,n), intent(in) :: cart
+    real(real64), dimension(3,n), intent(out) :: frac
 
     integer :: i
     do i=1,n
@@ -222,8 +201,8 @@ contains
     use moduleSystem , only : frame
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(in) :: cart
-    real(8), dimension(3,n), intent(out) :: frac
+    real(real64), dimension(3,n), intent(in) :: cart
+    real(real64), dimension(3,n), intent(out) :: frac
 
     integer :: i
     do i=1,n
@@ -239,8 +218,8 @@ contains
     use moduleSystem , only : frame
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(in) :: frac
-    real(8), dimension(3,n), intent(out) :: cart
+    real(real64), dimension(3,n), intent(in) :: frac
+    real(real64), dimension(3,n), intent(out) :: cart
 
     integer :: i
     do i=1,n
@@ -252,8 +231,8 @@ contains
     use moduleSystem , only : frame
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(in) :: frac
-    real(8), dimension(3,n), intent(out) :: cart
+    real(real64), dimension(3,n), intent(in) :: frac
+    real(real64), dimension(3,n), intent(out) :: cart
 
     integer :: i
     do i=1,n
@@ -268,8 +247,8 @@ contains
     use moduleSystem , only : frame
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(in) :: cart
-    real(8), dimension(3,n), intent(out) :: frac
+    real(real64), dimension(3,n), intent(in) :: cart
+    real(real64), dimension(3,n), intent(out) :: frac
 
     integer :: i
     do i=1,n
@@ -282,8 +261,8 @@ contains
     use moduleSystem , only : frame
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(in) :: cart
-    real(8), dimension(3,n), intent(out) :: frac
+    real(real64), dimension(3,n), intent(in) :: cart
+    real(real64), dimension(3,n), intent(out) :: frac
 
     integer :: i
     do i=1,n
@@ -300,8 +279,8 @@ contains
     use moduleSystem , only : frame
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(in) :: cart
-    real(8), dimension(3,n), intent(out) :: frac
+    real(real64), dimension(3,n), intent(in) :: cart
+    real(real64), dimension(3,n), intent(out) :: frac
 
     integer :: i
     do i=1,n
@@ -313,8 +292,8 @@ contains
     use moduleSystem , only : frame
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(in) :: cart
-    real(8), dimension(3,n), intent(out) :: frac
+    real(real64), dimension(3,n), intent(in) :: cart
+    real(real64), dimension(3,n), intent(out) :: frac
 
     integer :: i
     do i=1,n
@@ -328,8 +307,8 @@ contains
   subroutine wrapCoordinates(n,pos)
     implicit none
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(inout) :: pos
-    real(8), allocatable, dimension(:,:) :: ptmp
+    real(real64), dimension(3,n), intent(inout) :: pos
+    real(real64), allocatable, dimension(:,:) :: ptmp
 
     allocate(ptmp(3,n))
 

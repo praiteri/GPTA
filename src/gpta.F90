@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 program gpta
   use moduleVariables
   use moduleRead 
@@ -45,9 +14,9 @@ program gpta
   implicit none
 
 ! Timing
-  real(8) :: startTimer, endTimer
-  real(8) :: read_start, read_end, readingTime, initialisationTime
-  real(8) :: actionTime, commTime
+  real(real64) :: startTimer, endTimer
+  real(real64) :: read_start, read_end, readingTime, initialisationTime
+  real(real64) :: actionTime, commTime
   character(len=20) :: str
   
   integer :: iact
@@ -56,7 +25,7 @@ program gpta
   integer :: iproc
   integer :: islave, jslave
   integer, allocatable, dimension(:) :: workginParty
-  real(8) :: comm_start, comm_end
+  real(real64) :: comm_start, comm_end
 #endif
 
 #ifdef GPTA_MPI
@@ -97,8 +66,8 @@ program gpta
 
 ! Start timing
   startTimer = timing()
-  readingTime = 0.d0
-  commTime = 0.d0
+  readingTime = 0.0_real64
+  commTime = 0.0_real64
 
   ! Initialise atoms' masses, covalent radii...
   call initialisePeriodicTable()
@@ -111,6 +80,11 @@ program gpta
   call executeOneOffActions()
 
   ! Initialise random number generator
+  if (randomNumberSeed <= 0) then
+    ! If no seed is given, use the current time as a seed
+    call get_time_seed(randomNumberSeed)
+    randomNumberSeed = randomNumberSeed + me
+  end if
   call init_genrand(randomNumberSeed)
 
 #ifdef GPTA_OMP
@@ -285,7 +259,7 @@ program gpta
 #endif
 
   if (me == 0) then
-    actionTime = 0.d0
+    actionTime = 0.0_real64
     do iact=1,numberOfActions
       actionTime = actionTime + action(iact) % timeTally
     end do
@@ -316,6 +290,9 @@ program gpta
   call MPI_Barrier(MPI_COMM_WORLD, ierr_mpi)
   call MPI_Finalize (ierr_mpi)
 #endif
+
+  call execute_command_line("rm -f _tmp-gpta_*")
+  call exit(0)
 
 contains
 

@@ -1,48 +1,18 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 subroutine computeInertiaTensor(n, eigenValues, nat, lSelect)
+  use moduleVariables, only: real64
   use moduleSystem
   use moduleElements
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: eigenValues
+  real(real64), dimension(*), intent(out) :: eigenValues
   integer, intent(in) :: nat
   integer, dimension(:), intent(in) :: lSelect
 
-  real(8) :: inertiaTensor(3,3)
-  real(8) :: eigenVectors(3,3)
-  real(8) :: totmass, rmass, xcom(3)
-  real(8) :: dx(3)
+  real(real64) :: inertiaTensor(3,3)
+  real(real64) :: eigenVectors(3,3)
+  real(real64) :: totmass, rmass, xcom(3)
+  real(real64) :: dx(3)
   integer :: i, idx
 
   ! set the numner of properties computed
@@ -51,8 +21,8 @@ subroutine computeInertiaTensor(n, eigenValues, nat, lSelect)
     return
   end if
 
-  xcom = 0.0d0
-  totmass = 0.0d0
+  xcom = 0.0_real64
+  totmass = 0.0_real64
   do idx=1,nat
     i = lSelect(idx)
     rmass = getElementMass(frame % lab(i))
@@ -61,7 +31,7 @@ subroutine computeInertiaTensor(n, eigenValues, nat, lSelect)
   enddo
   xcom = xcom / totmass
 
-  inertiaTensor = 0.0d0
+  inertiaTensor = 0.0_real64
   do idx=1,nat
     i = lSelect(idx)
     rmass = getElementMass(frame % lab(i))
@@ -92,19 +62,21 @@ subroutine computeInertiaTensor(n, eigenValues, nat, lSelect)
 end subroutine computeInertiaTensor
 
 subroutine jacobi(n,a,d,v)
+  use moduleVariables, only: real64
+  use moduleMessages
   implicit none
   integer, intent(in) :: n
-  real(8), dimension(n), intent(out) :: d
-  real(8), dimension(n,n), intent(inout) :: a
-  real(8), dimension(n,n), intent(out) :: v
+  real(real64), dimension(n), intent(out) :: d
+  real(real64), dimension(n,n), intent(inout) :: a
+  real(real64), dimension(n,n), intent(out) :: v
 
 ! Computes all eigenvalues and eigenvectors of a real symmetric n x n matrix a.
 ! On output, elements of a above the diagonal are destroyed.
 ! d is a vector of length n that returns the eigenvalues of a.
 ! v is an n x n matrix whose columns contain, on output, the normalized eigenvectors of a.
   integer :: i,iip,iq
-  real(8) :: c,g,h,s,sm,t,tau,theta,tresh
-  real(8), dimension(size(d)) :: b,z
+  real(real64) :: c,g,h,s,sm,t,tau,theta,tresh
+  real(real64), dimension(size(d)) :: b,z
   logical, dimension(size(d),size(d)) :: upper_triangle
   integer, parameter :: maxrot=50
 
@@ -116,9 +88,9 @@ subroutine jacobi(n,a,d,v)
   enddo
 
 ! Initialize v to the identity matrix. initialize b and d to the diagonal of a.
-  v(:,:)=0.0d0
+  v(:,:)=0.0_real64
   do iip=1,size(d)
-    v(iip,iip)=1.0d0
+    v(iip,iip)=1.0_real64
   enddo
 
   b(:)=get_diag(a(:,:))
@@ -133,10 +105,10 @@ subroutine jacobi(n,a,d,v)
     sm=sum(abs(a),mask=upper_triangle)
     if (sm == 0.0) return
 
-    tresh=merge(0.2d0*sm/n**2,0.0d0, i < 4 )
+    tresh=merge(0.2_real64*sm/n**2,0.0_real64, i < 4 )
     do iip=1,n-1
       do iq=iip+1,n
-        g=100.0d0*abs(a(iip,iq))
+        g=100.0_real64*abs(a(iip,iq))
 ! After four sweeps, skip the rotation if the off-diagonal element is small.
         if ((i > 4) .and. (abs(d(iip))+g == abs(d(iip))) .and. (abs(d(iq))+g == abs(d(iq)))) then
           a(iip,iq)=0.0
@@ -145,15 +117,15 @@ subroutine jacobi(n,a,d,v)
         if (abs(h)+g == abs(h)) then
           t=a(iip,iq)/h
         else
-          theta=0.5d0*h/a(iip,iq)
-          t=1.0d0/(abs(theta)+sqrt(1.0d0+theta**2))
+          theta=0.5_real64*h/a(iip,iq)
+          t=1.0_real64/(abs(theta)+sqrt(1.0_real64+theta**2))
           if (theta < 0.0) t=-t
         end if
-        c=1.0d0/sqrt(1+t**2)
+        c=1.0_real64/sqrt(1+t**2)
         s=t*c
-        if (abs(s) < 1d-10) s = 0.0d0
-        tau=s/(1.0d0+c)
-        if (abs(tau) < 1d-10) tau = 0.0d0
+        if (abs(s) < 1.0e-10_real64) s = 0.0_real64
+        tau=s/(1.0_real64+c)
+        if (abs(tau) < 1.0e-10_real64) tau = 0.0_real64
         h=t*a(iip,iq)
         z(iip)=z(iip)-h
         z(iq)=z(iq)+h
@@ -172,20 +144,20 @@ subroutine jacobi(n,a,d,v)
     z(:)=0.0
   end do
   ! if (i>maxrot) call message(0,0,0,"JACOBI | Matrix diagonalisation didn't converge")
-  stop
+  call message(-1,"JACOBI | Matrix diagonalisation didn't converge")
 contains
 
   subroutine jrotate(a1,a2)
-    real(8), dimension(:), intent(inout) :: a1,a2
-    real(8), dimension(size(a1)) :: wk1
+    real(real64), dimension(:), intent(inout) :: a1,a2
+    real(real64), dimension(size(a1)) :: wk1
     wk1(:)=a1(:)
     a1(:)=a1(:)-s*(a2(:)+a1(:)*tau)
     a2(:)=a2(:)+s*(wk1(:)-a2(:)*tau)
   end subroutine jrotate
 
   function get_diag(mat)
-    real(8), dimension(:,:), intent(in) :: mat
-    real(8), dimension(size(mat,1)) :: get_diag
+    real(real64), dimension(:,:), intent(in) :: mat
+    real(real64), dimension(size(mat,1)) :: get_diag
     integer :: j
     do j=1,size(mat,1)
       get_diag(j)=mat(j,j)
@@ -195,10 +167,11 @@ contains
 end subroutine jacobi
 
 subroutine eigsrt(n,d,v)
+  use moduleVariables, only : real64
   implicit none
   integer, intent(in) :: n
-  real(8), dimension(n), intent(inout) :: d
-  real(8), dimension(n,n), intent(inout) :: v
+  real(real64), dimension(n), intent(inout) :: d
+  real(real64), dimension(n,n), intent(inout) :: v
 ! given the eigenvalues d and eigenvectors v as output from jacobi (11.1) or tqli (11.3),
 ! this routine sorts the eigenvalues into descending order,
 ! and rearranges the columns of v correspondingly. the method is straight insertion.
@@ -219,8 +192,8 @@ contains
 
   subroutine swap_r(a,b)
     implicit none
-    real(8), intent(inout) :: a,b
-    real(8) :: dum
+    real(real64), intent(inout) :: a,b
+    real(real64) :: dum
     dum=a
     a=b
     b=dum
@@ -229,8 +202,8 @@ contains
 
   subroutine swap_v(a,b)
     implicit none
-    real(8), dimension(:), intent(inout) :: a,b
-    real(8), dimension(size(a)) :: dum
+    real(real64), dimension(:), intent(inout) :: a,b
+    real(real64), dimension(size(a)) :: dum
     dum=a
     a=b
     b=dum

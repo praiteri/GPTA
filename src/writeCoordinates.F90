@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleDumpCoordinates
 
 #ifdef GPTA_XDR
@@ -41,11 +10,11 @@ contains
   subroutine writeCoordinates(a)
     use moduleVariables
     use moduleStrings
-    use moduleMessages 
     use moduleSystem 
     use moduleNeighbours 
     use moduleFiles
     use moduleGULP
+    use moduleMessages
 
     use moduleLammps
 
@@ -59,6 +28,7 @@ contains
     logical :: lappend
 
     character(len=STRLEN), pointer :: forcefieldFile
+    character(len=STRLEN), pointer :: forcefieldFile2
     logical, pointer :: header
 
     integer :: i, nw
@@ -77,6 +47,7 @@ contains
     firstAction          => a % firstAction
     outputFile           => a % outputFile
     forcefieldFile       => a % stringVariables(1)
+    forcefieldFile2      => a % stringVariables(2)
     header               => a % logicalVariables(1)
     internalOutput       => a % logicalVariables(2)
 
@@ -84,7 +55,7 @@ contains
       actionInitialisation = .false.
       a % requiresNeighboursList = .false.
       a % requiresNeighboursListDouble = .false.
-      a % cutoffNeighboursList = 3.0d0
+      a % cutoffNeighboursList = 3.0_real64
 
       ! output file name must immediately follow the --o command
       outputFile % fname = "NULL"
@@ -127,7 +98,8 @@ contains
       if (outputFile % ftype == "lmp") then
       
         ! LAMMPS forcefield file
-        call assignFlagValue(actionCommand,"+f ",forcefieldFile,'forcefield.lmp')
+        call assignFlagValue(actionCommand,"+f ",forcefieldFile,'None')
+        call assignFlagValue(actionCommand,"+f2 ",forcefieldFile2,'None')
 
         ! flags for missing forcefield terms
         call assignFlagValue(actionCommand,"+ignore ",str,'check')
@@ -153,6 +125,15 @@ contains
               call message(-1,"LAMMPS forcefield - Unknown +ignore option",str=str)
           end select
         end do
+
+        call assignFlagValue(actionCommand,"+map ",lmpMap,.false.)
+        if (lmpMap) then
+          block
+            character(STRLEN) :: flagString
+            call extractFlag(actionCommand,"+map",flagString)
+            call parse(flagString,",",mapLabelsTypes,numberOfLammpsTypes)
+          end block
+        end if
       end if
 
       if (outputFile % ftype == "lmptrj") then
@@ -168,6 +149,7 @@ contains
       end if
 
       call assignFlagValue(actionCommand,"+bohr ",outputCoordInBohr,.false.)
+      call assignFlagValue(actionCommand,"+frac ",outputCoordInFractional,.false.)
 
       ! The neigbours' list is require for the topology
       if (any(outputFile % ftype == ["lmp ","pdb2","pdbx","psf ","arc "])) then
@@ -208,6 +190,10 @@ contains
         frame % pos = frame % pos / rbohr
       end if
 
+      if (outputCoordInFractional) then
+        frame % pos = frame % frac
+      end if
+
       if (outputFile % ftype == "xyz") then
         call writeCoordinatesXYZ(outputFile % funit)
 
@@ -235,12 +221,26 @@ contains
       else if (outputFile % ftype == "psf") then
         call writeCoordinatesPSF(outputFile % funit)
 
-      else if (outputFile % ftype == "arc") then
-        call writeCoordinatesARC(outputFile % funit)
+      ! else if (outputFile % ftype == "arc") then
+      !   call writeCoordinatesARC(outputFile % funit)
 
       else if (outputFile % ftype == "lmp") then
-        call readLammpsForcefieldFile(forcefieldFile)
-        call writeLammpsCoordinates(outputFile % funit)
+        if (forcefieldFile /= "None") then
+          call readLammpsForcefieldFile(forcefieldFile)
+          if (lammpsNumberOfAtoms == 0) then
+            call readLammpsForcefieldFile_new(forcefieldFile)
+          end if
+
+          if (lammpsNumberOfAtoms == 0) then
+            call message(-1,"Cannot read lammps forcefield file")
+          end if
+          call writeLammpsCoordinates(outputFile % funit)
+        else if (forcefieldFile2 /= "None") then
+          call readLammpsForcefieldFile_new(forcefieldFile2)
+          call writeLammpsCoordinates(outputFile % funit)
+        else
+          call writeLammpsCoordinatesAtomic(outputFile % funit)
+        endif
 
       else if (outputFile % ftype == "lmptrj") then
         call writeCoordinatesLammpsTrajectory(outputFile % funit)
@@ -251,14 +251,14 @@ contains
           ! xtc_out % natoms = frame % natoms
           ! xtc_out % step   = frame % nframe
           ! xtc_out % time   = real(frame % nframe)
-          ! xtc_out % box    = real(frame % hmat / 10.d0)
-          ! xtc_out % pos    = real(frame % pos / 10.d0)
+          ! xtc_out % box    = real(frame % hmat / 10.0_real64)
+          ! xtc_out % pos    = real(frame % pos / 10.0_real64)
           ! xtc_out % prec   = 1000.
           call xtc_out % write(frame % natoms, &
                                frame % nframe,   &
                                real(frame % nframe),   &
-                               real(frame % hmat / 10.d0),    &
-                               real(frame % pos / 10.d0),    &
+                               real(frame % hmat / 10.0_real64),    &
+                               real(frame % pos / 10.0_real64),    &
                                1000.e0)
 #endif
       else
@@ -272,6 +272,10 @@ contains
         frame % pos = frame % pos * rbohr
       end if
 
+      if (outputCoordInFractional) then
+        call fractionalToCartesian(frame % natoms, frame % frac, frame % pos)
+      end if
+
     end if
 
     if (outputFile % ftype /= "xtc" ) call flush(outputFile % funit)
@@ -282,23 +286,22 @@ contains
 
 end module moduleDumpCoordinates
 
-subroutine writeCoordinatesARC(io)
-  use moduleOpenMM, only : qType
-  use moduleSystem, only : frame, numberOfCovalentBondsPerAtom, listOfCovalentBondsPerAtom
-  implicit none
-  integer, intent(in) :: io
-  integer :: i, itmp
-  write(io,*)frame % natoms
-  do i=1,frame % natoms
-    itmp = numberOfCovalentBondsPerAtom(i)
-    write(io,'(i5,2x,a4,2x,3(f8.3,2x),6(i7,2x))') i \
-      , frame % lab(i) \
-      , frame % pos(1:3,i) \
-      , qType(i) \
-      , listOfCovalentBondsPerAtom(1:itmp,i)
-  enddo
+! subroutine writeCoordinatesARC(io)
+!   use moduleSystem, only : frame, numberOfCovalentBondsPerAtom, listOfCovalentBondsPerAtom
+!   implicit none
+!   integer, intent(in) :: io
+!   integer :: i, itmp
+!   write(io,*)frame % natoms
+!   do i=1,frame % natoms
+!     itmp = numberOfCovalentBondsPerAtom(i)
+!     write(io,'(i5,2x,a4,2x,3(f8.3,2x),6(i7,2x))') i \
+!       , frame % lab(i) \
+!       , frame % pos(1:3,i) \
+!       , qType(i) \
+!       , listOfCovalentBondsPerAtom(1:itmp,i)
+!   enddo
 
-end subroutine writeCoordinatesARC
+! end subroutine writeCoordinatesARC
 
 subroutine writeCoordinatesXYZext(io)
   use moduleSystem, only : frame

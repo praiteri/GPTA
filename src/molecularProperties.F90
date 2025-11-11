@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleMolecularProperties
   use moduleVariables
   use moduleFiles
@@ -55,7 +24,7 @@ module moduleMolecularProperties
   
   integer, pointer :: numberOfBins
   integer, dimension(:), pointer :: numberOfBins2D
-  real(8), dimension(:), pointer :: distributionLimits
+  real(real64), dimension(:), pointer :: distributionLimits
 
   logical, pointer :: dumpProperty    ! Output dump all molecule on the same line
   logical, pointer :: dumpPropertySeq ! Output dump sequentially
@@ -102,9 +71,9 @@ contains
     implicit none
     type(actionTypeDef), target :: a
 
-    real(8), allocatable, dimension(:) :: localProperty
-    real(8), allocatable, dimension(:,:) :: cartesianCoord
-    real(8), allocatable, dimension(:,:) :: fractionalCoord
+    real(real64), allocatable, dimension(:) :: localProperty
+    real(real64), allocatable, dimension(:,:) :: cartesianCoord
+    real(real64), allocatable, dimension(:,:) :: fractionalCoord
     integer :: ilocal, imol
 
     call associatePointers(a)
@@ -155,7 +124,7 @@ contains
       enddo
       call cartesianToFractional(numberOfLocalMolecules, cartesianCoord, fractionalCoord)
 
-      allocate(localProperty(numberOfLocalMolecules), source=0.d0)
+      allocate(localProperty(numberOfLocalMolecules), source=0.0_real64)
       call a % molprop % property(numberOfLocalMolecules, localIndices, localProperty)
       
       if ( trim(a % molprop % command) == "+angle" .or. trim(a % molprop % command) == "+torsion") then
@@ -222,13 +191,14 @@ contains
     a % requiresNeighboursList = .true.
     a % requiresNeighboursListUpdates = .false.
     a % requiresNeighboursListDouble = .false.
-    a % cutoffNeighboursList = 3.0d0
+    a % cutoffNeighboursList = 3.0_real64
     
     call assignFlagValue(actionCommand,"+id",targetMolecule,"NULL")
     
     call assignFlagValue(actionCommand,"+out",outputFile % fname,'molprop.out')
     call initialiseFile(outputFile,outputFile % fname)
     
+    n=0
     if (flagExists(actionCommand,"+dipole ")) then
       n = n + 1
       a % molprop % command  = "+dipole"
@@ -309,24 +279,24 @@ contains
 
     else if (distProperty) then
       call assignFlagValue(actionCommand,"+nbin ",numberOfBins,100)
-      call assignFlagValue(actionCommand,"+dist ", distributionLimits(1:2),[1.d0,2.d0])
+      call assignFlagValue(actionCommand,"+dist ", distributionLimits(1:2),[1.0_real64,2.0_real64])
       call workData % initialise(ID, "histogram", numberOfBins=[numberOfBins], lowerLimits=[distributionLimits(1)], upperLimits=[distributionLimits(2)])
 
     else if (histoProperty) then
       call assignFlagValue(actionCommand,"+nbin ",numberOfBins,100)
-      call assignFlagValue(actionCommand,"+histo ", distributionLimits(1:2),[1.d0,2.d0])
+      call assignFlagValue(actionCommand,"+histo ", distributionLimits(1:2),[1.0_real64,2.0_real64])
       call workData % initialise(ID, "histogram", numberOfBins=[numberOfBins], lowerLimits=[distributionLimits(1)], upperLimits=[distributionLimits(2)])
 
     else if (distZProperty) then
       call assignFlagValue(actionCommand,"+nbin ",numberOfBins,100)
-      call workData % initialise(ID, "avgDist ", numberOfBins=[numberOfBins], lowerLimits=[0.d0], upperLimits=[1.d0])
+      call workData % initialise(ID, "avgDist ", numberOfBins=[numberOfBins], lowerLimits=[0.0_real64], upperLimits=[1.0_real64])
 
 
     else if (distZProperty2D) then
-      call assignFlagValue(actionCommand,"+dist2D ",distributionLimits(1:2),[0.d0,0.d0])
+      call assignFlagValue(actionCommand,"+dist2D ",distributionLimits(1:2),[0.0_real64,0.0_real64])
       call assignFlagValue(actionCommand,"+nbin ",numberOfBins2D(1),100)
       call assignFlagValue(actionCommand,"+nbinZ ",numberOfBins2D(2),nint(frame % hmat(3,3)))
-      call workData % initialise(ID, "dist2D ", numberOfBins=[numberOfBins2D], lowerLimits=[distributionLimits(1),0.d0], upperLimits=[distributionLimits(2),1.d0])
+      call workData % initialise(ID, "dist2D ", numberOfBins=[numberOfBins2D], lowerLimits=[distributionLimits(1),0.0_real64], upperLimits=[distributionLimits(2),1.0_real64])
 
     else 
       dumpPropertySeq = .true.
@@ -386,7 +356,7 @@ contains
     use moduleSystem
     use moduleMessages
     implicit none
-    real(8), allocatable, dimension(:) :: values
+    real(real64), allocatable, dimension(:) :: values
     character(len=100) :: str
 
     if ( trim(outputFile % fname) == "stdout") then
@@ -424,17 +394,17 @@ contains
     implicit none
     integer, intent(in) :: numberOfLocalMolecules
     integer, dimension(:), intent(in) :: list
-    real(8), dimension(:), intent(out) :: property
+    real(real64), dimension(:), intent(out) :: property
 
     integer :: ilocal, imol, iatm, jatm, i
-    real(8) :: dipoleVector(3), dij(3), rtmp
+    real(real64) :: dipoleVector(3), dij(3), rtmp
 
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE (ilocal, imol, iatm, jatm, i, dipoleVector, dij, rtmp)
 !$OMP DO
     do ilocal=1,numberOfLocalMolecules
       imol = list(ilocal)
-      dipoleVector = 0.d0
+      dipoleVector = 0.0_real64
       iatm = listOfMolecules(imol) % listOfAtoms(1)
       do i=2,listOfMolecules(imol) % numberOfAtoms
         jatm = listOfMolecules(imol) % listOfAtoms(i)
@@ -442,7 +412,7 @@ contains
         dipoleVector(1:3) = dipoleVector(1:3) + frame % chg(jatm) * dij
       enddo
       rtmp = sqrt(sum(dipoleVector*dipoleVector))
-      property(ilocal) = rtmp * 4.8032047d0
+      property(ilocal) = rtmp * 4.8032047_real64
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
@@ -454,17 +424,17 @@ contains
     implicit none
     integer, intent(in) :: numberOfLocalMolecules
     integer, dimension(:), intent(in) :: list
-    real(8), dimension(:), intent(out) :: property
+    real(real64), dimension(:), intent(out) :: property
 
     integer :: ilocal, imol, iatm, jatm, i
-    real(8) :: dipoleVector(3), dij(3), rtmp
+    real(real64) :: dipoleVector(3), dij(3), rtmp
     
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE (ilocal, imol, iatm, jatm, i, dipoleVector, dij, rtmp)
 !$OMP DO
     do ilocal=1,numberOfLocalMolecules
       imol = list(ilocal)
-      dipoleVector = 0.d0
+      dipoleVector = 0.0_real64
       iatm = listOfMolecules(imol) % listOfAtoms(1)
       do i=2,listOfMolecules(imol) % numberOfAtoms
         jatm = listOfMolecules(imol) % listOfAtoms(i)
@@ -473,7 +443,7 @@ contains
       enddo
       ! z component of the molecular dipole
       rtmp = sqrt(sum(dipoleVector*dipoleVector))
-      property(ilocal) = dipoleVector(3) * 4.8032047d0
+      property(ilocal) = dipoleVector(3) * 4.8032047_real64
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
@@ -486,10 +456,10 @@ contains
       implicit none
       integer, intent(in) :: numberOfLocalMolecules
       integer, dimension(:), intent(in) :: list
-      real(8), dimension(:), intent(out) :: property
+      real(real64), dimension(:), intent(out) :: property
 
-      ! real(8), external :: computeTorsionalAngle
-      real(8) :: torsionPositions(3,4)
+      ! real(real64), external :: computeTorsionalAngle
+      real(real64) :: torsionPositions(3,4)
 
       integer :: ilocal, i, j, imol
 
@@ -512,9 +482,9 @@ contains
   function computeTorsionalAngle(pos) result(phi)
     use moduleVariables
     implicit none
-    real(8), dimension(3,4), intent(in) :: pos
-    real(8), dimension(3) :: d12, d23, d34, nvec1, nvec2, nvec3
-    real(8) :: cosphi, sinphi, phi
+    real(real64), dimension(3,4), intent(in) :: pos
+    real(real64), dimension(3) :: d12, d23, d34, nvec1, nvec2, nvec3
+    real(real64) :: cosphi, sinphi, phi
 
     d12(1:3) = pos(1:3,2) - pos(1:3,1)
     d23(1:3) = pos(1:3,3) - pos(1:3,2)
@@ -530,7 +500,7 @@ contains
     cosphi = dot_product(nvec1,nvec2)
     sinphi = dot_product(nvec3,d23) / sqrt(sum(d23*d23))
     phi    = atan2(sinphi,cosphi)
-    if (phi < 0.d0 ) phi = phi + twopi
+    if (phi < 0.0_real64 ) phi = phi + twopi
 
   end function computeTorsionalAngle
 
@@ -541,10 +511,10 @@ contains
       implicit none
       integer, intent(in) :: numberOfLocalMolecules
       integer, dimension(:), intent(in) :: list
-      real(8), dimension(:), intent(out) :: property
+      real(real64), dimension(:), intent(out) :: property
 
       integer :: ilocal, imol, iatm, jatm, katm
-      real(8), dimension(3) :: dij, dik, normalVector
+      real(real64), dimension(3) :: dij, dik, normalVector
 
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE (ilocal, imol, iatm, jatm, katm, dij, dik, normalVector)
@@ -560,7 +530,7 @@ contains
         normalVector(1:3) = cross_product(dij,dik)
       
         normalVector(1:3) = cross_product(dij,dik)
-        if (sqrt(sum(normalVector*normalVector)) < 1.0d-4) &
+        if (sqrt(sum(normalVector*normalVector)) < 1.0e-4_real64) &
           call message(-1,"Cannot compute normal, bonds are parallel")
           
         property(ilocal) = normalVector(3) / sqrt(sum(normalVector*normalVector))
@@ -578,11 +548,11 @@ contains
       implicit none
       integer, intent(in) :: numberOfLocalMolecules
       integer, dimension(:), intent(in) :: list
-      real(8), dimension(:), intent(out) :: property
+      real(real64), dimension(:), intent(out) :: property
 
       integer :: ilocal, imol, iatm, jatm, katm
-      real(8), dimension(3) :: dij, dik
-      real(8) :: dprod
+      real(real64), dimension(3) :: dij, dik
+      real(real64) :: dprod
 
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE (ilocal, imol, iatm, jatm, katm, dij, dik, dprod)
@@ -615,11 +585,11 @@ contains
     implicit none
     integer, intent(in) :: numberOfLocalMolecules
     integer, dimension(:), intent(in) :: list
-    real(8), dimension(:), intent(out) :: property
+    real(real64), dimension(:), intent(out) :: property
 
     integer :: ilocal, imol, iatm, jatm, katm
-    real(8), dimension(3) :: dij, dik
-    real(8) :: dprod
+    real(real64), dimension(3) :: dij, dik
+    real(real64) :: dprod
 
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE (ilocal, imol, iatm, jatm, katm, dij, dik, dprod)
@@ -646,15 +616,15 @@ subroutine computeRadiusOfGyration(numberOfLocalMolecules,list,property)
     implicit none
     integer, intent(in) :: numberOfLocalMolecules
     integer, dimension(:), intent(in) :: list
-    real(8), dimension(:), intent(out) :: property
-    real(8) :: xcom(3)
+    real(real64), dimension(:), intent(out) :: property
+    real(real64) :: xcom(3)
     integer :: ilocal, imol, iatm, n, idx
-    real(8) :: rgyr
-    real(8) :: dx(3)
+    real(real64) :: rgyr
+    real(real64) :: dx(3)
     
     logical, save :: firstTimeIn = .true.
-    real(8), save, allocatable, dimension(:) :: rmass
-    real(8), save :: moleculeMass
+    real(real64), save, allocatable, dimension(:) :: rmass
+    real(real64), save :: moleculeMass
     
     if (firstTimeIn) then
       firstTimeIn = .false.
@@ -663,7 +633,7 @@ subroutine computeRadiusOfGyration(numberOfLocalMolecules,list,property)
       n = listOfMolecules(imol) % numberOfAtoms
       allocate(rmass(n))
       
-      moleculeMass = 0.0d0
+      moleculeMass = 0.0_real64
       do idx=1,listOfMolecules(imol) % numberOfAtoms
         iatm = listOfMolecules(imol) % listOfAtoms(idx)
         rmass(idx) = getElementMass(frame % lab(iatm))
@@ -675,7 +645,7 @@ subroutine computeRadiusOfGyration(numberOfLocalMolecules,list,property)
 !$OMP PRIVATE (ilocal, xcom, imol, idx, rgyr, dx)
 !$OMP DO
     do ilocal=1,numberOfLocalMolecules
-      xcom = 0.0d0
+      xcom = 0.0_real64
       imol = list(ilocal)
       do idx=1,listOfMolecules(imol) % numberOfAtoms
         iatm = listOfMolecules(imol) % listOfAtoms(idx)
@@ -683,7 +653,7 @@ subroutine computeRadiusOfGyration(numberOfLocalMolecules,list,property)
       enddo
       xcom = xcom / moleculeMass
       
-      rgyr = 0.0d0
+      rgyr = 0.0_real64
       do idx=1,listOfMolecules(imol) % numberOfAtoms
         iatm = listOfMolecules(imol) % listOfAtoms(idx)
         dx(1:3) = frame % pos(1:3,iatm) - xcom(1:3)

@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleExtractSystemProperties
   use moduleVariables
   use moduleFiles
@@ -55,7 +24,7 @@ module moduleExtractSystemProperties
   integer, pointer :: numberOfBins
   integer, pointer :: numberOfSelectedAtoms
   integer, dimension(:), pointer :: numberOfBins2D
-  real(8), dimension(:), pointer :: distributionLimits
+  real(real64), dimension(:), pointer :: distributionLimits
 
   logical, pointer :: atomSelection        ! Property requires atoms' selection
   logical, pointer :: dumpProperty         ! Output dump
@@ -65,7 +34,7 @@ module moduleExtractSystemProperties
   integer, pointer :: distributionType
 
   integer, pointer :: numberOfProperties
-  real(8), pointer, dimension(:) :: localProperty
+  real(real64), pointer, dimension(:) :: localProperty
 
   procedure(stuff) :: extractcell, extractHMatrix, extractVolume, extractDensity
   procedure(stuff) :: computeInertiaTensor
@@ -129,6 +98,7 @@ contains
         else if (outputFile % fname /= "NULL") then
           call message(0,"......Output file",str=outputFile % fname)
         end if
+        call message(2)
   
         if (atomSelection) then
           if (resetFrameLabels) then
@@ -181,9 +151,9 @@ contains
           end if
         end if
       end if
+      call message(2)
 
       call finaliseAction(a)
-      call message(2)
     end if
 
   end subroutine extractSystemProperties
@@ -255,17 +225,13 @@ contains
 
     if ( count([distProperty,averageMultiProperty]) == 0 ) dumpProperty = .true.
 
-    call assignFlagValue(actionCommand,"+out",outputFile % fname,"NULL")
+    call assignFlagValue(actionCommand,"+out",outputFile % fname,"properties.out")
     if (.not. dumpCoordinatesLocal) then
-      if (outputFile % fname /= "NULL") then
-        call initialiseFile(outputFile, outputFile % fname)
-        write(outputFile % funit,"(a)")"#System property"
-        write(outputFile % funit,'(a)')"#...Extracting "//trim(a % sysprop % name)
-        if (averageMultiProperty) write(outputFile % funit,'(a)')"#......Average and standard deviation"
-        if (distProperty        ) write(outputFile % funit,'(a)')"#......Distribution"
-      else
-        outputFile % funit = 6
-      end if
+      call initialiseFile(outputFile, outputFile % fname)
+      write(outputFile % funit,"(a)")"#System property"
+      write(outputFile % funit,'(a)')"#...Extracting "//trim(a % sysprop % name)
+      if (averageMultiProperty) write(outputFile % funit,'(a)')"#......Average and standard deviation"
+      if (distProperty        ) write(outputFile % funit,'(a)')"#......Distribution"
     end if
 
   end subroutine initialiseAction
@@ -277,8 +243,8 @@ contains
     
     implicit none
     type(actionTypeDef), target :: a
-    real(8), allocatable, dimension(:) :: avgValues
-    real(8) :: rtmp
+    real(real64), allocatable, dimension(:) :: avgValues
+    real(real64) :: rtmp
     character(len=30) :: str
 
     if (dumpCoordinatesLocal) then
@@ -316,7 +282,7 @@ contains
         case (2)
           str = 'probability'
         case (4)
-          call assignFlagValue(actionCommand,"+sigma ",rtmp,-1.d0) ! Probability with Gaussian Kernel
+          call assignFlagValue(actionCommand,"+sigma ",rtmp,-1.0_real64) ! Probability with Gaussian Kernel
           if (rtmp < 0) call message(-1,"Kernel sigma must be greater than zero")
           write(str,'("kernel=",e20.15)') rtmp
       end select
@@ -325,7 +291,7 @@ contains
     else
       call workData % dump(ID, outputFile % funit)
     end if
-    call message(4)
+    call message(2)
 
   end subroutine finaliseAction
 
@@ -347,7 +313,7 @@ contains
     if (ntmp>0) then
       call workData % compute(ID, numberOfValues=numberOfProperties, xValues=localProperty)
     else
-      allocate(a % array1D(numberOfProperties), source=0.d0)
+      allocate(a % array1D(numberOfProperties), source=0.0_real64)
     end if
 
   end subroutine computeAction
@@ -376,7 +342,7 @@ contains
         str="kernel "
       end if
 
-      call assignFlagValue(actionCommand,"+"//trim(str), distributionLimits(1:2),[1.d0,2.d0])
+      call assignFlagValue(actionCommand,"+"//trim(str), distributionLimits(1:2),[1.0_real64,2.0_real64])
       call workData % initialise(ID, "histogram", numberOfBins=[numberOfBins], lowerLimits=[distributionLimits(1)], upperLimits=[distributionLimits(2)])
     end if
 
@@ -386,7 +352,9 @@ contains
     implicit none
     type(actionTypeDef), target :: a
     integer :: n
+    character(len=2) :: str
          
+    n = 0
     if (flagExists(actionCommand,"+test")) then
       n = n + 1
       atomSelection = .true.
@@ -465,7 +433,8 @@ contains
     end if
 
     if (n==0)  call message(-1,"--extract | no property selected")
-    if (n/=1)  call message(-1,"--extract | only one property per action can be specified")
+    write(str,'(i0)') n
+    if (n/=1)  call message(-1,"--extract | only one property per action can be specified "//str)
     
   end subroutine getPropertyType
 
@@ -475,7 +444,7 @@ subroutine extractCell(n, cell, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: cell
+  real(real64), dimension(*), intent(out) :: cell
   integer, intent(in), optional :: numberOfSelectedAtoms
   integer, dimension(:), intent(in), optional :: selectionList
 
@@ -492,7 +461,7 @@ subroutine extractHMatrix(n, hmat, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: hmat
+  real(real64), dimension(*), intent(out) :: hmat
   integer, intent(in), optional :: numberOfSelectedAtoms
   integer, dimension(:), intent(in), optional :: selectionList
 
@@ -509,7 +478,7 @@ subroutine extractVolume(n, volume, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: volume
+  real(real64), dimension(*), intent(out) :: volume
   integer, intent(in), optional :: numberOfSelectedAtoms
   integer, dimension(:), intent(in), optional :: selectionList
 
@@ -526,7 +495,7 @@ subroutine extractDensity(n, density, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: density
+  real(real64), dimension(*), intent(out) :: density
   integer, intent(in), optional :: numberOfSelectedAtoms
   integer, dimension(:), intent(in), optional :: selectionList
 
@@ -535,7 +504,7 @@ subroutine extractDensity(n, density, numberOfSelectedAtoms, selectionList)
     n = 1
     return
   end if
-  density(1) = 1.6605388d0 * totalMass / frame % volume
+  density(1) = 1.6605388_real64 * totalMass / frame % volume
 
 end subroutine extractDensity
 
@@ -543,18 +512,18 @@ subroutine dielectricConstant(n, eps, numberOfSelectedAtoms, selectionList)
   use moduleSystem
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: eps
+  real(real64), dimension(*), intent(out) :: eps
   integer, intent(in), optional :: numberOfSelectedAtoms
   integer, dimension(:), intent(in), optional :: selectionList
 
-  real(8), parameter :: e0 = 0.00552642629948221d0 ! e^2/eV/angstrom
-  real(8), parameter :: kbt = 0.025851d0 ! in eV
+  real(real64), parameter :: e0 = 0.00552642629948221_real64 ! e^2/eV/angstrom
+  real(real64), parameter :: kbt = 0.025851_real64 ! in eV
   
   integer, save :: np = 0
-  real(8), dimension(3), save :: m_avg = 0.d0
-  real(8), save :: m2_avg = 0.d0
-  real(8), dimension(3) :: cellDipole
-  real(8) :: norm, a3(3), a, b
+  real(real64), dimension(3), save :: m_avg = 0.0_real64
+  real(real64), save :: m2_avg = 0.0_real64
+  real(real64), dimension(3) :: cellDipole
+  real(real64) :: norm, a3(3), a, b
   
   integer :: iatm
   
@@ -564,23 +533,23 @@ subroutine dielectricConstant(n, eps, numberOfSelectedAtoms, selectionList)
     return
   end if
   
-  cellDipole = 0.d0
+  cellDipole = 0.0_real64
   do iatm=1,frame % natoms
     cellDipole = cellDipole + frame % chg(iatm) * frame % pos(:,iatm) 
   end do
-  ! if wanted in Debye ! cellDipole = cellDipole * 4.8032513d0    
+  ! if wanted in Debye ! cellDipole = cellDipole * 4.8032513_real64    
   
   m_avg = m_avg + cellDipole
   m2_avg = m2_avg + sum(cellDipole**2)
   
   np = np + 1
   
-  norm = 3.d0* e0 * kbt * frame % volume
+  norm = 3.0_real64* e0 * kbt * frame % volume
   a3 = m_avg / np
   a = sum(a3*a3)
   b = m2_avg / np
-  eps(1) = 1.d0 + (b-a) / norm
-  eps(2) = 1.d0 + (m2_avg) / np / norm
+  eps(1) = 1.0_real64 + (b-a) / norm
+  eps(2) = 1.0_real64 + (m2_avg) / np / norm
   
 end subroutine dielectricConstant
 
@@ -590,11 +559,11 @@ subroutine bondLength(n, val, nat, l)
   use moduleMessages
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: val
+  real(real64), dimension(*), intent(out) :: val
   integer, intent(in), optional :: nat
   integer, dimension(:), intent(in), optional :: l
   
-  real(8), dimension(3) :: dij
+  real(real64), dimension(3) :: dij
   
   ! set the number of properties computed
   if (n<0) then
@@ -613,7 +582,7 @@ subroutine position(n, val, nat, l)
   use moduleDistances
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: val
+  real(real64), dimension(*), intent(out) :: val
   integer, intent(in), optional :: nat
   integer, dimension(:), intent(in), optional :: l
   
@@ -638,12 +607,12 @@ subroutine averageSystem(n, val, nat, l)
   use moduleDistances
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: val
+  real(real64), dimension(*), intent(out) :: val
   integer, intent(in), optional :: nat
   integer, dimension(:), intent(in), optional :: l
   
   integer :: i, ntmp
-  real(8), allocatable, dimension(:,:) :: localPositions
+  real(real64), allocatable, dimension(:,:) :: localPositions
 
   ! set the number of properties computed
   if (n < 0) then
@@ -675,7 +644,7 @@ subroutine averageSystemCell(n, val, numberOfSelectedAtoms, selectionList)
   use moduleDistances
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: val
+  real(real64), dimension(*), intent(out) :: val
   integer, intent(in), optional :: numberOfSelectedAtoms
   integer, dimension(:), intent(in), optional :: selectionList
 
@@ -701,7 +670,7 @@ subroutine test(n, val, nat, l)
   use moduleDistances
   implicit none
   integer, intent(inout) :: n
-  real(8), dimension(*), intent(out) :: val
+  real(real64), dimension(*), intent(out) :: val
   integer, intent(in), optional :: nat
   integer, dimension(:), intent(in), optional :: l
   
@@ -711,8 +680,8 @@ subroutine test(n, val, nat, l)
     return
   end if
   
-  val(1) = 1.d0
-  val(2) = 2.d0
-  val(3) = 3.d0
+  val(1) = 1.0_real64
+  val(2) = 2.0_real64
+  val(3) = 3.0_real64
   
 end subroutine

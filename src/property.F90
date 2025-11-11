@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleProperties
   use moduleSystem
   use moduleResizeArrays
@@ -52,16 +21,17 @@ module moduleProperties
     integer                              :: counter
     integer                              :: numberOfBins
     integer, dimension(2)                :: numberOfBins2D
-    real(8), allocatable                 :: lowerLimit
-    real(8), allocatable                 :: upperLimit
-    real(8),              dimension(2)   :: lowerLimits
-    real(8),              dimension(2)   :: upperLimits
+    real(real64), allocatable                 :: lowerLimit
+    real(real64), allocatable                 :: upperLimit
+    real(real64),              dimension(2)   :: lowerLimits
+    real(real64),              dimension(2)   :: upperLimits
 
-    real(8)                              :: average
-    real(8)                              :: average2
-    real(8), allocatable, dimension(:)   :: dist1D
-    real(8), allocatable, dimension(:,:) :: dist2D
+    real(real64)                              :: average
+    real(real64)                              :: average2
+    real(real64), allocatable, dimension(:)   :: dist1D
+    real(real64), allocatable, dimension(:,:) :: dist2D
     integer, allocatable, dimension(:)   :: tally
+    integer                              :: nRange
 
     integer                              :: numberOfValues
     integer                              :: iounit
@@ -76,8 +46,8 @@ contains
   subroutine initialisePropertyRoutine(ID, whatToDo, lowerLimits, upperLimits, numberOfBins, numberOfValues, iounit)
     integer,               intent(inout)        :: ID
     character(len=*),      intent(in)           :: whatToDo
-    real(8), dimension(:), intent(in), optional :: lowerLimits  
-    real(8), dimension(:), intent(in), optional :: upperLimits  
+    real(real64), dimension(:), intent(in), optional :: lowerLimits  
+    real(real64), dimension(:), intent(in), optional :: upperLimits  
     integer, dimension(:), intent(in), optional :: numberOfBins
     integer,               intent(in), optional :: numberOfValues
     integer,               intent(in), optional :: iounit
@@ -94,30 +64,36 @@ contains
       property(ID) % iounit = iounit
       
     else if (whatToDo == "store") then
-      allocate(property(ID) % dist1D(property(ID) % numberOfBins), source=0.d0)
+      allocate(property(ID) % dist1D(property(ID) % numberOfBins), source=0.0_real64)
 
     else if (whatToDo == "average") then
-        property(ID) % average = 0.d0
-        property(ID) % average2 = 0.d0
+        property(ID) % average = 0.0_real64
+        property(ID) % average2 = 0.0_real64
 
+      else if (whatToDo == "range") then
+        property(ID) % iounit = iounit
+        property(ID) % nRange = 0
+        property(ID) % lowerLimit   = lowerLimits(1)
+        property(ID) % upperLimit   = upperLimits(1)
+  
     else if (whatToDo == "multiAverage") then
       property % numberOfValues = numberOfValues
-      allocate(property(ID) % dist1D(2 * property(ID) % numberOfValues), source=0.d0)
+      allocate(property(ID) % dist1D(2 * property(ID) % numberOfValues), source=0.0_real64)
 
     else if (whatToDo == "histogram") then
-      allocate(property(ID) % dist1D(numberOfBins(1)), source=0.d0)
+      allocate(property(ID) % dist1D(numberOfBins(1)), source=0.0_real64)
       property(ID) % numberOfBins = numberOfBins(1)
       property(ID) % lowerLimit   = lowerLimits(1)
       property(ID) % upperLimit   = upperLimits(1)
 
     else if (whatToDo == "dist2D" .or. whatToDo == "prob2D") then
-      allocate(property(ID) % dist2D(numberOfBins(1),numberOfBins(2)), source=0.d0)
+      allocate(property(ID) % dist2D(numberOfBins(1),numberOfBins(2)), source=0.0_real64)
       property(ID) % numberOfBins2D   = numberOfBins(1:2)
       property(ID) % lowerLimits(1:2) = lowerLimits(1:2)
       property(ID) % upperLimits(1:2) = upperLimits(1:2)
 
     else if (whatToDo == "avgDist") then
-      allocate(property(ID) % dist1D(numberOfBins(1)), source=0.d0)
+      allocate(property(ID) % dist1D(numberOfBins(1)), source=0.0_real64)
       allocate(property(ID) % tally(numberOfBins(1)), source=0)
       property(ID) % numberOfBins = numberOfBins(1)
       property(ID) % lowerLimit   = lowerLimits(1)
@@ -130,13 +106,13 @@ contains
   subroutine computePropertyRoutine(ID, numberOfValues, xValues, yValues)
     integer,               intent(in)           :: ID
     integer,               intent(in)           :: numberOfValues
-    real(8), dimension(:), intent(in), optional :: xValues
-    real(8), dimension(:), intent(in), optional :: yValues
+    real(real64), dimension(:), intent(in), optional :: xValues
+    real(real64), dimension(:), intent(in), optional :: yValues
 
     integer :: i, idx, jdx
     integer :: nbin, mbin
-    real(8) :: dx, xmin, xmax
-    real(8) :: dy, ymin, ymax
+    real(real64) :: dx, xmin, xmax
+    real(real64) :: dy, ymin, ymax
 
     if (property(ID) % type == "dump") then
       property(ID) % counter = property(ID) % counter + 1
@@ -145,6 +121,12 @@ contains
         write(property(ID) % iounit,'(f20.10)',advance='no') xValues(idx)
       end do
       write(property(ID) % iounit,*)
+      call flush(property(ID) % iounit)
+
+    else if (property(ID) % type == "range") then
+      property(ID) % counter = property(ID) % counter + 1
+      property(ID) % nRange = count( (xValues>property(ID) % lowerLimit) .and. (xValues<property(ID) % upperLimit) )
+      write(property(ID) % iounit,'(i0,1x,i0)')property(ID) % counter, property(ID) % nRange
       call flush(property(ID) % iounit)
 
     else if (property(ID) % type == "dumpSeq") then
@@ -237,7 +219,7 @@ contains
     integer, intent(in) :: ID
     integer :: nn, i, ierror
     integer, allocatable, dimension(:) :: ncounts, displ
-    real(8), allocatable, dimension(:) :: allValues
+    real(real64), allocatable, dimension(:) :: allValues
     
     if (property(ID) % type == "store") then
       ! gather the number of values that each processor has stored
@@ -311,21 +293,21 @@ contains
   subroutine dumpPropertyRoutine(ID, iounit, lowerLimits, upperLimits, normalisation, columns)
     integer, intent(in) :: ID
     integer, intent(in) :: iounit
-    real(8), dimension(:), intent(in), optional :: lowerLimits  
-    real(8), dimension(:), intent(in), optional :: upperLimits  
+    real(real64), dimension(:), intent(in), optional :: lowerLimits  
+    real(real64), dimension(:), intent(in), optional :: upperLimits  
     character(len=*),      intent(in), optional :: normalisation  
     integer,               intent(in), optional :: columns 
 
     integer :: i, j, idx, jdx, kdx
     integer :: nbin, mbin
-    real(8) :: dx, xmin, xmax, dx2
-    real(8) :: dy, ymin, ymax
-    real(8) :: norm1, norm0, stdev
+    real(real64) :: dx, xmin, xmax, dx2, r
+    real(real64) :: dy, ymin, ymax
+    real(real64) :: norm1, norm0, stdev
     integer :: ncols
 
     integer :: normalisationType
-    real(8) :: sigma, rtmp, w
-    real(8), allocatable, dimension(:) :: tmpArray
+    real(real64) :: sigma, rtmp, w
+    real(real64), allocatable, dimension(:) :: tmpArray
 
 #ifdef GPTA_MPI
     call communicateProperty(ID)
@@ -366,6 +348,15 @@ contains
         normalisationType = 4
         idx = index(normalisation,"=") + 1
         read(normalisation(idx:),*) sigma
+      else if (index(normalisation,"sphere") > 0) then
+        normalisationType = 5
+        idx = index(normalisation,"=") + 1
+        read(normalisation(idx:),*) rtmp
+      else if (index(normalisation,"cylinder") > 0) then
+        normalisationType = 6
+        idx = index(normalisation,"=") + 1
+        read(normalisation(idx:),*) rtmp
+
       else
         normalisationType = 1
       end if
@@ -388,27 +379,32 @@ contains
       norm0 = property(ID) % average  / property(ID) % counter
       norm1 = property(ID) % average2 / property(ID) % counter
       stdev = norm1 - norm0*norm0
-      if (stdev < 0.d0) then
-        stdev = 0.d0
+      if (stdev < 0.0_real64) then
+        stdev = 0.0_real64
       else
         stdev = sqrt(stdev)
       end if
       write(iounit,'(f20.10,1x,f20.10)') norm0, stdev
-    
+      property(ID) % average  = 0
+      property(ID) % average2 = 0
+      property(ID) % counter = 0
+
     else if (property(ID) % type == "multiAverage") then
       idx = 0
       do i=1,property(ID) % numberOfValues
         norm0 = property(ID) % dist1D(idx+1) / property(ID) % counter
         norm1 = property(ID) % dist1D(idx+2) / property(ID) % counter
         stdev = norm1 - norm0*norm0
-        if (stdev < 0.d0) then
-          stdev = 0.d0
+        if (stdev < 0.0_real64) then
+          stdev = 0.0_real64
         else
           stdev = sqrt(stdev)
         end if
         write(iounit,'(3(f15.5,1x))') norm0, stdev, stdev/sqrt( real(property(ID) % numberOfValues) )
         idx = idx + 2
       end do
+      property(ID) % dist1D = 0
+      property(ID) % counter = 0
 
     else if (property(ID) % type == "histogram" .or. property(ID) % type == "histo") then
       xmin = property(ID) % lowerLimit
@@ -417,16 +413,16 @@ contains
       dx = (xmax-xmin) / dble(nbin)
 
       if ( normalisationType == 1 ) then
-        norm1 = 1.d0
+        norm1 = 1.0_real64
       else if ( normalisationType == 2 ) then
         norm1 = integrate(property(ID) % numberOfBins, property(ID) % dist1D, dx)
       else if ( normalisationType == 3 ) then
         norm1 = rtmp
       else if ( normalisationType == 4 ) then
-        allocate(tmpArray(property(ID) % numberOfBins), source=0.d0)
+        allocate(tmpArray(property(ID) % numberOfBins), source=0.0_real64)
   
-        dx2 = -0.5d0 * dx**2 / sigma**2
-        idx = nint(5.d0*sigma / dx)
+        dx2 = -0.5_real64 * dx**2 / sigma**2
+        idx = nint(5.0_real64*sigma / dx)
 
         do i=1,property(ID) % numberOfBins
           jdx=max(1,i-idx)
@@ -439,12 +435,35 @@ contains
 
         property(ID) % dist1D = tmpArray
         norm1 = integrate(property(ID) % numberOfBins, property(ID) % dist1D, dx)
+
+      ! Spherical average
+      else if ( normalisationType == 5 ) then
+        r = xmin
+        do i=1,property(ID) % numberOfBins
+          property(ID) % dist1D(i) = property(ID) % dist1D(i) / (4.18879020478639 * ((r+dx)**3-r**3))
+          r = r + dx
+        end do
+        norm1 = rtmp
+
+      ! Cylindrical average
+      else if ( normalisationType == 6 ) then
+        write(0,*)"LL"
+        r = xmin
+        do i=1,property(ID) % numberOfBins
+          property(ID) % dist1D(i) = property(ID) % dist1D(i) / (3.14159265358979 * ((r+dx)**2-r**2))
+          r = r + dx
+        end do
+        norm1 = rtmp
+
       end if
 
       do idx=1,property(ID) % numberOfBins
         write(iounit,'(2(e20.10,1x))',advance='no' ) xmin + dx*(idx-0.5)
         write(iounit,'(2(e20.10))'   ,advance='yes') property(ID) % dist1D(idx) / norm1
       enddo
+      write(iounit,*)
+      write(iounit,*)
+      property(ID) % dist1D(:) = 0.0_real64
         
     else if (property(ID) % type == "prob2D") then
       xmin = property(ID) % lowerLimits(1)
@@ -462,15 +481,16 @@ contains
           write(iounit,'(e20.10,1x)',advance='no' ) xmin + dx*(idx-0.5)
         write(iounit,'(e20.10,1x)',advance='no' ) ymin + dy*(jdx-0.5)
           write(iounit,'(e20.10,1x)',advance='no' ) property(ID) % dist2D(idx,jdx) / norm1
-          if (norm0 > epsilon(1.d0)) then
+          if (norm0 > epsilon(1.0_real64)) then
             write(iounit,'(e20.10)',advance='yes') property(ID) % dist2D(idx,jdx) / norm0
           else 
-            write(iounit,'(e20.10)',advance='yes') - epsilon(1.d0)
+            write(iounit,'(e20.10)',advance='yes') - epsilon(1.0_real64)
           end if
         enddo
         write(iounit,*)
       enddo
-        
+      property(ID) % dist2D = 0.0_real64
+
     else if (property(ID) % type == "dist2D") then
       xmin = property(ID) % lowerLimits(1)
       xmax = property(ID) % upperLimits(1)
@@ -490,15 +510,16 @@ contains
           write(iounit,'(e20.10,1x)',advance='no' ) xmin + dx*(idx-0.5)
           write(iounit,'(e20.10,1x)',advance='no' ) ymin + dy*(jdx-0.5)
           write(iounit,'(e20.10,1x)',advance='no') property(ID) % dist2D(idx,jdx) / property(ID) % counter / norm1 
-          if (norm0 > epsilon(1.d0)) then
+          if (norm0 > epsilon(1.0_real64)) then
             write(iounit,'(e20.10,1x)',advance='yes') property(ID) % dist2D(idx,jdx) / norm0
           else 
-            write(iounit,'(e20.10,1x)',advance='yes') -tiny(1.d0)
+            write(iounit,'(e20.10,1x)',advance='yes') -tiny(1.0_real64)
           end if
         enddo
         write(iounit,*)
       enddo
-        
+      property(ID) % dist2D = 0.0_real64
+
     else if (property(ID) % type == "avgDist") then
       xmin = property(ID) % lowerLimit
       xmax = property(ID) % upperLimit
@@ -515,7 +536,9 @@ contains
           , property(ID) % tally(idx) 
         end if
       end do
-        
+      property(ID) % dist1D = 0.0_real64
+      property(ID) % tally = 0
+
     end if
 
     call flush(iounit)
@@ -525,7 +548,7 @@ contains
   subroutine extractPropertyRoutine(ID, values, tally, numberOfCounts)
     implicit none
     integer, intent(in) :: ID
-    real(8), allocatable, dimension(:) :: values
+    real(real64), allocatable, dimension(:) :: values
     integer, allocatable, dimension(:), optional :: tally
     integer, optional :: numberOfCounts
     
@@ -588,16 +611,16 @@ contains
   function integrate(n,f,dx) result(int)
     implicit none
     integer, intent(in) :: n
-    real(8), intent(in), dimension(n) :: f
-    real(8), intent(in) :: dx
-    real(8) :: int
+    real(real64), intent(in), dimension(n) :: f
+    real(real64), intent(in) :: dx
+    real(real64) :: int
     integer :: i
 
-    int = 0.5d0+f(1)
+    int = 0.5_real64+f(1)
     do i=2,n-1
       int = int + f(i)
     end do
-    int = int + 0.5d0*f(n)
+    int = int + 0.5_real64*f(n)
     int = int * dx
 
   end function integrate

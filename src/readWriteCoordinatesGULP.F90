@@ -20,11 +20,11 @@ module moduleGULP
   integer :: numberOfAtomsGULP
 
   integer :: maxNumberOfAtoms = 1000
-  real(8), dimension(3,3) :: localMetricMatrix
+  real(real64), dimension(3,3) :: localMetricMatrix
   logical :: fractionalCoordinates
   character(len=cp), allocatable, dimension(:) :: localLabels
-  real(8), allocatable, dimension(:,:) :: localPositions
-  real(8), allocatable, dimension(:) :: localCharges
+  real(real64), allocatable, dimension(:,:) :: localPositions
+  real(real64), allocatable, dimension(:) :: localCharges
   logical :: lerr
 
 contains
@@ -36,7 +36,7 @@ contains
 
     integer, intent(in) :: uinp
     integer, intent(out) :: natoms
-    real(8), dimension(3,3), intent(out) :: hmat
+    real(real64), dimension(3,3), intent(out) :: hmat
 
     integer :: ios, i
     character(len=lineLength) :: line
@@ -47,8 +47,8 @@ contains
     character(len=lineLength) :: key
 
     character(cp) :: ctmp
-    real(8), dimension(3) :: rtmp
-    real(8) :: rqq, cell(6)
+    real(real64), dimension(3) :: rtmp
+    real(real64) :: rqq, cell(6)
     
     allocate(localPositions(3,maxNumberOfAtoms))
     allocate(localLabels     (maxNumberOfAtoms))
@@ -70,13 +70,16 @@ contains
       select case (key(1:4))
         ! read cell line
         case ("cell")
-          call readline(uinp,line,ios)
-          if (ios/=0) call message(-1,"Error reading GULP cell")
+          read(line,*,iostat=ios)str,cell  
+          if (ios/=0) then
+            call readline(uinp,line,ios)
+            if (ios/=0) call message(-1,"Error reading GULP cell 1")
+          end if
 
-          read(line,*)cell  
-          cell(4) = cell(4) * pi / 180.0d0
-          cell(5) = cell(5) * pi / 180.0d0
-          cell(6) = cell(6) * pi / 180.0d0
+          if (ios/=0) call message(-1,"Error reading GULP cell 2")
+          cell(4) = cell(4) * pi / 180.0_real64
+          cell(5) = cell(5) * pi / 180.0_real64
+          cell(6) = cell(6) * pi / 180.0_real64
           call cell2hmat(cell,hmat)
 
         case ("vect") 
@@ -94,14 +97,18 @@ contains
             read(line,*,iostat=ios)hmat(:,i)
             if (ios/=0) call message(-1,"Error reading GULP vectors")
           end do
-          hmat(1:2,3) = 0.d0
-          hmat(3,3) = 1000.d0
+          hmat(1:2,3) = 0.0_real64
+          hmat(3,3) = 1000.0_real64
 
         ! read the coordinates
         case ("frac" , "sfra" , "cart")
           do
             call readline(uinp,line,ios)
-            if (ios/=0) call message(-1,"Error reading GULP coordinates")
+            if (ios==-1) then
+              cycle main
+            else if (ios/=0) then
+              call message(-1,"Error reading GULP coordinates")
+            end if
             call parseGulpCoordinates(line,ctmp,rtmp,lerr,rqq)
             if (lerr) cycle main
             
@@ -158,7 +165,7 @@ contains
     call sgroupnp(spg,laue,sguniq,sginv,sglatt,sgnops,sgpol,jrt,cen,sgncen,rt,IERR_LOCAL)
 
     block
-      integer :: i, j, k, l
+      integer :: j, k, l
       do l=0,sginv
         do k=1,sgnops
           sgnops_tot = sgnops_tot + 1
@@ -166,7 +173,7 @@ contains
             do i=1,3
               rot(i,j,sgnops_tot) = real(jrt(i,j,k),8) * (1-2*l)
             end do
-            rot(j,4,sgnops_tot) = real(jrt(j,4,k),8)/12.d0
+            rot(j,4,sgnops_tot) = real(jrt(j,4,k),8)/12.0_real64
           end do
         end do
       enddo
@@ -186,18 +193,18 @@ contains
 
   subroutine readCoordinatesGULP(natoms,pos,label,chg,hmat,go)
     integer, intent(inout) :: natoms
-    real(8), dimension(3,natoms), intent(out) :: pos
+    real(real64), dimension(3,natoms), intent(out) :: pos
     character(cp), dimension(natoms), intent(out) :: label
-    real(8), dimension(natoms), intent(out) :: chg
-    real(8), dimension(3,3), intent(out) :: hmat
+    real(real64), dimension(natoms), intent(out) :: chg
+    real(real64), dimension(3,3), intent(out) :: hmat
     logical, intent(out) :: go
 
     integer :: i, j, k, l, idx
     integer :: iatm
     logical, allocatable, dimension(:) :: lremove
-    real(8) :: hinv(3,3), volume, rdist
-    real(8), dimension(3) :: sij, ptmp, rtmp
-    real(8), allocatable, dimension(:,:) :: dij
+    real(real64) :: hinv(3,3), volume, rdist
+    real(real64), dimension(3) :: sij, ptmp, rtmp
+    real(real64), allocatable, dimension(:,:) :: dij
 
     logical, save :: firstTimeIn = .true.
 
@@ -257,7 +264,7 @@ contains
         if (lremove(j)) cycle
         rtmp(1:3) = pos(1:3,j) - pos(1:3,i)
         rdist = distance(rtmp,hmat)
-        if ( rdist < 1d-3 ) lremove(j) = .true.
+        if ( rdist < 1.0e-3_real64 ) lremove(j) = .true.
       enddo
     enddo
 
@@ -275,9 +282,9 @@ contains
 
   function distance(dij,hmat) result(rdist)
     implicit none
-    real(8), intent(in) :: dij(3), hmat(3,3)
-    real(8) :: rdist
-    real(8) :: sij(3), rtmp
+    real(real64), intent(in) :: dij(3), hmat(3,3)
+    real(real64) :: rdist
+    real(real64) :: sij(3), rtmp
     integer :: i, j, k
     rdist = sum(dij*dij)
     do i=-1,1
@@ -294,23 +301,23 @@ contains
 
   end function distance
   
-  subroutine parseGulpCoordinates(line,lab,rtmp,lerr,chg)
+  subroutine parseGulpCoordinates(line,lab,rtmp,lerr1,chg)
     use moduleVariables, only : cp
     implicit none
 
     character(len=100), intent(inout) :: line
     character(cp) :: lab
-    real(8), dimension(3), intent(out) :: rtmp
-    real(8), intent(out) :: chg
-    logical, intent(out) :: lerr
+    real(real64), dimension(3), intent(out) :: rtmp
+    real(real64), intent(out) :: chg
+    logical, intent(out) :: lerr1
 
     integer :: i, iw, nw, ia, ib, ic, ix, iy, ipos
     logical :: noword
     integer, dimension(2,20) :: iword
 
-    chg=0.0d0
+    chg=0.0_real64
 
-    lerr=.false.
+    lerr1=.false.
 
     ! do while( index(line,achar(9)) > 0)
     !   i = index(line,achar(9))
@@ -349,7 +356,7 @@ contains
   ! a ->  97 ;  z -> 122 ;  A ->  65 ;  Z ->  90
       if ( ichar(line( ia+2:ia+2 )) >= 97 .and. ichar(line( ia+2:ia+2 )) <= 122 .or. &
            ichar(line( ia+2:ia+2 )) >= 65 .and. ichar(line( ia+2:ia+2 )) <=  90 ) then
-        lerr=.true.
+        lerr1=.true.
         return
       else
         read(line( ia:ib ),*) lab
@@ -409,9 +416,15 @@ contains
   
     write(uout,'("cartesian")')
   
-    do iatom=1,frame % natoms
-      write(uout,'(a8,3f22.8)') adjustl(trim(frame % lab(iatom))),frame % pos(1:3,iatom)
-    enddo
+    if (sum(abs(frame % chg)) > 0) then
+      do iatom=1,frame % natoms
+        write(uout,'(a8,4f22.8)') adjustl(trim(frame % lab(iatom))),frame % pos(1:3,iatom), frame % chg(iatom)
+      enddo
+    else
+      do iatom=1,frame % natoms
+        write(uout,'(a8,3f22.8)') adjustl(trim(frame % lab(iatom))),frame % pos(1:3,iatom)
+      enddo
+    end if
   
     if (numberOfMolecules < frame % natoms) then
       write(uout,*)

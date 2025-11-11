@@ -1,37 +1,6 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module scattering_factors
-
+  use moduleVariables, only: real64
   type sfactor
 
      integer  :: atomicnumber
@@ -55,204 +24,204 @@ module scattering_factors
 
 
 !!p Dummy atom
- type (SFactor), parameter :: DM = SFactor( 0,"DM",(/  0.00000d0 ,  0.00000d0 ,  0.00000d0 , 0.00000d0/) , & 
-                                                   (/  0.00000d0 ,  0.00000d0 ,  0.00000d0 ,    0.00000d0/) ,  0.00000d0 ,  0.0d0)
- type (SFactor), parameter ::  H = SFactor( 1," H",(/  0.48992d0 ,  0.26200d0 ,  0.19677d0 , 0.04988d0/) , & 
-                                                   (/ 20.65930d0 ,  7.74039d0 ,  49.55190d0 ,   2.20159d0/) ,  0.00130d0 ,  1.0d0)
- type (SFactor), parameter :: HE = SFactor( 2,"HE",(/  0.87340d0 ,  0.63090d0 ,  0.31120d0 , 0.17800d0/) , & 
-                                                   (/  9.10370d0 ,  3.35680d0 ,  22.92760d0 ,   0.98210d0/) ,  0.00640d0 ,  2.0d0)
- type (SFactor), parameter :: LI = SFactor( 3,"LI",(/  1.12820d0 ,  0.75080d0 ,  0.61750d0 , 0.46530d0/) , & 
-                                                   (/  3.95460d0 ,  1.05240d0 ,  85.39050d0 , 168.26100d0/) ,  0.03770d0 ,  3.0d0)
- type (SFactor), parameter :: BE = SFactor( 4,"BE",(/  1.59190d0 ,  1.12780d0 ,  0.53910d0 , 0.70290d0/) , & 
-                                                   (/ 43.64270d0 ,  1.86230d0 , 103.48300d0 ,   0.54200d0/) ,  0.03850d0 ,  4.0d0)
- type (SFactor), parameter ::  B = SFactor( 5," B",(/  2.05450d0 ,  1.33260d0 ,  1.09790d0 , 0.70680d0/) , & 
-                                                   (/ 23.21850d0 ,  1.02100d0 ,  60.34980d0 ,   0.14030d0/) ,  0.00000d0 ,  5.0d0)
- type (SFactor), parameter ::  C = SFactor( 6," C",(/  2.31000d0 ,  1.02000d0 ,  1.58860d0 , 0.86500d0/) , & 
-                                                   (/ 20.84390d0 , 10.20750d0 ,   0.56870d0 ,  51.65120d0/) ,  0.21560d0 ,  6.0d0)
- type (SFactor), parameter ::  N = SFactor( 7," N",(/ 12.21260d0 ,  3.13220d0 ,  2.01250d0 , 1.16630d0/) , & 
-                                                   (/  0.00570d0 ,  9.89330d0 ,  28.99750d0 ,   0.58260d0/) ,  0.00000d0 ,  7.0d0)
- type (SFactor), parameter ::  O = SFactor( 8," O",(/  3.04850d0 ,  2.28680d0 ,  1.54630d0 , 0.86700d0/) , & 
-                                                   (/ 13.27710d0 ,  5.70110d0 ,   0.32390d0 ,  32.90890d0/) ,  0.25080d0 ,  8.0d0)
- type (SFactor), parameter ::  F = SFactor( 9," F",(/  3.53920d0 ,  2.64120d0 ,  1.51700d0 , 1.02430d0/) , & 
-                                                   (/ 10.28250d0 ,  4.29440d0 ,   0.26150d0 ,  26.14760d0/) ,  0.27760d0 ,  9.0d0)
- type (SFactor), parameter :: NE = SFactor(10,"NE",(/  3.95530d0 ,  3.11250d0 ,  1.45460d0 , 1.12510d0/) , & 
-                                                   (/  8.40420d0 ,  3.42620d0 ,   0.23060d0 ,  21.71840d0/) ,  0.35150d0 , 10.0d0)
- type (SFactor), parameter :: NA = SFactor(11,"NA",(/  4.76260d0 ,  3.17360d0 ,  1.26740d0 , 1.11280d0/) , & 
-                                                   (/  3.28500d0 ,  8.84220d0 ,   0.31360d0 , 129.42400d0/) ,  0.67600d0 , 11.0d0)
- type (SFactor), parameter :: MG = SFactor(12,"MG",(/  5.42040d0 ,  2.17350d0 ,  1.22690d0 , 2.30730d0/) , & 
-                                                   (/  2.82750d0 , 79.26110d0 ,   0.38080d0 ,   7.19370d0/) ,  0.85840d0 , 12.0d0)
- type (SFactor), parameter :: AL = SFactor(13,"AL",(/  6.42020d0 ,  1.90020d0 ,  1.59360d0 , 1.96460d0/) , & 
-                                                   (/  3.03870d0 ,  0.74260d0 ,  31.54720d0 ,  85.08860d0/) ,  1.11510d0 , 13.0d0)
- type (SFactor), parameter :: SI = SFactor(14,"SI",(/  6.29150d0 ,  3.03530d0 ,  1.98910d0 , 1.54100d0/) , & 
-                                                   (/  2.43860d0 , 32.33370d0 ,   0.67850d0 ,  81.69370d0/) ,  1.14070d0 , 14.0d0)
- type (SFactor), parameter ::  P = SFactor(15," P",(/  6.43450d0 ,  4.17910d0 ,  1.78000d0 , 1.49080d0/) , & 
-                                                   (/  1.90670d0 , 27.15700d0 ,   0.52600d0 ,  68.16450d0/) ,  1.11490d0 , 15.0d0)
- type (SFactor), parameter ::  S = SFactor(16," S",(/  6.90530d0 ,  5.20340d0 ,  1.43790d0 , 1.58630d0/) , & 
-                                                   (/  1.46790d0 , 22.21510d0 ,   0.25360d0 ,  56.17200d0/) ,  0.86690d0 , 16.0d0)
- type (SFactor), parameter :: CL = SFactor(17,"CL",(/ 11.46040d0 ,  7.19640d0 ,  6.25560d0 , 1.64550d0/) , & 
-                                                   (/  0.01040d0 ,  1.16620d0 ,  18.51940d0 ,  47.77840d0/) ,  0.00000d0 , 17.0d0)
- type (SFactor), parameter :: AR = SFactor(18,"AR",(/  7.48450d0 ,  6.77230d0 ,  0.65390d0 , 1.64420d0/) , & 
-                                                   (/  0.90720d0 , 14.84070d0 ,  43.89830d0 ,  33.39290d0/) ,  1.44450d0 , 18.0d0)
- type (SFactor), parameter ::  K = SFactor(19," K",(/  8.21860d0 ,  7.43980d0 ,  1.05190d0 , 0.86590d0/) , & 
-                                                   (/ 12.79490d0 ,  0.77480d0 , 213.18700d0 ,  41.68410d0/) ,  1.42280d0 , 19.0d0)
- type (SFactor), parameter :: CA = SFactor(20,"CA",(/  8.62660d0 ,  7.38730d0 ,  1.58990d0 , 1.02110d0/) , & 
-                                                   (/ 10.44210d0 ,  0.65990d0 ,  85.74840d0 , 178.43700d0/) ,  1.37510d0 , 20.0d0)
- type (SFactor), parameter :: SC = SFactor(21,"SC",(/  9.18900d0 ,  7.36790d0 ,  1.64090d0 , 1.46800d0/) , & 
-                                                   (/  9.02130d0 ,  0.57290d0 , 136.10800d0 ,  51.35310d0/) ,  1.33290d0 , 21.0d0)
- type (SFactor), parameter :: TI = SFactor(22,"TI",(/  9.75950d0 ,  7.35580d0 ,  1.69910d0 , 1.90210d0/) , & 
-                                                   (/  7.85080d0 ,  0.50000d0 ,  35.63380d0 , 116.10500d0/) ,  1.28070d0 , 22.0d0)
- type (SFactor), parameter ::  V = SFactor(23," V",(/ 10.29710d0 ,  7.35110d0 ,  2.07030d0 , 2.05710d0/) , & 
-                                                   (/  6.86570d0 ,  0.43850d0 ,  26.89380d0 , 102.47800d0/) ,  1.21990d0 , 23.0d0)
- type (SFactor), parameter :: CR = SFactor(24,"CR",(/ 10.64060d0 ,  7.35370d0 ,  3.32400d0 , 1.49220d0/) , & 
-                                                   (/  6.10380d0 ,  0.39200d0 ,  20.26260d0 ,  98.73990d0/) ,  1.18320d0 , 24.0d0)
- type (SFactor), parameter :: MN = SFactor(25,"MN",(/ 11.28190d0 ,  7.35730d0 ,  3.01930d0 , 2.24410d0/) , & 
-                                                   (/  5.34090d0 ,  0.34320d0 ,  17.86740d0 ,  83.75430d0/) ,  1.08960d0 , 25.0d0)
- type (SFactor), parameter :: FE = SFactor(26,"FE",(/ 11.76950d0 ,  7.35730d0 ,  3.52220d0 , 2.30450d0/) , & 
-                                                   (/  4.76110d0 ,  0.30720d0 ,  15.35350d0 ,  76.88050d0/) ,  1.03690d0 , 26.0d0)
- type (SFactor), parameter :: CO = SFactor(27,"CO",(/ 12.28410d0 ,  7.34090d0 ,  4.00340d0 , 2.34880d0/) , & 
-                                                   (/  4.27910d0 ,  0.27840d0 ,  13.53590d0 ,  71.16920d0/) ,  1.01180d0 , 27.0d0)
- type (SFactor), parameter :: NI = SFactor(28,"NI",(/ 12.83760d0 ,  7.29200d0 ,  4.44380d0 , 2.38000d0/) , & 
-                                                   (/  3.87850d0 ,  0.25650d0 ,  12.17630d0 ,  66.34210d0/) ,  1.03410d0 , 28.0d0)
- type (SFactor), parameter :: CU = SFactor(29,"CU",(/ 13.33800d0 ,  7.16760d0 ,  5.61580d0 , 1.67350d0/) , & 
-                                                   (/  3.58280d0 ,  0.24700d0 ,  11.39660d0 ,  64.81260d0/) ,  1.19100d0 , 29.0d0)
- type (SFactor), parameter :: ZN = SFactor(30,"ZN",(/ 14.07430d0 ,  7.03180d0 ,  5.16520d0 , 2.41000d0/) , & 
-                                                   (/  3.26550d0 ,  0.23330d0 ,  10.31630d0 ,  58.70970d0/) ,  1.30410d0 , 30.0d0)
- type (SFactor), parameter :: GA = SFactor(31,"GA",(/ 15.23540d0 ,  6.70060d0 ,  4.35910d0 , 2.96230d0/) , & 
-                                                   (/  3.06690d0 ,  0.24120d0 ,  10.78050d0 ,  61.41350d0/) ,  1.71890d0 , 31.0d0)
- type (SFactor), parameter :: GE = SFactor(32,"GE",(/ 16.08160d0 ,  6.37470d0 ,  3.70680d0 , 3.68300d0/) , & 
-                                                   (/  2.85090d0 ,  0.25160d0 ,  11.44680d0 ,  54.76250d0/) ,  2.13130d0 , 32.0d0)
- type (SFactor), parameter :: AS = SFactor(33,"AS",(/ 16.67230d0 ,  6.07010d0 ,  3.43130d0 , 4.27790d0/) , & 
-                                                   (/  2.63450d0 ,  0.26470d0 ,  12.94790d0 ,  47.79720d0/) ,  2.53100d0 , 33.0d0)
- type (SFactor), parameter :: SE = SFactor(34,"SE",(/ 17.00060d0 ,  5.81960d0 ,  3.97310d0 , 4.35430d0/) , & 
-                                                   (/  2.40980d0 ,  0.27260d0 ,  15.23720d0 ,  43.81630d0/) ,  2.84090d0 , 34.0d0)
- type (SFactor), parameter :: BR = SFactor(35,"BR",(/ 17.17890d0 ,  5.23580d0 ,  5.63770d0 , 3.98510d0/) , & 
-                                                   (/  2.17230d0 , 16.57960d0 ,   0.26090d0 ,  41.43280d0/) ,  2.95570d0 , 35.0d0)
- type (SFactor), parameter :: KR = SFactor(36,"KR",(/ 17.35550d0 ,  6.72860d0 ,  5.54930d0 , 3.53750d0/) , & 
-                                                   (/  1.93840d0 , 16.56230d0 ,   0.22610d0 ,  39.39720d0/) ,  2.82500d0 , 36.0d0)
- type (SFactor), parameter :: RB = SFactor(37,"RB",(/ 17.17840d0 ,  9.64350d0 ,  5.13990d0 , 1.52920d0/) , & 
-                                                   (/  1.78880d0 , 17.31510d0 ,   0.27480d0 , 164.93400d0/) ,  3.48730d0 , 37.0d0)
- type (SFactor), parameter :: SR = SFactor(38,"SR",(/ 17.56630d0 ,  9.81840d0 ,  5.42200d0 , 2.66940d0/) , & 
-                                                   (/  1.55640d0 , 14.09880d0 ,   0.16640d0 , 132.37600d0/) ,  2.50640d0 , 38.0d0)
- type (SFactor), parameter ::  Y = SFactor(39," Y",(/ 17.77600d0 , 10.29460d0 ,  5.72629d0 , 3.26588d0/) , & 
-                                                   (/  1.40290d0 , 12.80060d0 ,   0.12560d0 , 104.35400d0/) ,  1.91213d0 , 39.0d0)
- type (SFactor), parameter :: ZR = SFactor(40,"ZR",(/ 17.87650d0 , 10.94800d0 ,  5.41732d0 , 3.65721d0/) , & 
-                                                   (/  1.27618d0 , 11.91600d0 ,   0.11762d0 ,  87.66270d0/) ,  2.06929d0 , 40.0d0)
- type (SFactor), parameter :: NB = SFactor(41,"NB",(/ 17.61420d0 , 12.01440d0 ,  4.04183d0 , 3.53346d0/) , & 
-                                                   (/  1.18865d0 , 11.76600d0 ,   0.20478d0 ,  69.79570d0/) ,  3.75591d0 , 41.0d0)
- type (SFactor), parameter :: MO = SFactor(42,"MO",(/  3.70250d0 , 17.23560d0 , 12.88760d0 , 3.74290d0/) , & 
-                                                   (/  0.27720d0 ,  1.09580d0 ,  11.00400d0 ,  61.65840d0/) ,  4.38750d0 , 42.0d0)
- type (SFactor), parameter :: TC = SFactor(43,"TC",(/ 19.13010d0 , 11.09480d0 ,  4.64901d0 , 2.71263d0/) , & 
-                                                   (/  0.86413d0 ,  8.14487d0 ,  21.57070d0 ,  86.84720d0/) ,  5.40428d0 , 43.0d0)
- type (SFactor), parameter :: RU = SFactor(44,"RU",(/ 19.26740d0 , 12.91820d0 ,  4.86337d0 , 1.56756d0/) , & 
-                                                   (/  0.80852d0 ,  8.43467d0 ,  24.79970d0 ,  94.29280d0/) ,  5.37874d0 , 44.0d0)
- type (SFactor), parameter :: RH = SFactor(45,"RH",(/ 19.29570d0 , 14.35010d0 ,  4.73425d0 , 1.28918d0/) , & 
-                                                   (/  0.75154d0 ,  8.21758d0 ,  25.87490d0 ,  98.60620d0/) ,  5.32800d0 , 45.0d0)
- type (SFactor), parameter :: PD = SFactor(46,"PD",(/ 19.33190d0 , 15.50170d0 ,  5.29537d0 , 0.60584d0/) , & 
-                                                   (/  0.69866d0 ,  7.98929d0 ,  25.20520d0 ,  76.89860d0/) ,  5.26593d0 , 46.0d0)
- type (SFactor), parameter :: AG = SFactor(47,"AG",(/ 19.28080d0 , 16.68850d0 ,  4.80450d0 , 1.04630d0/) , & 
-                                                   (/  0.64460d0 ,  7.47260d0 ,  24.66050d0 ,  99.81560d0/) ,  5.17900d0 , 47.0d0)
- type (SFactor), parameter :: CD = SFactor(48,"CD",(/ 19.22140d0 , 17.64440d0 ,  4.46100d0 , 1.60290d0/) , & 
-                                                   (/  0.59460d0 ,  6.90890d0 ,  24.70080d0 ,  87.48250d0/) ,  5.06940d0 , 48.0d0)
- type (SFactor), parameter :: IN = SFactor(49,"IN",(/ 19.16240d0 , 18.55960d0 ,  4.29480d0 , 2.03960d0/) , & 
-                                                   (/  0.54760d0 ,  6.37760d0 ,  25.84990d0 ,  92.80290d0/) ,  4.93910d0 , 49.0d0)
- type (SFactor), parameter :: SN = SFactor(50,"SN",(/ 19.18890d0 , 19.10050d0 ,  4.45850d0 , 2.46630d0/) , & 
-                                                   (/  5.83030d0 ,  0.50310d0 ,  26.89090d0 ,  83.95710d0/) ,  4.78210d0 , 50.0d0)
- type (SFactor), parameter :: SB = SFactor(51,"SB",(/ 19.64180d0 , 19.04550d0 ,  5.03710d0 , 2.68270d0/) , & 
-                                                   (/  5.30340d0 ,  0.46070d0 ,  27.90740d0 ,  75.28250d0/) ,  4.59090d0 , 51.0d0)
- type (SFactor), parameter :: TE = SFactor(52,"TE",(/ 19.96440d0 , 19.01380d0 ,  6.14487d0 , 2.52390d0/) , & 
-                                                   (/  4.81742d0 ,  0.42089d0 ,  28.52840d0 ,  70.84030d0/) ,  4.35200d0 , 52.0d0)
- type (SFactor), parameter ::  I = SFactor(53," I",(/ 20.14720d0 , 18.99490d0 ,  7.51380d0 , 2.27350d0/) , & 
-                                                   (/  4.34700d0 ,  0.38140d0 ,  27.76600d0 ,  66.87760d0/) ,  4.07120d0 , 53.0d0)
- type (SFactor), parameter :: XE = SFactor(54,"XE",(/ 20.29330d0 , 19.02980d0 ,  8.97670d0 , 1.99000d0/) , & 
-                                                   (/  3.92820d0 ,  0.34400d0 ,  26.46590d0 ,  64.26580d0/) ,  3.71180d0 , 54.0d0)
- type (SFactor), parameter :: CS = SFactor(55,"CS",(/ 20.38920d0 , 19.10620d0 , 10.66200d0 , 1.49530d0/) , & 
-                                                   (/  3.56900d0 ,  0.31070d0 ,  24.38790d0 , 213.90400d0/) ,  3.33520d0 , 55.0d0)
- type (SFactor), parameter :: BA = SFactor(56,"BA",(/ 20.33610d0 , 19.29700d0 , 10.88800d0 , 2.69590d0/) , & 
-                                                   (/  3.21600d0 ,  0.27560d0 ,  20.20730d0 , 167.20200d0/) ,  2.77310d0 , 56.0d0)
- type (SFactor), parameter :: LA = SFactor(57,"LA",(/ 20.57800d0 , 19.59900d0 , 11.37270d0 , 3.28719d0/) , & 
-                                                   (/  2.94817d0 ,  0.24447d0 ,  18.77260d0 , 133.12400d0/) ,  2.14678d0 , 57.0d0)
- type (SFactor), parameter :: CE = SFactor(58,"CE",(/ 21.16710d0 , 19.76950d0 , 11.85130d0 , 3.33049d0/) , & 
-                                                   (/  2.81219d0 ,  0.22684d0 ,  17.60830d0 , 127.11300d0/) ,  1.86264d0 , 58.0d0)
- type (SFactor), parameter :: PR = SFactor(59,"PR",(/ 22.04400d0 , 19.66970d0 , 12.38560d0 , 2.82428d0/) , & 
-                                                   (/  2.77393d0 ,  0.22209d0 ,  16.76690d0 , 143.64400d0/) ,  2.05830d0 , 59.0d0)
- type (SFactor), parameter :: ND = SFactor(60,"ND",(/ 22.68450d0 , 19.68470d0 , 12.77400d0 , 2.85137d0/) , & 
-                                                   (/  2.66248d0 ,  0.21063d0 ,  15.88500d0 , 137.90300d0/) ,  1.98486d0 , 60.0d0)
- type (SFactor), parameter :: PM = SFactor(61,"PM",(/ 23.34050d0 , 19.60950d0 , 13.12350d0 , 2.87516d0/) , & 
-                                                   (/  2.56270d0 ,  0.20209d0 ,  15.10090d0 , 132.72100d0/) ,  2.02876d0 , 61.0d0)
- type (SFactor), parameter :: SM = SFactor(62,"SM",(/ 24.00420d0 , 19.42580d0 , 13.43960d0 , 2.89604d0/) , & 
-                                                   (/  2.47274d0 ,  0.19645d0 ,  14.39960d0 , 128.00700d0/) ,  2.20963d0 , 62.0d0)
- type (SFactor), parameter :: EU = SFactor(63,"EU",(/ 24.62740d0 , 19.08860d0 , 13.76030d0 , 2.92270d0/) , & 
-                                                   (/  2.38790d0 ,  0.19420d0 ,  13.75460d0 , 123.17400d0/) ,  2.57450d0 , 63.0d0)
- type (SFactor), parameter :: GD = SFactor(64,"GD",(/ 25.07090d0 , 19.07980d0 , 13.85180d0 , 3.54545d0/) , & 
-                                                   (/  2.25341d0 ,  0.18195d0 ,  12.93310d0 , 101.39800d0/) ,  2.41960d0 , 64.0d0)
- type (SFactor), parameter :: TB = SFactor(65,"TB",(/ 25.89760d0 , 18.21850d0 , 14.31670d0 , 2.95354d0/) , & 
-                                                   (/  2.24256d0 ,  0.19614d0 ,  12.66480d0 , 115.36200d0/) ,  3.58324d0 , 65.0d0)
- type (SFactor), parameter :: DY = SFactor(66,"DY",(/ 26.50700d0 , 17.63830d0 , 14.55960d0 , 2.96577d0/) , & 
-                                                   (/  2.18020d0 ,  0.20217d0 ,  12.18990d0 , 111.87400d0/) ,  4.29728d0 , 66.0d0)
- type (SFactor), parameter :: HO = SFactor(67,"HO",(/ 26.90490d0 , 17.29400d0 , 14.55830d0 , 3.63837d0/) , & 
-                                                   (/  2.07051d0 ,  0.19794d0 ,  11.44070d0 ,  92.65660d0/) ,  4.56796d0 , 67.0d0)
- type (SFactor), parameter :: ER = SFactor(68,"ER",(/ 27.65630d0 , 16.42850d0 , 14.97790d0 , 2.98233d0/) , & 
-                                                   (/  2.07356d0 ,  0.22354d0 ,  11.36040d0 , 105.70300d0/) ,  5.92046d0 , 68.0d0)
- type (SFactor), parameter :: TM = SFactor(69,"TM",(/ 28.18190d0 , 15.88510d0 , 15.15420d0 , 2.98706d0/) , & 
-                                                   (/  2.02859d0 ,  0.23885d0 ,  10.99750d0 , 102.96100d0/) ,  6.75621d0 , 69.0d0)
- type (SFactor), parameter :: YB = SFactor(70,"YB",(/ 28.66410d0 , 15.43450d0 , 15.30870d0 , 2.98963d0/) , & 
-                                                   (/  1.98890d0 ,  0.25712d0 ,  10.66470d0 , 100.41700d0/) ,  7.56672d0 , 70.0d0)
- type (SFactor), parameter :: LU = SFactor(71,"LU",(/ 28.94760d0 , 15.22080d0 , 15.10000d0 , 3.71601d0/) , & 
-                                                   (/  1.90182d0 ,  9.98519d0 ,   0.26103d0 ,  84.32980d0/) ,  7.97628d0 , 71.0d0)
- type (SFactor), parameter :: HF = SFactor(72,"HF",(/ 29.14400d0 , 15.17260d0 , 14.75860d0 , 4.30013d0/) , & 
-                                                   (/  1.83262d0 ,  9.59990d0 ,   0.27512d0 ,  72.02900d0/) ,  8.58154d0 , 72.0d0)
- type (SFactor), parameter :: TA = SFactor(73,"TA",(/ 29.20240d0 , 15.22930d0 , 14.51350d0 , 4.76492d0/) , & 
-                                                   (/  1.77333d0 ,  9.37046d0 ,   0.29598d0 ,  63.36440d0/) ,  9.24354d0 , 73.0d0)
- type (SFactor), parameter ::  W = SFactor(74," W",(/ 29.08180d0 , 15.43000d0 , 14.43270d0 , 5.11982d0/) , & 
-                                                   (/  1.72029d0 ,  9.22590d0 ,   0.32170d0 ,  57.05600d0/) ,  9.88750d0 , 74.0d0)
- type (SFactor), parameter :: RE = SFactor(75,"RE",(/ 28.76210d0 , 15.71890d0 , 14.55640d0 , 5.44174d0/) , & 
-                                                   (/  1.67191d0 ,  9.09227d0 ,   0.35050d0 ,  52.08610d0/) , 10.47200d0 , 75.0d0)
- type (SFactor), parameter :: OS = SFactor(76,"OS",(/ 28.18940d0 , 16.15500d0 , 14.93050d0 , 5.67589d0/) , & 
-                                                   (/  1.62903d0 ,  8.97948d0 ,   0.38266d0 ,  48.16470d0/) , 11.00050d0 , 76.0d0)
- type (SFactor), parameter :: IR = SFactor(77,"IR",(/ 27.30490d0 , 16.72960d0 , 15.61150d0 , 5.83377d0/) , & 
-                                                   (/  1.59279d0 ,  8.86553d0 ,   0.41792d0 ,  45.00110d0/) , 11.47220d0 , 77.0d0)
- type (SFactor), parameter :: PT = SFactor(78,"PT",(/ 27.00590d0 , 17.76390d0 , 15.71310d0 , 5.78370d0/) , & 
-                                                   (/  1.51293d0 ,  8.81174d0 ,   0.42459d0 ,  38.61030d0/) , 11.68830d0 , 78.0d0)
- type (SFactor), parameter :: AU = SFactor(79,"AU",(/ 16.88190d0 , 18.59130d0 , 25.55820d0 , 5.86000d0/) , & 
-                                                   (/  0.46110d0 ,  8.62160d0 ,   1.48260d0 ,  36.39560d0/) , 12.06580d0 , 79.0d0)
- type (SFactor), parameter :: HG = SFactor(80,"HG",(/ 20.68090d0 , 19.04170d0 , 21.65750d0 , 5.96760d0/) , & 
-                                                   (/  0.54500d0 ,  8.44840d0 ,   1.57290d0 ,  38.32460d0/) , 12.60890d0 , 80.0d0)
- type (SFactor), parameter :: TL = SFactor(81,"TL",(/ 27.54460d0 , 19.15840d0 , 15.53800d0 , 5.52593d0/) , & 
-                                                   (/  0.65515d0 ,  8.70751d0 ,   1.96347d0 ,  45.81490d0/) , 13.17460d0 , 81.0d0)
- type (SFactor), parameter :: PB = SFactor(82,"PB",(/ 31.06170d0 , 13.06370d0 , 18.44200d0 , 5.96960d0/) , & 
-                                                   (/  0.69020d0 ,  2.35760d0 ,   8.61800d0 ,  47.25790d0/) , 13.41180d0 , 82.0d0)
- type (SFactor), parameter :: BI = SFactor(83,"BI",(/ 33.36890d0 , 12.95100d0 , 16.58770d0 , 6.46920d0/) , & 
-                                                   (/  0.70400d0 ,  2.92380d0 ,   8.79370d0 ,  48.00930d0/) , 13.57820d0 , 83.0d0)
- type (SFactor), parameter :: PO = SFactor(84,"PO",(/ 34.67260d0 , 15.47330d0 , 13.11380d0 , 7.02588d0/) , & 
-                                                   (/  0.70100d0 ,  3.55078d0 ,   9.55642d0 ,  47.00450d0/) , 13.67700d0 , 84.0d0)
- type (SFactor), parameter :: AT = SFactor(85,"AT",(/ 35.31630d0 , 19.02110d0 ,  9.49887d0 , 7.42518d0/) , & 
-                                                   (/  0.68587d0 ,  3.97458d0 ,  11.38240d0 ,  45.47150d0/) , 13.71080d0 , 85.0d0)
- type (SFactor), parameter :: RN = SFactor(86,"RN",(/ 35.56310d0 , 21.28160d0 ,  8.00370d0 , 7.44330d0/) , & 
-                                                   (/  0.66310d0 ,  4.06910d0 ,  14.04220d0 ,  44.24730d0/) , 13.69050d0 , 86.0d0)
- type (SFactor), parameter :: FR = SFactor(87,"FR",(/ 35.92990d0 , 23.05470d0 , 12.14390d0 , 2.11253d0/) , & 
-                                                   (/  0.64645d0 ,  4.17619d0 ,  23.10520d0 , 150.64500d0/) , 13.72470d0 , 87.0d0)
- type (SFactor), parameter :: RA = SFactor(88,"RA",(/ 35.76300d0 , 22.90640d0 , 12.47390d0 , 3.21097d0/) , & 
-                                                   (/  0.61634d0 ,  3.87135d0 ,  19.98870d0 , 142.32500d0/) , 13.62110d0 , 88.0d0)
- type (SFactor), parameter :: AC = SFactor(89,"AC",(/ 35.65970d0 , 23.10320d0 , 12.59770d0 , 4.08655d0/) , & 
-                                                   (/  0.58909d0 ,  3.65155d0 ,  18.59900d0 , 117.02000d0/) , 13.52660d0 , 89.0d0)
- type (SFactor), parameter :: TH = SFactor(90,"TH",(/ 35.56450d0 , 23.42190d0 , 12.74730d0 , 4.80703d0/) , & 
-                                                   (/  0.56336d0 ,  3.46204d0 ,  17.83090d0 ,  99.17220d0/) , 13.43140d0 , 90.0d0)
- type (SFactor), parameter :: PA = SFactor(91,"PA",(/ 35.88470d0 , 23.29480d0 , 14.18910d0 , 4.17287d0/) , & 
-                                                   (/  0.54775d0 ,  3.41519d0 ,  16.92350d0 , 105.25100d0/) , 13.42870d0 , 91.0d0)
- type (SFactor), parameter ::  U = SFactor(92," U",(/ 36.02280d0 , 23.41280d0 , 14.94910d0 , 4.18800d0/) , & 
-                                                   (/  0.52930d0 ,  3.32530d0 ,  16.09270d0 , 100.61300d0/) , 13.39660d0 , 92.0d0)
- type (SFactor), parameter :: NP = SFactor(93,"NP",(/ 36.18740d0 , 23.59640d0 , 15.64020d0 , 4.18550d0/) , & 
-                                                   (/  0.51193d0 ,  3.25396d0 ,  15.36220d0 ,  97.49080d0/) , 13.35730d0 , 93.0d0)
- type (SFactor), parameter :: PU = SFactor(94,"PU",(/ 36.52540d0 , 23.80830d0 , 16.77070d0 , 3.47947d0/) , & 
-                                                   (/  0.49938d0 ,  3.26371d0 ,  14.94550d0 , 105.98000d0/) , 13.38120d0 , 94.0d0)
- type (SFactor), parameter :: AM = SFactor(95,"AM",(/ 36.67060d0 , 24.09920d0 , 17.34150d0 , 3.49331d0/) , & 
-                                                   (/  0.48363d0 ,  3.20647d0 ,  14.31360d0 , 102.27300d0/) , 13.35920d0 , 95.0d0)
- type (SFactor), parameter :: CM = SFactor(96,"CM",(/ 36.64880d0 , 24.40960d0 , 17.39900d0 , 4.21665d0/) , & 
-                                                   (/  0.46515d0 ,  3.08997d0 ,  13.43460d0 ,  88.48340d0/) , 13.28870d0 , 96.0d0)
- type (SFactor), parameter :: BK = SFactor(97,"BK",(/ 36.78810d0 , 24.77360d0 , 17.89190d0 , 4.23284d0/) , & 
-                                                   (/  0.45102d0 ,  3.04619d0 ,  12.89460d0 ,  86.00300d0/) , 13.27540d0 , 97.0d0)
- type (SFactor), parameter :: CF = SFactor(98,"CF",(/ 36.91850d0 , 25.19950d0 , 18.33170d0 , 4.24391d0/) , & 
-                                                   (/  0.43753d0 ,  3.00775d0 ,  12.40440d0 ,  83.78810d0/) , 13.26740d0 , 98.0d0)
+ type (SFactor), parameter :: DM = SFactor( 0,"DM",(/  0.00000_real64 ,  0.00000_real64 ,  0.00000_real64 , 0.00000_real64/) , & 
+                                                   (/  0.00000_real64 ,  0.00000_real64 ,  0.00000_real64 ,    0.00000_real64/) ,  0.00000_real64 ,  0.0_real64)
+ type (SFactor), parameter ::  H = SFactor( 1," H",(/  0.48992_real64 ,  0.26200_real64 ,  0.19677_real64 , 0.04988_real64/) , & 
+                                                   (/ 20.65930_real64 ,  7.74039_real64 ,  49.55190_real64 ,   2.20159_real64/) ,  0.00130_real64 ,  1.0_real64)
+ type (SFactor), parameter :: HE = SFactor( 2,"HE",(/  0.87340_real64 ,  0.63090_real64 ,  0.31120_real64 , 0.17800_real64/) , & 
+                                                   (/  9.10370_real64 ,  3.35680_real64 ,  22.92760_real64 ,   0.98210_real64/) ,  0.00640_real64 ,  2.0_real64)
+ type (SFactor), parameter :: LI = SFactor( 3,"LI",(/  1.12820_real64 ,  0.75080_real64 ,  0.61750_real64 , 0.46530_real64/) , & 
+                                                   (/  3.95460_real64 ,  1.05240_real64 ,  85.39050_real64 , 168.26100_real64/) ,  0.03770_real64 ,  3.0_real64)
+ type (SFactor), parameter :: BE = SFactor( 4,"BE",(/  1.59190_real64 ,  1.12780_real64 ,  0.53910_real64 , 0.70290_real64/) , & 
+                                                   (/ 43.64270_real64 ,  1.86230_real64 , 103.48300_real64 ,   0.54200_real64/) ,  0.03850_real64 ,  4.0_real64)
+ type (SFactor), parameter ::  B = SFactor( 5," B",(/  2.05450_real64 ,  1.33260_real64 ,  1.09790_real64 , 0.70680_real64/) , & 
+                                                   (/ 23.21850_real64 ,  1.02100_real64 ,  60.34980_real64 ,   0.14030_real64/) ,  0.00000_real64 ,  5.0_real64)
+ type (SFactor), parameter ::  C = SFactor( 6," C",(/  2.31000_real64 ,  1.02000_real64 ,  1.58860_real64 , 0.86500_real64/) , & 
+                                                   (/ 20.84390_real64 , 10.20750_real64 ,   0.56870_real64 ,  51.65120_real64/) ,  0.21560_real64 ,  6.0_real64)
+ type (SFactor), parameter ::  N = SFactor( 7," N",(/ 12.21260_real64 ,  3.13220_real64 ,  2.01250_real64 , 1.16630_real64/) , & 
+                                                   (/  0.00570_real64 ,  9.89330_real64 ,  28.99750_real64 ,   0.58260_real64/) ,  0.00000_real64 ,  7.0_real64)
+ type (SFactor), parameter ::  O = SFactor( 8," O",(/  3.04850_real64 ,  2.28680_real64 ,  1.54630_real64 , 0.86700_real64/) , & 
+                                                   (/ 13.27710_real64 ,  5.70110_real64 ,   0.32390_real64 ,  32.90890_real64/) ,  0.25080_real64 ,  8.0_real64)
+ type (SFactor), parameter ::  F = SFactor( 9," F",(/  3.53920_real64 ,  2.64120_real64 ,  1.51700_real64 , 1.02430_real64/) , & 
+                                                   (/ 10.28250_real64 ,  4.29440_real64 ,   0.26150_real64 ,  26.14760_real64/) ,  0.27760_real64 ,  9.0_real64)
+ type (SFactor), parameter :: NE = SFactor(10,"NE",(/  3.95530_real64 ,  3.11250_real64 ,  1.45460_real64 , 1.12510_real64/) , & 
+                                                   (/  8.40420_real64 ,  3.42620_real64 ,   0.23060_real64 ,  21.71840_real64/) ,  0.35150_real64 , 10.0_real64)
+ type (SFactor), parameter :: NA = SFactor(11,"NA",(/  4.76260_real64 ,  3.17360_real64 ,  1.26740_real64 , 1.11280_real64/) , & 
+                                                   (/  3.28500_real64 ,  8.84220_real64 ,   0.31360_real64 , 129.42400_real64/) ,  0.67600_real64 , 11.0_real64)
+ type (SFactor), parameter :: MG = SFactor(12,"MG",(/  5.42040_real64 ,  2.17350_real64 ,  1.22690_real64 , 2.30730_real64/) , & 
+                                                   (/  2.82750_real64 , 79.26110_real64 ,   0.38080_real64 ,   7.19370_real64/) ,  0.85840_real64 , 12.0_real64)
+ type (SFactor), parameter :: AL = SFactor(13,"AL",(/  6.42020_real64 ,  1.90020_real64 ,  1.59360_real64 , 1.96460_real64/) , & 
+                                                   (/  3.03870_real64 ,  0.74260_real64 ,  31.54720_real64 ,  85.08860_real64/) ,  1.11510_real64 , 13.0_real64)
+ type (SFactor), parameter :: SI = SFactor(14,"SI",(/  6.29150_real64 ,  3.03530_real64 ,  1.98910_real64 , 1.54100_real64/) , & 
+                                                   (/  2.43860_real64 , 32.33370_real64 ,   0.67850_real64 ,  81.69370_real64/) ,  1.14070_real64 , 14.0_real64)
+ type (SFactor), parameter ::  P = SFactor(15," P",(/  6.43450_real64 ,  4.17910_real64 ,  1.78000_real64 , 1.49080_real64/) , & 
+                                                   (/  1.90670_real64 , 27.15700_real64 ,   0.52600_real64 ,  68.16450_real64/) ,  1.11490_real64 , 15.0_real64)
+ type (SFactor), parameter ::  S = SFactor(16," S",(/  6.90530_real64 ,  5.20340_real64 ,  1.43790_real64 , 1.58630_real64/) , & 
+                                                   (/  1.46790_real64 , 22.21510_real64 ,   0.25360_real64 ,  56.17200_real64/) ,  0.86690_real64 , 16.0_real64)
+ type (SFactor), parameter :: CL = SFactor(17,"CL",(/ 11.46040_real64 ,  7.19640_real64 ,  6.25560_real64 , 1.64550_real64/) , & 
+                                                   (/  0.01040_real64 ,  1.16620_real64 ,  18.51940_real64 ,  47.77840_real64/) ,  0.00000_real64 , 17.0_real64)
+ type (SFactor), parameter :: AR = SFactor(18,"AR",(/  7.48450_real64 ,  6.77230_real64 ,  0.65390_real64 , 1.64420_real64/) , & 
+                                                   (/  0.90720_real64 , 14.84070_real64 ,  43.89830_real64 ,  33.39290_real64/) ,  1.44450_real64 , 18.0_real64)
+ type (SFactor), parameter ::  K = SFactor(19," K",(/  8.21860_real64 ,  7.43980_real64 ,  1.05190_real64 , 0.86590_real64/) , & 
+                                                   (/ 12.79490_real64 ,  0.77480_real64 , 213.18700_real64 ,  41.68410_real64/) ,  1.42280_real64 , 19.0_real64)
+ type (SFactor), parameter :: CA = SFactor(20,"CA",(/  8.62660_real64 ,  7.38730_real64 ,  1.58990_real64 , 1.02110_real64/) , & 
+                                                   (/ 10.44210_real64 ,  0.65990_real64 ,  85.74840_real64 , 178.43700_real64/) ,  1.37510_real64 , 20.0_real64)
+ type (SFactor), parameter :: SC = SFactor(21,"SC",(/  9.18900_real64 ,  7.36790_real64 ,  1.64090_real64 , 1.46800_real64/) , & 
+                                                   (/  9.02130_real64 ,  0.57290_real64 , 136.10800_real64 ,  51.35310_real64/) ,  1.33290_real64 , 21.0_real64)
+ type (SFactor), parameter :: TI = SFactor(22,"TI",(/  9.75950_real64 ,  7.35580_real64 ,  1.69910_real64 , 1.90210_real64/) , & 
+                                                   (/  7.85080_real64 ,  0.50000_real64 ,  35.63380_real64 , 116.10500_real64/) ,  1.28070_real64 , 22.0_real64)
+ type (SFactor), parameter ::  V = SFactor(23," V",(/ 10.29710_real64 ,  7.35110_real64 ,  2.07030_real64 , 2.05710_real64/) , & 
+                                                   (/  6.86570_real64 ,  0.43850_real64 ,  26.89380_real64 , 102.47800_real64/) ,  1.21990_real64 , 23.0_real64)
+ type (SFactor), parameter :: CR = SFactor(24,"CR",(/ 10.64060_real64 ,  7.35370_real64 ,  3.32400_real64 , 1.49220_real64/) , & 
+                                                   (/  6.10380_real64 ,  0.39200_real64 ,  20.26260_real64 ,  98.73990_real64/) ,  1.18320_real64 , 24.0_real64)
+ type (SFactor), parameter :: MN = SFactor(25,"MN",(/ 11.28190_real64 ,  7.35730_real64 ,  3.01930_real64 , 2.24410_real64/) , & 
+                                                   (/  5.34090_real64 ,  0.34320_real64 ,  17.86740_real64 ,  83.75430_real64/) ,  1.08960_real64 , 25.0_real64)
+ type (SFactor), parameter :: FE = SFactor(26,"FE",(/ 11.76950_real64 ,  7.35730_real64 ,  3.52220_real64 , 2.30450_real64/) , & 
+                                                   (/  4.76110_real64 ,  0.30720_real64 ,  15.35350_real64 ,  76.88050_real64/) ,  1.03690_real64 , 26.0_real64)
+ type (SFactor), parameter :: CO = SFactor(27,"CO",(/ 12.28410_real64 ,  7.34090_real64 ,  4.00340_real64 , 2.34880_real64/) , & 
+                                                   (/  4.27910_real64 ,  0.27840_real64 ,  13.53590_real64 ,  71.16920_real64/) ,  1.01180_real64 , 27.0_real64)
+ type (SFactor), parameter :: NI = SFactor(28,"NI",(/ 12.83760_real64 ,  7.29200_real64 ,  4.44380_real64 , 2.38000_real64/) , & 
+                                                   (/  3.87850_real64 ,  0.25650_real64 ,  12.17630_real64 ,  66.34210_real64/) ,  1.03410_real64 , 28.0_real64)
+ type (SFactor), parameter :: CU = SFactor(29,"CU",(/ 13.33800_real64 ,  7.16760_real64 ,  5.61580_real64 , 1.67350_real64/) , & 
+                                                   (/  3.58280_real64 ,  0.24700_real64 ,  11.39660_real64 ,  64.81260_real64/) ,  1.19100_real64 , 29.0_real64)
+ type (SFactor), parameter :: ZN = SFactor(30,"ZN",(/ 14.07430_real64 ,  7.03180_real64 ,  5.16520_real64 , 2.41000_real64/) , & 
+                                                   (/  3.26550_real64 ,  0.23330_real64 ,  10.31630_real64 ,  58.70970_real64/) ,  1.30410_real64 , 30.0_real64)
+ type (SFactor), parameter :: GA = SFactor(31,"GA",(/ 15.23540_real64 ,  6.70060_real64 ,  4.35910_real64 , 2.96230_real64/) , & 
+                                                   (/  3.06690_real64 ,  0.24120_real64 ,  10.78050_real64 ,  61.41350_real64/) ,  1.71890_real64 , 31.0_real64)
+ type (SFactor), parameter :: GE = SFactor(32,"GE",(/ 16.08160_real64 ,  6.37470_real64 ,  3.70680_real64 , 3.68300_real64/) , & 
+                                                   (/  2.85090_real64 ,  0.25160_real64 ,  11.44680_real64 ,  54.76250_real64/) ,  2.13130_real64 , 32.0_real64)
+ type (SFactor), parameter :: AS = SFactor(33,"AS",(/ 16.67230_real64 ,  6.07010_real64 ,  3.43130_real64 , 4.27790_real64/) , & 
+                                                   (/  2.63450_real64 ,  0.26470_real64 ,  12.94790_real64 ,  47.79720_real64/) ,  2.53100_real64 , 33.0_real64)
+ type (SFactor), parameter :: SE = SFactor(34,"SE",(/ 17.00060_real64 ,  5.81960_real64 ,  3.97310_real64 , 4.35430_real64/) , & 
+                                                   (/  2.40980_real64 ,  0.27260_real64 ,  15.23720_real64 ,  43.81630_real64/) ,  2.84090_real64 , 34.0_real64)
+ type (SFactor), parameter :: BR = SFactor(35,"BR",(/ 17.17890_real64 ,  5.23580_real64 ,  5.63770_real64 , 3.98510_real64/) , & 
+                                                   (/  2.17230_real64 , 16.57960_real64 ,   0.26090_real64 ,  41.43280_real64/) ,  2.95570_real64 , 35.0_real64)
+ type (SFactor), parameter :: KR = SFactor(36,"KR",(/ 17.35550_real64 ,  6.72860_real64 ,  5.54930_real64 , 3.53750_real64/) , & 
+                                                   (/  1.93840_real64 , 16.56230_real64 ,   0.22610_real64 ,  39.39720_real64/) ,  2.82500_real64 , 36.0_real64)
+ type (SFactor), parameter :: RB = SFactor(37,"RB",(/ 17.17840_real64 ,  9.64350_real64 ,  5.13990_real64 , 1.52920_real64/) , & 
+                                                   (/  1.78880_real64 , 17.31510_real64 ,   0.27480_real64 , 164.93400_real64/) ,  3.48730_real64 , 37.0_real64)
+ type (SFactor), parameter :: SR = SFactor(38,"SR",(/ 17.56630_real64 ,  9.81840_real64 ,  5.42200_real64 , 2.66940_real64/) , & 
+                                                   (/  1.55640_real64 , 14.09880_real64 ,   0.16640_real64 , 132.37600_real64/) ,  2.50640_real64 , 38.0_real64)
+ type (SFactor), parameter ::  Y = SFactor(39," Y",(/ 17.77600_real64 , 10.29460_real64 ,  5.72629_real64 , 3.26588_real64/) , & 
+                                                   (/  1.40290_real64 , 12.80060_real64 ,   0.12560_real64 , 104.35400_real64/) ,  1.91213_real64 , 39.0_real64)
+ type (SFactor), parameter :: ZR = SFactor(40,"ZR",(/ 17.87650_real64 , 10.94800_real64 ,  5.41732_real64 , 3.65721_real64/) , & 
+                                                   (/  1.27618_real64 , 11.91600_real64 ,   0.11762_real64 ,  87.66270_real64/) ,  2.06929_real64 , 40.0_real64)
+ type (SFactor), parameter :: NB = SFactor(41,"NB",(/ 17.61420_real64 , 12.01440_real64 ,  4.04183_real64 , 3.53346_real64/) , & 
+                                                   (/  1.18865_real64 , 11.76600_real64 ,   0.20478_real64 ,  69.79570_real64/) ,  3.75591_real64 , 41.0_real64)
+ type (SFactor), parameter :: MO = SFactor(42,"MO",(/  3.70250_real64 , 17.23560_real64 , 12.88760_real64 , 3.74290_real64/) , & 
+                                                   (/  0.27720_real64 ,  1.09580_real64 ,  11.00400_real64 ,  61.65840_real64/) ,  4.38750_real64 , 42.0_real64)
+ type (SFactor), parameter :: TC = SFactor(43,"TC",(/ 19.13010_real64 , 11.09480_real64 ,  4.64901_real64 , 2.71263_real64/) , & 
+                                                   (/  0.86413_real64 ,  8.14487_real64 ,  21.57070_real64 ,  86.84720_real64/) ,  5.40428_real64 , 43.0_real64)
+ type (SFactor), parameter :: RU = SFactor(44,"RU",(/ 19.26740_real64 , 12.91820_real64 ,  4.86337_real64 , 1.56756_real64/) , & 
+                                                   (/  0.80852_real64 ,  8.43467_real64 ,  24.79970_real64 ,  94.29280_real64/) ,  5.37874_real64 , 44.0_real64)
+ type (SFactor), parameter :: RH = SFactor(45,"RH",(/ 19.29570_real64 , 14.35010_real64 ,  4.73425_real64 , 1.28918_real64/) , & 
+                                                   (/  0.75154_real64 ,  8.21758_real64 ,  25.87490_real64 ,  98.60620_real64/) ,  5.32800_real64 , 45.0_real64)
+ type (SFactor), parameter :: PD = SFactor(46,"PD",(/ 19.33190_real64 , 15.50170_real64 ,  5.29537_real64 , 0.60584_real64/) , & 
+                                                   (/  0.69866_real64 ,  7.98929_real64 ,  25.20520_real64 ,  76.89860_real64/) ,  5.26593_real64 , 46.0_real64)
+ type (SFactor), parameter :: AG = SFactor(47,"AG",(/ 19.28080_real64 , 16.68850_real64 ,  4.80450_real64 , 1.04630_real64/) , & 
+                                                   (/  0.64460_real64 ,  7.47260_real64 ,  24.66050_real64 ,  99.81560_real64/) ,  5.17900_real64 , 47.0_real64)
+ type (SFactor), parameter :: CD = SFactor(48,"CD",(/ 19.22140_real64 , 17.64440_real64 ,  4.46100_real64 , 1.60290_real64/) , & 
+                                                   (/  0.59460_real64 ,  6.90890_real64 ,  24.70080_real64 ,  87.48250_real64/) ,  5.06940_real64 , 48.0_real64)
+ type (SFactor), parameter :: IN = SFactor(49,"IN",(/ 19.16240_real64 , 18.55960_real64 ,  4.29480_real64 , 2.03960_real64/) , & 
+                                                   (/  0.54760_real64 ,  6.37760_real64 ,  25.84990_real64 ,  92.80290_real64/) ,  4.93910_real64 , 49.0_real64)
+ type (SFactor), parameter :: SN = SFactor(50,"SN",(/ 19.18890_real64 , 19.10050_real64 ,  4.45850_real64 , 2.46630_real64/) , & 
+                                                   (/  5.83030_real64 ,  0.50310_real64 ,  26.89090_real64 ,  83.95710_real64/) ,  4.78210_real64 , 50.0_real64)
+ type (SFactor), parameter :: SB = SFactor(51,"SB",(/ 19.64180_real64 , 19.04550_real64 ,  5.03710_real64 , 2.68270_real64/) , & 
+                                                   (/  5.30340_real64 ,  0.46070_real64 ,  27.90740_real64 ,  75.28250_real64/) ,  4.59090_real64 , 51.0_real64)
+ type (SFactor), parameter :: TE = SFactor(52,"TE",(/ 19.96440_real64 , 19.01380_real64 ,  6.14487_real64 , 2.52390_real64/) , & 
+                                                   (/  4.81742_real64 ,  0.42089_real64 ,  28.52840_real64 ,  70.84030_real64/) ,  4.35200_real64 , 52.0_real64)
+ type (SFactor), parameter ::  I = SFactor(53," I",(/ 20.14720_real64 , 18.99490_real64 ,  7.51380_real64 , 2.27350_real64/) , & 
+                                                   (/  4.34700_real64 ,  0.38140_real64 ,  27.76600_real64 ,  66.87760_real64/) ,  4.07120_real64 , 53.0_real64)
+ type (SFactor), parameter :: XE = SFactor(54,"XE",(/ 20.29330_real64 , 19.02980_real64 ,  8.97670_real64 , 1.99000_real64/) , & 
+                                                   (/  3.92820_real64 ,  0.34400_real64 ,  26.46590_real64 ,  64.26580_real64/) ,  3.71180_real64 , 54.0_real64)
+ type (SFactor), parameter :: CS = SFactor(55,"CS",(/ 20.38920_real64 , 19.10620_real64 , 10.66200_real64 , 1.49530_real64/) , & 
+                                                   (/  3.56900_real64 ,  0.31070_real64 ,  24.38790_real64 , 213.90400_real64/) ,  3.33520_real64 , 55.0_real64)
+ type (SFactor), parameter :: BA = SFactor(56,"BA",(/ 20.33610_real64 , 19.29700_real64 , 10.88800_real64 , 2.69590_real64/) , & 
+                                                   (/  3.21600_real64 ,  0.27560_real64 ,  20.20730_real64 , 167.20200_real64/) ,  2.77310_real64 , 56.0_real64)
+ type (SFactor), parameter :: LA = SFactor(57,"LA",(/ 20.57800_real64 , 19.59900_real64 , 11.37270_real64 , 3.28719_real64/) , & 
+                                                   (/  2.94817_real64 ,  0.24447_real64 ,  18.77260_real64 , 133.12400_real64/) ,  2.14678_real64 , 57.0_real64)
+ type (SFactor), parameter :: CE = SFactor(58,"CE",(/ 21.16710_real64 , 19.76950_real64 , 11.85130_real64 , 3.33049_real64/) , & 
+                                                   (/  2.81219_real64 ,  0.22684_real64 ,  17.60830_real64 , 127.11300_real64/) ,  1.86264_real64 , 58.0_real64)
+ type (SFactor), parameter :: PR = SFactor(59,"PR",(/ 22.04400_real64 , 19.66970_real64 , 12.38560_real64 , 2.82428_real64/) , & 
+                                                   (/  2.77393_real64 ,  0.22209_real64 ,  16.76690_real64 , 143.64400_real64/) ,  2.05830_real64 , 59.0_real64)
+ type (SFactor), parameter :: ND = SFactor(60,"ND",(/ 22.68450_real64 , 19.68470_real64 , 12.77400_real64 , 2.85137_real64/) , & 
+                                                   (/  2.66248_real64 ,  0.21063_real64 ,  15.88500_real64 , 137.90300_real64/) ,  1.98486_real64 , 60.0_real64)
+ type (SFactor), parameter :: PM = SFactor(61,"PM",(/ 23.34050_real64 , 19.60950_real64 , 13.12350_real64 , 2.87516_real64/) , & 
+                                                   (/  2.56270_real64 ,  0.20209_real64 ,  15.10090_real64 , 132.72100_real64/) ,  2.02876_real64 , 61.0_real64)
+ type (SFactor), parameter :: SM = SFactor(62,"SM",(/ 24.00420_real64 , 19.42580_real64 , 13.43960_real64 , 2.89604_real64/) , & 
+                                                   (/  2.47274_real64 ,  0.19645_real64 ,  14.39960_real64 , 128.00700_real64/) ,  2.20963_real64 , 62.0_real64)
+ type (SFactor), parameter :: EU = SFactor(63,"EU",(/ 24.62740_real64 , 19.08860_real64 , 13.76030_real64 , 2.92270_real64/) , & 
+                                                   (/  2.38790_real64 ,  0.19420_real64 ,  13.75460_real64 , 123.17400_real64/) ,  2.57450_real64 , 63.0_real64)
+ type (SFactor), parameter :: GD = SFactor(64,"GD",(/ 25.07090_real64 , 19.07980_real64 , 13.85180_real64 , 3.54545_real64/) , & 
+                                                   (/  2.25341_real64 ,  0.18195_real64 ,  12.93310_real64 , 101.39800_real64/) ,  2.41960_real64 , 64.0_real64)
+ type (SFactor), parameter :: TB = SFactor(65,"TB",(/ 25.89760_real64 , 18.21850_real64 , 14.31670_real64 , 2.95354_real64/) , & 
+                                                   (/  2.24256_real64 ,  0.19614_real64 ,  12.66480_real64 , 115.36200_real64/) ,  3.58324_real64 , 65.0_real64)
+ type (SFactor), parameter :: DY = SFactor(66,"DY",(/ 26.50700_real64 , 17.63830_real64 , 14.55960_real64 , 2.96577_real64/) , & 
+                                                   (/  2.18020_real64 ,  0.20217_real64 ,  12.18990_real64 , 111.87400_real64/) ,  4.29728_real64 , 66.0_real64)
+ type (SFactor), parameter :: HO = SFactor(67,"HO",(/ 26.90490_real64 , 17.29400_real64 , 14.55830_real64 , 3.63837_real64/) , & 
+                                                   (/  2.07051_real64 ,  0.19794_real64 ,  11.44070_real64 ,  92.65660_real64/) ,  4.56796_real64 , 67.0_real64)
+ type (SFactor), parameter :: ER = SFactor(68,"ER",(/ 27.65630_real64 , 16.42850_real64 , 14.97790_real64 , 2.98233_real64/) , & 
+                                                   (/  2.07356_real64 ,  0.22354_real64 ,  11.36040_real64 , 105.70300_real64/) ,  5.92046_real64 , 68.0_real64)
+ type (SFactor), parameter :: TM = SFactor(69,"TM",(/ 28.18190_real64 , 15.88510_real64 , 15.15420_real64 , 2.98706_real64/) , & 
+                                                   (/  2.02859_real64 ,  0.23885_real64 ,  10.99750_real64 , 102.96100_real64/) ,  6.75621_real64 , 69.0_real64)
+ type (SFactor), parameter :: YB = SFactor(70,"YB",(/ 28.66410_real64 , 15.43450_real64 , 15.30870_real64 , 2.98963_real64/) , & 
+                                                   (/  1.98890_real64 ,  0.25712_real64 ,  10.66470_real64 , 100.41700_real64/) ,  7.56672_real64 , 70.0_real64)
+ type (SFactor), parameter :: LU = SFactor(71,"LU",(/ 28.94760_real64 , 15.22080_real64 , 15.10000_real64 , 3.71601_real64/) , & 
+                                                   (/  1.90182_real64 ,  9.98519_real64 ,   0.26103_real64 ,  84.32980_real64/) ,  7.97628_real64 , 71.0_real64)
+ type (SFactor), parameter :: HF = SFactor(72,"HF",(/ 29.14400_real64 , 15.17260_real64 , 14.75860_real64 , 4.30013_real64/) , & 
+                                                   (/  1.83262_real64 ,  9.59990_real64 ,   0.27512_real64 ,  72.02900_real64/) ,  8.58154_real64 , 72.0_real64)
+ type (SFactor), parameter :: TA = SFactor(73,"TA",(/ 29.20240_real64 , 15.22930_real64 , 14.51350_real64 , 4.76492_real64/) , & 
+                                                   (/  1.77333_real64 ,  9.37046_real64 ,   0.29598_real64 ,  63.36440_real64/) ,  9.24354_real64 , 73.0_real64)
+ type (SFactor), parameter ::  W = SFactor(74," W",(/ 29.08180_real64 , 15.43000_real64 , 14.43270_real64 , 5.11982_real64/) , & 
+                                                   (/  1.72029_real64 ,  9.22590_real64 ,   0.32170_real64 ,  57.05600_real64/) ,  9.88750_real64 , 74.0_real64)
+ type (SFactor), parameter :: RE = SFactor(75,"RE",(/ 28.76210_real64 , 15.71890_real64 , 14.55640_real64 , 5.44174_real64/) , & 
+                                                   (/  1.67191_real64 ,  9.09227_real64 ,   0.35050_real64 ,  52.08610_real64/) , 10.47200_real64 , 75.0_real64)
+ type (SFactor), parameter :: OS = SFactor(76,"OS",(/ 28.18940_real64 , 16.15500_real64 , 14.93050_real64 , 5.67589_real64/) , & 
+                                                   (/  1.62903_real64 ,  8.97948_real64 ,   0.38266_real64 ,  48.16470_real64/) , 11.00050_real64 , 76.0_real64)
+ type (SFactor), parameter :: IR = SFactor(77,"IR",(/ 27.30490_real64 , 16.72960_real64 , 15.61150_real64 , 5.83377_real64/) , & 
+                                                   (/  1.59279_real64 ,  8.86553_real64 ,   0.41792_real64 ,  45.00110_real64/) , 11.47220_real64 , 77.0_real64)
+ type (SFactor), parameter :: PT = SFactor(78,"PT",(/ 27.00590_real64 , 17.76390_real64 , 15.71310_real64 , 5.78370_real64/) , & 
+                                                   (/  1.51293_real64 ,  8.81174_real64 ,   0.42459_real64 ,  38.61030_real64/) , 11.68830_real64 , 78.0_real64)
+ type (SFactor), parameter :: AU = SFactor(79,"AU",(/ 16.88190_real64 , 18.59130_real64 , 25.55820_real64 , 5.86000_real64/) , & 
+                                                   (/  0.46110_real64 ,  8.62160_real64 ,   1.48260_real64 ,  36.39560_real64/) , 12.06580_real64 , 79.0_real64)
+ type (SFactor), parameter :: HG = SFactor(80,"HG",(/ 20.68090_real64 , 19.04170_real64 , 21.65750_real64 , 5.96760_real64/) , & 
+                                                   (/  0.54500_real64 ,  8.44840_real64 ,   1.57290_real64 ,  38.32460_real64/) , 12.60890_real64 , 80.0_real64)
+ type (SFactor), parameter :: TL = SFactor(81,"TL",(/ 27.54460_real64 , 19.15840_real64 , 15.53800_real64 , 5.52593_real64/) , & 
+                                                   (/  0.65515_real64 ,  8.70751_real64 ,   1.96347_real64 ,  45.81490_real64/) , 13.17460_real64 , 81.0_real64)
+ type (SFactor), parameter :: PB = SFactor(82,"PB",(/ 31.06170_real64 , 13.06370_real64 , 18.44200_real64 , 5.96960_real64/) , & 
+                                                   (/  0.69020_real64 ,  2.35760_real64 ,   8.61800_real64 ,  47.25790_real64/) , 13.41180_real64 , 82.0_real64)
+ type (SFactor), parameter :: BI = SFactor(83,"BI",(/ 33.36890_real64 , 12.95100_real64 , 16.58770_real64 , 6.46920_real64/) , & 
+                                                   (/  0.70400_real64 ,  2.92380_real64 ,   8.79370_real64 ,  48.00930_real64/) , 13.57820_real64 , 83.0_real64)
+ type (SFactor), parameter :: PO = SFactor(84,"PO",(/ 34.67260_real64 , 15.47330_real64 , 13.11380_real64 , 7.02588_real64/) , & 
+                                                   (/  0.70100_real64 ,  3.55078_real64 ,   9.55642_real64 ,  47.00450_real64/) , 13.67700_real64 , 84.0_real64)
+ type (SFactor), parameter :: AT = SFactor(85,"AT",(/ 35.31630_real64 , 19.02110_real64 ,  9.49887_real64 , 7.42518_real64/) , & 
+                                                   (/  0.68587_real64 ,  3.97458_real64 ,  11.38240_real64 ,  45.47150_real64/) , 13.71080_real64 , 85.0_real64)
+ type (SFactor), parameter :: RN = SFactor(86,"RN",(/ 35.56310_real64 , 21.28160_real64 ,  8.00370_real64 , 7.44330_real64/) , & 
+                                                   (/  0.66310_real64 ,  4.06910_real64 ,  14.04220_real64 ,  44.24730_real64/) , 13.69050_real64 , 86.0_real64)
+ type (SFactor), parameter :: FR = SFactor(87,"FR",(/ 35.92990_real64 , 23.05470_real64 , 12.14390_real64 , 2.11253_real64/) , & 
+                                                   (/  0.64645_real64 ,  4.17619_real64 ,  23.10520_real64 , 150.64500_real64/) , 13.72470_real64 , 87.0_real64)
+ type (SFactor), parameter :: RA = SFactor(88,"RA",(/ 35.76300_real64 , 22.90640_real64 , 12.47390_real64 , 3.21097_real64/) , & 
+                                                   (/  0.61634_real64 ,  3.87135_real64 ,  19.98870_real64 , 142.32500_real64/) , 13.62110_real64 , 88.0_real64)
+ type (SFactor), parameter :: AC = SFactor(89,"AC",(/ 35.65970_real64 , 23.10320_real64 , 12.59770_real64 , 4.08655_real64/) , & 
+                                                   (/  0.58909_real64 ,  3.65155_real64 ,  18.59900_real64 , 117.02000_real64/) , 13.52660_real64 , 89.0_real64)
+ type (SFactor), parameter :: TH = SFactor(90,"TH",(/ 35.56450_real64 , 23.42190_real64 , 12.74730_real64 , 4.80703_real64/) , & 
+                                                   (/  0.56336_real64 ,  3.46204_real64 ,  17.83090_real64 ,  99.17220_real64/) , 13.43140_real64 , 90.0_real64)
+ type (SFactor), parameter :: PA = SFactor(91,"PA",(/ 35.88470_real64 , 23.29480_real64 , 14.18910_real64 , 4.17287_real64/) , & 
+                                                   (/  0.54775_real64 ,  3.41519_real64 ,  16.92350_real64 , 105.25100_real64/) , 13.42870_real64 , 91.0_real64)
+ type (SFactor), parameter ::  U = SFactor(92," U",(/ 36.02280_real64 , 23.41280_real64 , 14.94910_real64 , 4.18800_real64/) , & 
+                                                   (/  0.52930_real64 ,  3.32530_real64 ,  16.09270_real64 , 100.61300_real64/) , 13.39660_real64 , 92.0_real64)
+ type (SFactor), parameter :: NP = SFactor(93,"NP",(/ 36.18740_real64 , 23.59640_real64 , 15.64020_real64 , 4.18550_real64/) , & 
+                                                   (/  0.51193_real64 ,  3.25396_real64 ,  15.36220_real64 ,  97.49080_real64/) , 13.35730_real64 , 93.0_real64)
+ type (SFactor), parameter :: PU = SFactor(94,"PU",(/ 36.52540_real64 , 23.80830_real64 , 16.77070_real64 , 3.47947_real64/) , & 
+                                                   (/  0.49938_real64 ,  3.26371_real64 ,  14.94550_real64 , 105.98000_real64/) , 13.38120_real64 , 94.0_real64)
+ type (SFactor), parameter :: AM = SFactor(95,"AM",(/ 36.67060_real64 , 24.09920_real64 , 17.34150_real64 , 3.49331_real64/) , & 
+                                                   (/  0.48363_real64 ,  3.20647_real64 ,  14.31360_real64 , 102.27300_real64/) , 13.35920_real64 , 95.0_real64)
+ type (SFactor), parameter :: CM = SFactor(96,"CM",(/ 36.64880_real64 , 24.40960_real64 , 17.39900_real64 , 4.21665_real64/) , & 
+                                                   (/  0.46515_real64 ,  3.08997_real64 ,  13.43460_real64 ,  88.48340_real64/) , 13.28870_real64 , 96.0_real64)
+ type (SFactor), parameter :: BK = SFactor(97,"BK",(/ 36.78810_real64 , 24.77360_real64 , 17.89190_real64 , 4.23284_real64/) , & 
+                                                   (/  0.45102_real64 ,  3.04619_real64 ,  12.89460_real64 ,  86.00300_real64/) , 13.27540_real64 , 97.0_real64)
+ type (SFactor), parameter :: CF = SFactor(98,"CF",(/ 36.91850_real64 , 25.19950_real64 , 18.33170_real64 , 4.24391_real64/) , & 
+                                                   (/  0.43753_real64 ,  3.00775_real64 ,  12.40440_real64 ,  83.78810_real64/) , 13.26740_real64 , 98.0_real64)
 
  integer, parameter  :: SF_Library_dim = 98
 

@@ -1,39 +1,10 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleAddAtoms
   use moduleActions 
   use moduleMessages
-  
+  use moduleElements, only : getElementMass
+  use moduleSystem, only : totalMass
+
   implicit none
 
   public :: addAtoms, addAtomsHelp
@@ -84,6 +55,7 @@ contains
     integer :: originalNumberOfAtoms
     integer :: originalNumberOfMolecules
     logical :: updateTopology
+    real(real64) :: maximumOverlap
 
 #ifdef DEBUG
     write(0,*) " --> Entering addAtoms <-- "
@@ -112,7 +84,7 @@ contains
           read(a % actionDetails(idx:),'(a100)')stringCell
           call readCellFreeFormat(stringCell, frame % hmat)
         end block
-        if (abs(frame % hmat(1,2)) + abs(frame % hmat(1,3)) + abs(frame % hmat(2,3)) .lt. 1.0d-6) then
+        if (abs(frame % hmat(1,2)) + abs(frame % hmat(1,3)) + abs(frame % hmat(2,3)) .lt. 1.0e-6_real64) then
           pbc_type = "ortho"
         else
           pbc_type = "tri"
@@ -137,6 +109,10 @@ contains
 
         end if
 
+        if (index(a % actionDetails,"+rclash") > 0) then
+          call assignFlagValue(a % actionDetails,"+rclash",maximumOverlap,1.5_real64)
+        end if
+
         if (option == "solute") then
           removeOverlap = 1
         else if (option == "solvent") then
@@ -156,19 +132,30 @@ contains
 
     end select
 
-    ! if (numberOfMolecules == 0) then
-    !   call setUpNeigboursList()
-    !   call initialiseNeighboursList()
-    !   call updateNeighboursList(.true.)
-    !   call runInternalAction("topology","+update")
-    ! end if
+    if (numberOfMolecules == 0) then
+      call setUpNeigboursList()
+      call initialiseNeighboursList()
+      call updateNeighboursList(.true.)
+      call runInternalAction("topology","+update")
+    end if
   
     originalNumberOfAtoms = frame % natoms
     originalNumberOfMolecules = numberOfMolecules
-    
+
     if (frameReadSuccessfully) then
       call addVirtualSite(nCalled) % work(a)
-
+    
+      totalMass = 0.0_real64
+      block
+        integer :: iatm
+        real(real64) :: rmass
+        do iatm=1,frame % natoms
+          rmass = getElementMass(frame % lab(iatm))
+          frame % mass(iatm) = rmass
+          totalMass = totalMass + rmass
+        enddo
+      end block
+  
       if (frame % natoms > 0) then
         call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
         call setUpNeigboursList()
@@ -177,10 +164,23 @@ contains
         
         !call computeMoleculesCOM(originalNumberOfMolecules)
         if (removeOverlap /= 0) then
-          call removeClashes(frame,originalNumberOfMolecules,removeOverlap)
+          call removeClashes(frame,originalNumberOfMolecules,removeOverlap,maximumOverlap)
           call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
           call setUpNeigboursList()
           call initialiseNeighboursList()
+
+          totalMass = 0.0_real64
+          block
+            use moduleElements, only : getElementMass
+            integer :: iatm
+            real(real64) :: rmass
+            do iatm=1,frame % natoms
+              rmass = getElementMass(frame % lab(iatm))
+              frame % mass(iatm) = rmass
+              totalMass = totalMass + rmass
+            enddo
+          end block
+    
           call updateNeighboursList(.true.)
   
           call runInternalAction("topology","+update")
@@ -192,25 +192,31 @@ contains
   end subroutine addAtoms
 
   !!!!!!!!!!!!!
-  subroutine removeClashes(f,originalNumberOfMolecules,iType)
+  subroutine removeClashes(f,originalNumberOfMolecules,iType,rmax_def)
     use moduleSystem
     use moduleDistances
     implicit none
     type(frameTypeDef), intent(inout) :: f
     integer, intent(in) :: originalNumberOfMolecules
     integer, intent(inout) :: iType
+    real(real64), intent(in), optional :: rmax_def
 
     integer :: imol, jmol, idx, jdx, iatm, jatm
-    real(8) :: rmax, distanceCOM, dij(3), rtmp
+    real(real64) :: distanceCOM, dij(3), rtmp, rmax
     logical, allocatable, dimension(:) :: ldelete
     integer :: n0
-    real(8), allocatable, dimension(:,:) :: xx
+    real(real64), allocatable, dimension(:,:) :: xx
 
     integer :: nMol1, nMol2, nMol3, nMol4
 
     allocate(ldelete(numberOfMolecules),source=.false.)
     n0 = maxval(listOfMolecules(1:numberOfMolecules) % numberOfAtoms)
-    rmax = (1.5d0)**2
+
+    if (present(rmax_def)) then
+      rmax = rmax_def**2
+    else
+      rmax = (1.5_real64)**2
+    end if
 
     allocate(xx(3,n0))
     
@@ -235,7 +241,7 @@ contains
       do jmol=nMol3,nMol4
         dij(1:3) = listOfMolecules(jmol) % centreOfMass - listOfMolecules(imol) % centreOfMass
         distanceCOM = computeDistanceSquaredPBC(dij)
-        if (distanceCOM < 100.d0) then
+        if (distanceCOM < 100.0_real64) then
           do idx=1,listOfMolecules(imol) % numberOfAtoms
             do jdx=1,listOfMolecules(jmol) % numberOfAtoms
               jatm = listOfMolecules(jmol) % listOfAtoms(jdx)

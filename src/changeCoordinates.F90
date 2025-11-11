@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleModifyCoordinates
 
 contains
@@ -132,14 +101,24 @@ contains
     call message(0,"  gpta.x --i coord.pdb --top --noclash +rmin 1.1 +dry")
   end subroutine removeOverlappingMoleculesHelp
 
-  subroutine fixCellJumpsHelp()
+  subroutine fixCellHelp()
     use moduleMessages
     implicit none
-    call message(0,"This action remove discontinuities in the cell evolution due to the code flipping the axis.")
-    call message(0,"Partial implementation, it currently works only the the b axis.")
+    call message(0,"This action tries to straighthen the cell by changing the selected axys.")
     call message(0,"Examples:")
-    call message(0,"  gpta.x --i coord.pdb t.dcd --fixCell ")
-  end subroutine fixCellJumpsHelp
+    call message(0,"  gpta --i calcite.pdb --repl 1,2,1 --fixcell +y --top +rebuild +reorder --pbc --o c.pdb")
+    call message(0,"  gpta --i calcite.pdb --repl 2,1,1 --fixcell +x --top +rebuild +reorder --pbc --o c.pdb")
+  end subroutine fixCellHelp
+
+  subroutine defineNewCellHelp()
+    use moduleMessages
+    implicit none
+    call message(0,"This action defines a new cell using the specified vectors.")
+    call message(0,"The vectors can be given in the form of hkl or as a metric matrix.")
+    call message(0,"Examples:")
+    call message(0,"  gpta.x --i coord.pdb --newcell +vec 1,0,0 0,1,0 0,0,1")
+    call message(0,"  gpta.x --i coord.pdb --newcell +hmat 1,2,3 4,5,6 7,8,9")
+  end subroutine defineNewCellHelp  
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine rescaleCell(a)
@@ -157,9 +136,9 @@ contains
 
     logical, pointer :: actionInitialisation
     character(len=100) :: stringCell
-    real(8), dimension(3,3), save :: hmat, hinv
-    real(8), save :: volume, cell(6)
-    real(8), dimension(3) :: cScaling
+    real(real64), dimension(3,3), save :: hmat, hinv
+    real(real64), save :: volume, cell(6)
+    real(real64), dimension(3) :: cScaling
 
     logical :: lflag
     logical, pointer :: cellOnly
@@ -226,7 +205,122 @@ contains
 
   end subroutine rescaleCell
 
-  subroutine shiftCoordinates(a)
+  subroutine defineNewCell(a)
+    use moduleVariables
+    use moduleSystem 
+    use moduleStrings
+    use moduleMessages 
+    use moduleDistances
+    implicit none
+    type(actionTypeDef), target :: a
+    character(:), pointer :: actionCommand
+
+    logical, pointer :: actionInitialisation
+
+    integer :: i, j
+
+    character(STRLEN) :: flagString = ""
+    integer :: numberOfWords, ntmp
+    character(len=STRLEN), dimension(100) :: listOfWords
+    character(len=STRLEN), dimension(3) :: listOfVectors
+    character(len=STRLEN), dimension(3) :: string_l
+
+    real(real64), save,  dimension(3,3) :: hkl, hmat_new(3,3)
+    real(real64) :: hinv_new(3,3), cell_new(6), volume_new
+
+    ! Associate variables
+    actionCommand        => a % actionDetails
+    actionInitialisation => a % actionInitialisation
+    
+    if (actionInitialisation) then
+      actionInitialisation = .false.
+      a % requiresNeighboursList = .false.
+      
+      call parse(actionCommand," ",listOfWords,numberOfWords)
+
+      if (numberOfWords==0) call message(-1,"--newcell : nothing to do")
+
+      hkl = 0.0_real64
+      hmat_new = 0.0_real64
+
+      call extractFlag(actionCommand,"+hkl ",flagString)
+      if (len_trim(flagString) > 0) then
+        call parse(flagString," ",listOfVectors,ntmp)
+        flagString = ''
+        if (ntmp==0) then
+          call message(-1,"--newcell : no vectors specified")
+        else if (ntmp>3) then
+          call message(-1,"--newcell : too many vectors specified")
+        end if
+
+        do i=1,3
+          call parse(listOfVectors(i),",",string_l,ntmp)
+          if (ntmp /= 3) then
+            call message(-1,"--newcell : vector must have 3 components")
+          end if
+          read(string_l(1),*) hkl(1,i)
+          read(string_l(2),*) hkl(2,i)
+          read(string_l(3),*) hkl(3,i)
+        end do
+        do i=1,3
+          do j=1,3
+            hmat_new(:,i) = hmat_new(:,i) + frame % hmat(:,j) * hkl(j,i)
+          end do
+        end do
+        where (abs(hmat_new) < 1.0e-6_real64) hmat_new = 0.0_real64
+      end if
+
+      call extractFlag(actionCommand,"+hmat",flagString)
+      
+      if (len_trim(flagString) > 0) then
+        call parse(flagString," ",listOfVectors,ntmp)
+        flagString = ''
+        if (ntmp==0) then
+          call message(-1,"--newcell : no vectors specified")
+        else if (ntmp>3) then
+          call message(-1,"--newcell : too many vectors specified")
+        end if
+
+        do i=1,3
+          call parse(listOfVectors(i),",",string_l,ntmp)
+          if (ntmp /= 3) then
+            call message(-1,"--newcell : vector must have 3 components")
+          end if
+          read(string_l(1),*) hmat_new(1,i)
+          read(string_l(2),*) hmat_new(2,i)
+          read(string_l(3),*) hmat_new(3,i)
+        end do
+      end if
+
+      call checkUsedFlags(actionCommand)
+      return
+    end if
+    
+    if (frameReadSuccessfully) then 
+      call create_new_cell(hmat_new)
+
+      call getInverseCellMatrix(hmat_new,hinv_new,volume_new)
+      call message(0,"New cell defined as")
+      call message(0,"...Cell vector A",rv=hmat_new(1:3,1))
+      call message(0,"...Cell vector B",rv=hmat_new(1:3,2))
+      call message(0,"...Cell vector C",rv=hmat_new(1:3,3))
+      call message(1,"...Volume",r=volume_new)
+
+      call message(0,"Final cell")
+      call message(0,"...Cell vector A",rv=frame % hmat(1:3,1))
+      call message(0,"...Cell vector B",rv=frame % hmat(1:3,2))
+      call message(0,"...Cell vector C",rv=frame % hmat(1:3,3))
+      call message(0,"...Cell lengths",rv=frame % cell(1:3))
+      call message(0,"...Cell angles",rv=frame % cell(4:6))
+      call message(1,"...Volume",r=frame % volume)
+    end if
+
+    if (endOfCoordinatesFiles) return
+
+
+  end subroutine defineNewCell
+
+  subroutine shiftCoordinates_old(a)
     use moduleVariables
     use moduleSystem 
     use moduleStrings
@@ -241,7 +335,7 @@ contains
 
     logical, pointer :: actionInitialisation
 
-    real(8), pointer, dimension(:) :: dpos
+    real(real64), pointer, dimension(:) :: dpos
     integer :: i
 
     ! Associate variables
@@ -253,7 +347,7 @@ contains
       actionInitialisation = .false.
       a % requiresNeighboursList = .false.
       
-      dpos = 0.d0
+      dpos = 0.0_real64
       call parse(actionCommand," ",listOfWords,numberOfWords)
 
       if (numberOfWords==0) call message(-1,"--shift : nothing to do")
@@ -265,7 +359,7 @@ contains
         if (numberOfWords==3) read(actionCommand,*)dpos(1:3)
       end if
 
-      if (sum(abs(dpos(1:3)))<1d-6) call message(-1,"--shift : zero displacement")
+      if (sum(abs(dpos(1:3)))<1.0e-6_real64) call message(-1,"--shift : zero displacement")
       
       call message(1,"Translating atoms' coordinates by",rv=dpos)
 
@@ -291,6 +385,90 @@ contains
     end if
     if (endOfCoordinatesFiles) return
 
+  end subroutine shiftCoordinates_old
+
+  subroutine shiftCoordinates(a)
+    use moduleVariables
+    use moduleSystem 
+    use moduleStrings
+    use moduleMessages 
+    use moduleDistances
+    implicit none
+    type(actionTypeDef), target :: a
+    character(:), pointer :: actionCommand
+
+    integer :: numberOfFlags, numberOfWords, numberOfStrings
+    character(len=STRLEN), dimension(100) :: listOfWords
+    character(len=STRLEN), dimension(100) :: listOfFlags
+
+    logical, pointer :: actionInitialisation
+
+    real(real64), pointer, dimension(:) :: dpos
+    integer :: i, iatm, nsel1
+
+    ! Associate variables
+    actionCommand        => a % actionDetails
+    actionInitialisation => a % actionInitialisation
+    dpos(1:3)            => a % doubleVariables(1:3)
+    
+    if (actionInitialisation) then
+      actionInitialisation = .false.
+      a % requiresNeighboursList = .false.
+
+      dpos = 0.0_real64
+
+      ! Check for flags
+      call parse2(actionCommand,"+",listOfFlags,numberOfFlags)
+
+      ! If no falgs default to old behaviour
+      if (numberOfFlags == 0) then
+        call parse(actionCommand," ",listOfWords,numberOfWords)
+        if (numberOfWords == 0) call message(-1,"--shift : nothing to do")
+
+        if (numberOfWords==3) then
+          read(actionCommand,*)dpos(1:3)
+        else
+          call parse(actionCommand,",",listOfWords,numberOfWords)
+          if (numberOfWords==3) read(actionCommand,*)dpos(1:3)
+        end if
+
+        actionCommand = "+s all +vec "//actionCommand
+      end if
+
+      call assignFlagValue(actionCommand,"+vec",dpos,[0.d0,0.d0,0.d0])
+
+      if (sum(abs(dpos(1:3)))<1.0e-6_real64) call message(-1,"--shift : zero displacement")
+      
+      call message(1,"Translating atoms' coordinates by",rv=dpos)
+      return
+    end if
+    
+    if (frameReadSuccessfully) then 
+      call selectAtoms(1,actionCommand,a)
+      call createSelectionList(a,1)
+
+      ! do i=1,frame % natoms
+      nsel1 = count(a % isSelected(:,1))
+      do i=1,nsel1
+        iatm = a % idxSelection(i,1)
+        frame % pos(1:3,iatm) = frame % pos(1:3,iatm) + dpos
+      enddo
+      call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
+
+      call checkUsedFlags(actionCommand)
+    end if
+
+    if (numberOfMolecules>0) call computeMoleculesCOM(0)
+    ! if (numberOfMolecules>0) then
+    !   block
+    !     integer :: imol
+    !     do imol=1,numberOfMolecules
+    !       listOfMolecules(imol) % centreOfMass = listOfMolecules(imol) % centreOfMass + dpos
+    !     end do
+    !   end block
+    ! end if
+    if (endOfCoordinatesFiles) return
+
   end subroutine shiftCoordinates
 
   subroutine shiftCOM(a)
@@ -306,9 +484,9 @@ contains
     logical, pointer :: actionInitialisation
     logical, pointer :: lcentre
     logical, pointer :: linitial
-    real(8), pointer, dimension(:) :: dpos
+    real(real64), pointer, dimension(:) :: dpos
     
-    real(8), dimension(3) :: xcom, xcentre, delta
+    real(real64), dimension(3) :: xcom, xcentre, delta
 
     integer :: i, idx
     integer, save :: nsel
@@ -331,7 +509,7 @@ contains
       ! fix the centre of mass intial position
       call assignFlagValue(actionCommand,"+initial",linitial,.false.)
 
-      if (.not. lcentre) call assignFlagValue(actionCommand,"+loc",dpos,[0.d0,0.d0,0.d0])
+      if (.not. lcentre) call assignFlagValue(actionCommand,"+loc",dpos,[0.0_real64,0.0_real64,0.0_real64])
 
       ! call checkUsedFlags(actionCommand)
 
@@ -357,7 +535,7 @@ contains
           block
             nsel = count(a % isSelected(:,1))
 
-            dpos = 0.d0
+            dpos = 0.0_real64
             do i=1,nsel
               idx = a % idxSelection(i,1)
               dpos(1:3) = dpos(1:3) + frame % pos(1:3,idx)
@@ -388,7 +566,7 @@ contains
       end if
       nsel = count(a % isSelected(:,1))
 
-      xcom = 0.d0
+      xcom = 0.0_real64
       do i=1,nsel
         idx = a % idxSelection(i,1)
         xcom(1:3) = xcom(1:3) + frame % pos(1:3,idx)
@@ -397,7 +575,7 @@ contains
       
       if (lcentre) then
         xcentre(1:3) = frame % hmat(1:3,1) + frame % hmat(1:3,2) + frame % hmat(1:3,3)
-        xcentre = xcentre / 2.d0
+        xcentre = xcentre / 2.0_real64
         delta(1:3) = xcentre(1:3) - xcom(1:3)
       else
         delta(1:3) = dpos(1:3) - xcom(1:3)
@@ -433,7 +611,7 @@ contains
     type(actionTypeDef), target :: a
     integer :: i
     logical, pointer :: lnint
-    real(8), allocatable, dimension(:,:) :: tmpArray
+    real(real64), allocatable, dimension(:,:) :: tmpArray
 
     lnint => a % logicalVariables(1)
 
@@ -477,7 +655,7 @@ contains
     type(actionTypeDef), target :: a
 
     integer :: iatm
-    real(8) :: dij(3), dist
+    real(real64) :: dij(3), dist
 
     ! Associate variables
     
@@ -521,21 +699,23 @@ contains
     implicit none
     type(actionTypeDef), target :: a
     character(:), pointer :: actionCommand
-
+    integer, pointer :: tallyExecutions
     logical, pointer :: actionInitialisation
-    real(8), allocatable, dimension(:,:) :: cartesianCoord
-    real(8), allocatable, dimension(:) :: saveCharges
+
+    real(real64), allocatable, dimension(:,:) :: cartesianCoord
+    real(real64), allocatable, dimension(:) :: saveCharges
     character(cp), allocatable, dimension(:) :: saveLabels
-    real(8), allocatable, dimension(:) :: saveMasses
+    real(real64), allocatable, dimension(:) :: saveMasses
     
     integer, pointer, dimension(:) :: idx, jdx, kdx
     integer :: nargs
     character(len=10) :: args(10)
-    integer :: iatm, i, j, k, nrepl, nn
+    integer :: iatm, i, j, k, nrepl, nn, natoms_old
     
     ! Associate variables
     actionCommand        => a % actionDetails
     actionInitialisation => a % actionInitialisation
+    tallyExecutions      => a % tallyExecutions
 
     idx(1:2)             => a % integerVariables(1:2)
     jdx(1:2)             => a % integerVariables(3:4)
@@ -564,10 +744,18 @@ contains
 
       call checkUsedFlags(actionCommand)
 
+      tallyExecutions = 0 
+
       return
     end if
     
     if (frameReadSuccessfully) then 
+      if (tallyExecutions > 0) then
+        call message(-1,"Replicating cell can be done only on one frame")
+      else
+        tallyExecutions = tallyExecutions + 1
+      end if
+
       if (numberOfMolecules > 0) call runInternalAction("pbc","NULL")
 
       nrepl = (idx(2)-idx(1)+1) * (jdx(2)-jdx(1)+1) * (kdx(2)-kdx(1)+1)
@@ -581,28 +769,15 @@ contains
          saveCharges = frame % chg
           saveMasses = frame % mass
   
-  
-      ! call move_alloc(frame % pos, cartesianCoord)
-      ! call move_alloc(frame % lab, saveLabels)
-      ! call move_alloc(frame % chg, saveCharges)
-      ! call move_alloc(frame % mass, saveMasses)
-      deallocate(frame % pos)
-      deallocate(frame % lab)
-      deallocate(frame % chg)
-      deallocate(frame % mass)
-      deallocate(frame % frac)
-      
-      allocate(frame % pos(3,frame % natoms * nrepl))
-      allocate(frame % lab(frame % natoms * nrepl))
-      allocate(frame % chg(frame % natoms * nrepl))
-      allocate(frame % mass(frame % natoms * nrepl))
-      allocate(frame % frac(3,frame % natoms * nrepl))
-      
+      natoms_old = frame % natoms
+      call deleteSystemArrays(frame)
+      call createSystemArrays(frame, natoms_old * nrepl ) ! also sets frame % natoms
+
       nn = 0 
-      do iatm=1,frame % natoms
-        do i=idx(1),idx(2)
-          do j=jdx(1),jdx(2)
-            do k=kdx(1),kdx(2)
+      do k=kdx(1),kdx(2)
+        do j=jdx(1),jdx(2)
+          do i=idx(1),idx(2)
+            do iatm=1,natoms_old
               nn = nn + 1
               frame % pos(1:3,nn) = cartesianCoord(1:3,iatm) & 
                                   + i*frame % hmat(1:3,1) &
@@ -616,7 +791,6 @@ contains
         end do
       end do
       
-      frame % natoms = nn
       frame % hmat(1:3,1) = (idx(2)-idx(1)+1)*frame % hmat(1:3,1)
       frame % hmat(1:3,2) = (jdx(2)-jdx(1)+1)*frame % hmat(1:3,2)
       frame % hmat(1:3,3) = (kdx(2)-kdx(1)+1)*frame % hmat(1:3,3)
@@ -662,7 +836,7 @@ contains
     integer, pointer :: idx
     integer :: nargs
     character(len=10) :: args(10)
-    real(8), dimension(3) :: rtmp
+    real(real64), dimension(3) :: rtmp, shift
     integer :: iatm, nrepl, nn, i
     logical :: lflag(3)
     
@@ -710,20 +884,29 @@ contains
         a % firstAction = .false.
       end if
 
-      rtmp = 2.d0 * frame % hmat(:,idx)
-      nn = frame % natoms 
-      do iatm=1,frame % natoms
-        frame % pos(1:3,nn+iatm) = frame % pos(1:3,iatm) 
-        frame % lab(    nn+iatm) = frame % lab(    iatm) 
-        frame % chg(    nn+iatm) = frame % chg(    iatm) 
-      end do
+      rtmp = 2.0_real64 * frame % hmat(:,idx)
+      ! nn = frame % natoms 
+      ! do iatm=1,frame % natoms
+      !   frame % pos(1:3,nn+iatm) = frame % pos(1:3,iatm) 
+      ! end do
 
-      do iatm=1,frame % natoms
-        frame % pos(idx,nn+iatm) = rtmp(idx) - frame % pos(idx,iatm) 
-      end do
-      
+      nn = frame % natoms 
+
       frame % natoms = frame % natoms * nrepl
       frame % hmat(1:3,idx) = nrepl * frame % hmat(1:3,idx)
+      frame % lab(nn+1:nn+nn) = frame % lab(1:nn)
+      frame % chg(nn+1:nn+nn) = frame % chg(1:nn)
+
+      rtmp = [1.d0 , 1.d0 , 1.d0] ; rtmp(idx) = -1.d0
+      do iatm=1,nn
+        frame % pos(1:3,nn+iatm) = rtmp(1:3) * frame % pos(1:3,iatm)
+      end do
+      
+      ! Shift the atoms back in the cell
+      shift = frame % hmat(:,idx) / 2.0_real64
+      do iatm=1,frame % natoms
+        frame % pos(1:3,iatm) = frame % pos(1:3,iatm) + shift(1:3)
+      end do
 
       call getInverseCellMatrix(frame % hmat, frame % hinv, frame % volume)
       call hmat2cell (frame % hmat, frame % cell, "DEG")
@@ -755,7 +938,7 @@ contains
     logical, pointer :: firstAction
     logical, pointer :: dryRun, lselect
 
-    real(8), pointer :: overlapDistance
+    real(real64), pointer :: overlapDistance
     integer ::natm0, natm1
     integer :: idx
 
@@ -773,7 +956,7 @@ contains
       a % requiresNeighboursListUpdates = .true.
       a % requiresNeighboursListDouble = .true.
       
-      call assignFlagValue(actionCommand,"+rmin",overlapDistance,1.0d0)
+      call assignFlagValue(actionCommand,"+rmin",overlapDistance,1.0_real64)
       a % cutoffNeighboursList = overlapDistance
 
       call assignFlagValue(actionCommand,"+dry",dryRun,.false.)
@@ -805,9 +988,9 @@ contains
         integer :: ndist1 = 0
         integer :: ndist2 = 0
         integer :: ndist3 = 0
-        real(8) :: rdist1 = 0.75d0
-        real(8) :: rdist2 = 0.50d0
-        real(8) :: rdist3 = 0.10d0
+        real(real64) :: rdist1 = 0.75_real64
+        real(real64) :: rdist2 = 0.50_real64
+        real(real64) :: rdist3 = 0.10_real64
         character(len=5) :: str
         do iatm=1,frame % natoms
           do ineigh=1,nneigh(iatm)
@@ -839,8 +1022,8 @@ contains
       ! if (numberOfMolecules == 0) call runInternalAction("topology","NULL")
 
       if (lselect) then
-        call deleteOverlapAllMolecules(overlapDistance, \
-                                        size(a % idxSelection(:,1)), \
+        call deleteOverlapAllMolecules(overlapDistance, &
+                                        size(a % idxSelection(:,1)), &
                                         a % idxSelection(:,1))
       else
         call deleteOverlapAllMolecules(overlapDistance)
@@ -864,55 +1047,130 @@ contains
     
   end subroutine removeOverlappingMolecules
 
-  subroutine fixCellJumps(a)
+  subroutine fixCell(a)
     use moduleSystem
+    use moduleStrings
     use moduleVariables
-    use moduleDistances, only : cartesianToFractional
+    use moduleDistances
+    use moduleMessages
     implicit none
     type(actionTypeDef), target :: a
+    character(:), pointer :: actionCommand  
+    logical, pointer :: firstAction
+    logical, pointer :: actionInitialisation
+
+    character(len=1) :: dirs(3)
+    integer :: nargs, i, j
+    integer, save :: idx
+    character(len=10) :: args(10)
+    logical :: lflag(3)
+    real(real64), save :: box(3,3), tmp(3,3)
   
-    logical, save :: firstTimeIn = .true.
-    integer :: iVal(3)
-    real(8) :: rtmp(3,3), rVec
-    real(8), save :: box(3,3)
-  
+    ! Associate variables
+    actionCommand        => a % actionDetails
+    firstAction          => a % firstAction
+    actionInitialisation => a % actionInitialisation
+
+    dirs = ["x","y","z"]
+
     if (a % actionInitialisation) then
       a % actionInitialisation = .false.
-      box = frame % hmat
+      a % requiresNeighboursList = .false.
+
+      call parse(actionCommand," ",args,nargs)
+      call assignFlagValue(actionCommand,"+x",lflag(1),.false.)
+      call assignFlagValue(actionCommand,"+y",lflag(2),.false.)
+      call assignFlagValue(actionCommand,"+z",lflag(3),.false.)
+
+
+      if (count(lflag) == 0) then
+        call message(-1,"--fixcell | no direction specified")
+      else if (count(lflag) > 1) then
+        call message(-1,"--fixcell | only one direction can be specified at one time")
+      else
+        do i=1,3
+          if (lflag(i)) idx = i
+        end do
+      end if
+
+      call checkUsedFlags(actionCommand)
+
       return
     end if
 
-    rtmp = (box - frame % hmat)
+    if (frameReadSuccessfully) then
+      call message(0,"Cleaning up the cell...")
+      call straightenCell(frame % hmat,dirs(idx),box)
 
-    iVal = 0
-    iVal(1) = nint(sqrt(sum(rtmp(1:1,2)**2)) / frame % cell(1))
-    ! iVal(2) = nint(sqrt(sum(rtmp(1,3)**2)) / frame % cell(1))
-    ! iVal(3) = nint(sqrt(sum(rtmp(1:2,3)**2)) / frame % cell(2))
+      do i=1,3
+        do j=1,3
+          tmp(i,j) = abs(frame % hmat(i,j) - box(i,j))
+        end do
+      end do
 
-    if (iVal(1) > 0) then
-      rVec = sign(dble(iVal(1)), box(1,2))
-      frame % hmat(:,2) = frame % hmat(:,2) + rVec * frame % hmat(:,1)
-    end if
+      if (sum(tmp) < 1.0e-6_real64) then
+        call message(1,"...Cell already clean")
+        return
+      end if
 
-    ! if (iVal(2) > 0) then
-    !   rVec = sign(dble(iVal(2)), box(1,3))
-    !   frame % hmat(:,3) = frame % hmat(:,3) + rVec * frame % hmat(:,1)
-    ! end if
+      if (abs(box(2,1)) + abs(box(3,1)) + abs(box(3,2)) .gt. 1.0e-6_real64) then
+        call makeUpperTriangularCell(box, frame % pos, frame % natoms)
+      end if
 
-    ! if (iVal(3) > 0) then
-    !   rVec = sign(dble(iVal(2)), box(2,3))
-    !   frame % hmat(:,3) = frame % hmat(:,3) + rVec * frame % hmat(:,2)
-    ! end if
+      do i=1,3
+        do j=1,3
+          if (abs(box(i,j)) < 1.0e-6_real64) then
+            box(i,j) = 0.0_real64
+          end if
+        end do
+      end do
 
-    if (any(iVal>0)) then
+      frame % hmat = box
+      call getInverseCellMatrix(frame % hmat, frame % hinv, frame % volume)
       call hmat2cell (frame % hmat, frame % cell, "DEG")
-      call getInverseCellMatrix(frame % hmat,frame % hinv,frame % volume)
-      call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
-    end if
-    
-    box = frame % hmat
 
-  end subroutine fixCellJumps
+      call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
+
+      call message(0,"...New cell")
+      call message(0,"...Cell vector A",rv=frame % hmat(1:3,1))
+      call message(0,"...Cell vector B",rv=frame % hmat(1:3,2))
+      call message(0,"...Cell vector C",rv=frame % hmat(1:3,3))
+      call message(0,"...Cell lengths",rv=frame % cell(1:3))
+      call message(0,"...Cell angles",rv=frame % cell(4:6))
+      call message(1,"...Volume",r=frame % volume)
+
+    end if
+    ! rtmp = (box - frame % hmat)
+
+    ! iVal = 0
+    ! iVal(1) = nint(sqrt(sum(rtmp(1:1,2)**2)) / frame % cell(1))
+    ! ! iVal(2) = nint(sqrt(sum(rtmp(1,3)**2)) / frame % cell(1))
+    ! ! iVal(3) = nint(sqrt(sum(rtmp(1:2,3)**2)) / frame % cell(2))
+
+    ! if (iVal(1) > 0) then
+    !   rVec = sign(dble(iVal(1)), box(1,2))
+    !   frame % hmat(:,2) = frame % hmat(:,2) + rVec * frame % hmat(:,1)
+    ! end if
+
+    ! ! if (iVal(2) > 0) then
+    ! !   rVec = sign(dble(iVal(2)), box(1,3))
+    ! !   frame % hmat(:,3) = frame % hmat(:,3) + rVec * frame % hmat(:,1)
+    ! ! end if
+
+    ! ! if (iVal(3) > 0) then
+    ! !   rVec = sign(dble(iVal(2)), box(2,3))
+    ! !   frame % hmat(:,3) = frame % hmat(:,3) + rVec * frame % hmat(:,2)
+    ! ! end if
+
+    ! if (any(iVal>0)) then
+    !   call hmat2cell (frame % hmat, frame % cell, "DEG")
+    !   call getInverseCellMatrix(frame % hmat,frame % hinv,frame % volume)
+    !   call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
+    ! end if
+    
+    ! box = frame % hmat
+
+  end subroutine fixCell
 
 end module moduleModifyCoordinates
 
@@ -923,7 +1181,7 @@ subroutine checkForBrokenMolecules(brokenMolecule)
   implicit none
 
   integer :: ibond, iatm, jatm, imol
-  real(8) :: dij(3), distance2
+  real(real64) :: dij(3), distance2
   logical, intent(out) :: brokenMolecule
 
   brokenMolecule = .false.
@@ -935,7 +1193,7 @@ subroutine checkForBrokenMolecules(brokenMolecule)
     jatm = listOfUniqueBonds(2,ibond)
     dij = frame % pos(1:3,iatm) - frame % pos(1:3,jatm)
     distance2 = sum(dij*dij)
-    if (distance2 > 9.d0) then
+    if (distance2 > 9.0_real64) then
       brokenMolecule = .true.
       imol = atomToMoleculeIndex(iatm)
       listOfMolecules(imol) % brokenBonds = .true.
@@ -952,19 +1210,43 @@ subroutine reassembleAllMolecules()
   use moduleDistances
   implicit none
 
-  integer :: imol, idx, iatm, jatm
-  real(8) :: dij(3), rtmp
+  integer :: imol, idx, ib, iatm, jatm
+  integer :: n, m, itmp(1)
+  integer, allocatable, dimension(:) :: atomList
+  real(real64) :: dij(3), rtmp
 
   do imol=1,numberOfMolecules
-    iatm = listOfMolecules(imol) % listOfAtoms(1)
-    do idx=2,listOfMolecules(imol) % numberOfAtoms
-      jatm = listOfMolecules(imol) % listOfAtoms(idx)
-      dij(1:3) = frame % pos(1:3,jatm) - frame % pos(1:3,iatm)
-      rtmp = computeDistanceSquaredPBC(dij)
-      frame % pos(1:3,jatm) = frame % pos(1:3,iatm) + dij(1:3)
-    enddo
-  enddo
+    n = listOfMolecules(imol) % numberOfAtoms
+    allocate(atomList(n),source=0)
+    atomList(1) = 1
+    do while (count(atomList==2) < n)
+      idx = getatom(n,atomList)
+      iatm = listOfMolecules(imol) % listOfAtoms(idx)
+      do ib=1,numberOfCovalentBondsPerAtom(iatm)
+        jatm = listOfCovalentBondsPerAtom(ib,iatm)
+        itmp = minloc( (listOfMolecules(imol) % listOfAtoms(:)-jatm)**2 )
+        if (atomList(itmp(1)) ==2) cycle
 
+        dij(1:3) = frame % pos(1:3,jatm) - frame % pos(1:3,iatm)
+        rtmp = computeDistanceSquaredPBC(dij)
+        frame % pos(1:3,jatm) = frame % pos(1:3,iatm) + dij(1:3)
+  
+        atomList(itmp(1)) = 1
+      end do
+      atomList(idx) = 2
+    end do
+    deallocate(atomList)
+  end do
+
+  contains
+  integer function getatom(n,l) result(i)
+    implicit none
+    integer, intent(in) :: n
+    integer, dimension(n), intent(in) :: l
+    do i=1,n
+      if (l(i)==1) exit
+    end do
+  end function getatom
 end subroutine reassembleAllMolecules
 
 subroutine reassembleAllMolecules2(n,pos)
@@ -974,10 +1256,10 @@ subroutine reassembleAllMolecules2(n,pos)
   implicit none
 
   integer :: n
-  real(8), dimension(3,n) :: pos
+  real(real64), dimension(3,n) :: pos
 
   integer :: imol, idx, iatm, jatm
-  real(8) :: dij(3), rtmp
+  real(real64) :: dij(3), rtmp
 
   do imol=1,numberOfMolecules
     iatm = listOfMolecules(imol) % listOfAtoms(1)
@@ -998,7 +1280,7 @@ subroutine reassembleBrokenMolecules()
   implicit none
 
   integer :: imol, idx, iatm, jatm
-  real(8) :: dij(3), rtmp
+  real(real64) :: dij(3), rtmp
 
   do imol=1,numberOfMolecules
     if (.not. listOfMolecules(imol) % brokenBonds) cycle
@@ -1025,7 +1307,7 @@ subroutine computeMoleculesCOM(mol0)
   integer, intent(in) :: mol0
   integer :: imol, idx, iatm, n
 
-  real(8), allocatable, dimension(:,:) :: localPositions
+  real(real64), allocatable, dimension(:,:) :: localPositions
 
   idx = maxval(listOfMolecules(mol0+1:numberOfMolecules) % numberOfAtoms)
   allocate(localPositions(3,idx))
@@ -1045,7 +1327,7 @@ subroutine deleteOverlapAllMolecules(rcut,n,alist)
   use moduleVariables
   use moduleDistances
   implicit none
-  real(8), intent(in) :: rcut
+  real(real64), intent(in) :: rcut
   integer, intent(in), optional :: n
   integer, dimension(*), intent(in), optional :: alist
 
@@ -1053,7 +1335,7 @@ subroutine deleteOverlapAllMolecules(rcut,n,alist)
   integer :: imol, jmol
   integer :: idx
   integer :: iatm, jatm, ineigh
-  real(8) :: dij(3), rtmp, rmax
+  real(real64) :: dij(3), rtmp, rmax
   integer :: n0
   integer :: kdx
 
@@ -1074,6 +1356,7 @@ subroutine deleteOverlapAllMolecules(rcut,n,alist)
     if (lremove(iatm)) cycle
     do ineigh=1,nneigh(iatm)
       jatm = lneigh(ineigh,iatm)
+      if (lremove(jatm)) cycle
       if (rneigh(ineigh,iatm) < rcut) lremove(jatm) = .true.
     end do
   end do
@@ -1108,12 +1391,12 @@ end subroutine deleteOverlapAllMolecules
 !   use moduleVariables
 !   use moduleDistances
 !   implicit none
-!   real(8), intent(in) :: rcut
+!   real(real64), intent(in) :: rcut
 !   logical, intent(in) :: removeSecond
 
 !   logical, allocatable, dimension(:) :: lremove
 !   integer, target :: iatm, jatm, ineigh
-!   real(8) :: dij(3), rtmp, rmax
+!   real(real64) :: dij(3), rtmp, rmax
 !   integer :: n0
 !   integer, pointer :: idx
 
@@ -1167,14 +1450,14 @@ end subroutine deleteOverlapAllMolecules
 !   use moduleVariables
 !   use moduleDistances
 !   implicit none
-!   real(8), intent(in) :: rcut
+!   real(real64), intent(in) :: rcut
 !   logical, intent(in) :: removeSecond
 
 !   logical, allocatable, dimension(:) :: lremove
 !   integer :: imol, jmol
 !   integer :: idx
 !   integer :: iatm, jatm, ineigh
-!   real(8) :: dij(3), rtmp, rmax
+!   real(real64) :: dij(3), rtmp, rmax
 !   integer :: n0
 !   integer :: kdx
 

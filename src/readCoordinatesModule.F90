@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleRead 
   use moduleCIF
   use moduleGULP
@@ -145,16 +114,16 @@ contains
   end subroutine openCoordinatesInputFiles
 
   subroutine getNumberOfAtoms(f, n, hmat)
-    use moduleVariables, only : fileTypeDef
+    use moduleVariables, only : fileTypeDef, real64
     use moduleMessages 
     use moduleSystem, only : userDefinedCell, userDefinedHMatrix
 
     implicit none
     type(fileTypeDef), intent(in) :: f
     integer, intent(out) :: n
-    real(8), dimension(3,3),  intent(out) :: hmat
+    real(real64), dimension(3,3),  intent(out) :: hmat
 
-    hmat = reshape([1.d0, 0.d0, 0.d0, 0.d0, 1.d0, 0.d0, 0.d0, 0.d0, 1.d0],[3,3])
+    hmat = reshape([1.0_real64, 0.0_real64, 0.0_real64, 0.0_real64, 1.0_real64, 0.0_real64, 0.0_real64, 0.0_real64, 1.0_real64],[3,3])
     select case(f % ftype)
       case default
         call message(-1,"Unknown input file type (getNumberOfAtoms)",str=f % ftype)
@@ -165,7 +134,7 @@ contains
       case ("arc" , "txyz")  
         call getNumberOfAtomsARC(f % funit, n, hmat)
 
-      case ("pdb" , "PDB")
+      case ("pdb" , "PDB", "pdb2")
         call getNumberOfAtomsPDB(f % funit, n, hmat)
 
       case ("dcd", "xtc", "trr")
@@ -213,7 +182,7 @@ contains
     
     logical, save :: firstTimeIn = .true.
     character(cp), allocatable, dimension(:), save :: savedLabels
-    real(8), allocatable, dimension(:), save :: savedCharges
+    real(real64), allocatable, dimension(:), save :: savedCharges
     character(2), allocatable, dimension(:), save :: savedElements
 
 #ifdef GPTA_XDR
@@ -229,7 +198,7 @@ contains
     integer :: now, next_frame
     integer :: iatm
     integer :: n0
-    real(8) :: dij(3)
+    real(real64) :: dij(3)
 
     ! Default to no error
     lerr = .true.
@@ -279,7 +248,7 @@ contains
         case ("arc" , "txyz")
           call readCoordinatesARC(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
 
-        case ("pdb")
+        case ("pdb", "PDB", "pdb2")
           call readCoordinatesPDB(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, localFrame % element, go)
         
         case ("dcd2")
@@ -306,7 +275,7 @@ contains
 
             if (go) then
 
-              if ( all(box(4:6) >= -1.d0) .and.  all(box(4:6) <= 1.d0) ) then
+              if ( all(box(4:6) >= -1.0_real64) .and.  all(box(4:6) <= 1.0_real64) ) then
                 box(4) = dacos(box(4)) 
                 box(5) = dacos(box(5)) 
                 box(6) = dacos(box(6)) 
@@ -338,7 +307,9 @@ contains
           call readCoordinatesLammps(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
 
         case("lmptrj")
-          call readCoordinatesLammpsTrajectory(iounit, numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
+          call readCoordinatesLammpsTrajectory(iounit, numberOfAtomsLocal, &
+            localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go)
+!            localFrame % pos, localFrame % lab, localFrame % chg, localFrame % hmat, go, localFrame % forces)
 
         case("cif")
           call readCoordinatesCIF(numberOfAtomsLocal, localFrame % pos, localFrame % lab, localFrame % hmat, go)
@@ -356,8 +327,8 @@ contains
 
           if (xtcf % STAT ==0) then
             go = .true.
-            localFrame % hmat = (xtcf % box) * 10.d0
-            localFrame % pos(1:3,1:localFrame % natoms) = xtcf % pos(1:3,1:localFrame % natoms) * 10.d0
+            localFrame % hmat = (xtcf % box) * 10.0_real64
+            localFrame % pos(1:3,1:localFrame % natoms) = xtcf % pos(1:3,1:localFrame % natoms) * 10.0_real64
           else
             go = .false.
           end if
@@ -374,8 +345,8 @@ contains
 
           if (xtcf % STAT ==0) then
             go = .true.
-            localFrame % hmat = (trrf % box)* 10.d0
-            localFrame % pos(1:3,1:localFrame % natoms) = trrf % pos(1:3,1:localFrame % natoms) * 10.d0
+            localFrame % hmat = (trrf % box)* 10.0_real64
+            localFrame % pos(1:3,1:localFrame % natoms) = trrf % pos(1:3,1:localFrame % natoms) * 10.0_real64
           else
             go = .false.
           end if
@@ -387,8 +358,8 @@ contains
           localFrame % hmat = localFrame % hmat * rbohr
           localFrame % pos = localFrame % pos * rbohr
         else if (inputCoordInNM) then
-          localFrame % hmat = localFrame % hmat * 10.d0
-          localFrame % pos = localFrame % pos * 10.d0
+          localFrame % hmat = localFrame % hmat * 10.0_real64
+          localFrame % pos = localFrame % pos * 10.0_real64
         end if
       end if 
 
@@ -495,10 +466,9 @@ contains
     use moduleDistances, only : initialisePBC
     use moduleElements, only : getElementMass
 
-
     implicit none
     integer :: iatm
-    real(8) :: density
+    real(real64) :: density
 
     logical, save :: firstTimeIn = .true.
 
@@ -508,22 +478,22 @@ contains
 
     call getInverseCellMatrix (frame % hmat, frame % hinv, frame % volume)
     
-    if (frame % volume < 1.1d0) then
+    if (frame % volume < 1.1_real64) then
       pbc_type = "none"
-      frame % cell = 0.d0
+      frame % cell = 0.0_real64
       frame % hmat = identityMatrix
       frame % hinv = identityMatrix
 
     else
 
       ! makeUpperTriangularCell(hmat,pos,nn)
-      if (abs(frame % hmat(2,1)) + abs(frame % hmat(3,1)) + abs(frame % hmat(3,2)) .gt. 1.0d-6) then
+      if (abs(frame % hmat(2,1)) + abs(frame % hmat(3,1)) + abs(frame % hmat(3,2)) .gt. 1.0e-6_real64) then
         call makeUpperTriangularCell(frame % hmat, frame % pos, frame % natoms)
         call getInverseCellMatrix (frame % hmat, frame % hinv, frame % volume)
       end if
       call hmat2cell (frame % hmat, frame % cell, "DEG")
 
-      if (abs(frame % hmat(1,2)) + abs(frame % hmat(1,3)) + abs(frame % hmat(2,3)) .lt. 1.0d-6) then
+      if (abs(frame % hmat(1,2)) + abs(frame % hmat(1,3)) + abs(frame % hmat(2,3)) .lt. 1.0e-6_real64) then
         pbc_type = "ortho"
       else
         pbc_type = "tri"
@@ -538,9 +508,9 @@ contains
 
       if (frame % natoms > 0) call systemComposition(frame)
 
-      totalMass = 0.d0
+      totalMass = 0.0_real64
       block
-        real(8) :: rmass
+        real(real64) :: rmass
         do iatm=1,frame % natoms
           rmass = getElementMass(frame % lab(iatm))
           frame % mass(iatm) = rmass
@@ -548,14 +518,16 @@ contains
         enddo
       end block
 
-      totalCharge = 0.d0
+      totalCharge = 0.0_real64
       do iatm=1,frame % natoms
         totalCharge = totalCharge + frame % chg(iatm)
       enddo
 
       call message(0,"...Total mass (g/mole)",r=totalMass)
       if (pbc_type /= "none") then
-        density = 1.6605388d0 * totalMass / frame % volume
+        density = frame % natoms / frame % volume
+        call message(0,"...Initial density (atoms/A^3)",r=density)
+        density = 1.6605388_real64 * totalMass / frame % volume
         call message(0,"...Initial density (g/cm^3)",r=density)
       end if
       call message(1,"...Total charge",r=totalCharge)
@@ -565,14 +537,15 @@ contains
   end subroutine cellProcessing
 
   subroutine dumpCellInfo(hmat)
+    use moduleVariables, only: real64
     use moduleMessages
     implicit none
-    real(8), intent(in) :: hmat(3,3)
-    real(8) :: cell(6), hinv(3,3), volume
+    real(real64), intent(in) :: hmat(3,3)
+    real(real64) :: cell(6), hinv(3,3), volume
     call hmat2cell (hmat, cell, "DEG")
     call getInverseCellMatrix (hmat, hinv, volume)
 
-    if (volume > 1.01d0) then
+    if (volume > 1.1_real64) then
       call message(0,"Initial cell")
       call message(0,"...Cell vector A",rv=hmat(1:3,1))
       call message(0,"...Cell vector B",rv=hmat(1:3,2))

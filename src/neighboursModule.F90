@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleNeighbours 
   use moduleVariables
   use moduleSystem 
@@ -42,11 +11,11 @@ module moduleNeighbours
   integer :: iextra = 1
   integer :: nnear = 14 ! 63 ! ((iextra*2 + 1)**2 * (iextra+1) - 4*(2*(iextra-1)+1))
   integer :: ncell(3)
-  real(8) :: rcell(3,3)
+  real(real64) :: rcell(3,3)
 
   ! Timing
-  real(8) :: neigh_start, neigh_end
-  real(8) :: neighboursListTime
+  real(real64) :: neigh_start, neigh_end
+  real(real64) :: neighboursListTime
 
   ! type(allActionsProcedure) :: allActions(100)
 
@@ -78,10 +47,10 @@ contains
     enddo
 
     ! estimated max number of neighbours as about 4 times the number density of the water
-    neighmax = int(0.6d0 * cutoffNeighboursListGlobal**3)
+    neighmax = int(0.6_real64 * cutoffNeighboursListGlobal**3)
 
     neighboursListUpdates = 0
-    neighboursListTime = 0.d0
+    neighboursListTime = 0.0_real64
 
   end subroutine initialiseNeighboursList
 
@@ -123,7 +92,7 @@ contains
       algorithm = "Verlet List"
       computeNeighbours => computeVerletList
     else
-      if (cutoffNeighboursListGlobal > 5.5d0) then
+      if (cutoffNeighboursListGlobal > 5.5_real64) then
         algorithm = "Linked Cell Sorting"
         computeNeighbours => computeLikedCellNeighboursSort
       else
@@ -218,8 +187,8 @@ contains
 
     integer :: natm
     integer :: iatm, jatm
-    real(8) :: rcut2
-    real(8) :: dist, dij(3)
+    real(real64) :: rcut2
+    real(real64) :: dist, dij(3)
     integer :: ierr = 0
 
     natm = frame % natoms
@@ -259,19 +228,19 @@ contains
     integer :: ierr
 
     integer :: iatm, jatm, natoms
-    real(8), allocatable, dimension(:,:) :: cartesianCoord
+    real(real64), allocatable, dimension(:,:) :: cartesianCoord
 
-    real(8) :: rcut2, rij
+    real(real64) :: rcut2, rij
     integer :: i, j, k, l 
     integer :: ntot, ntot2, nn
     integer, dimension(3) :: iij, iv1, iv2, ncell2
     integer, allocatable, dimension(:) :: nlink
     integer, allocatable, dimension(:,:) :: ilink
-    real(8), allocatable, dimension(:,:,:) :: rlink
+    real(real64), allocatable, dimension(:,:,:) :: rlink
 
     integer :: i1, i2, i3, idx, ii, jj
-    real(8), dimension(3,3) :: hmat
-    real(8), dimension(3) :: p0, dij
+    real(real64), dimension(3,3) :: hmat
+    real(real64), dimension(3) :: p0, dij
 
     natoms = frame % natoms
     
@@ -492,24 +461,24 @@ contains
     integer :: ierr
 
     integer :: iatm, jatm, natoms
-    real(8), allocatable, dimension(:,:) :: cartesianCoord
+    real(real64), allocatable, dimension(:,:) :: cartesianCoord
 
-    real(8) :: rcut2, rij
+    real(real64) :: rcut2, rij
     integer :: i, j, k, l 
     integer :: ntot, ntot2, nn
     integer, dimension(3) :: iij, iv1, iv2, ncell2
     integer, allocatable, dimension(:) :: nlink
     integer, allocatable, dimension(:,:) :: ilink
-    real(8), allocatable, dimension(:,:,:) :: rlink
+    real(real64), allocatable, dimension(:,:,:) :: rlink
 
     integer :: i1, i2, i3, idx, ii, jj, kk
-    real(8), dimension(3,3) :: hmat
-    real(8), dimension(3) :: p0, dij, dik
+    real(real64), dimension(3,3) :: hmat
+    real(real64), dimension(3) :: p0, dij, dik
 
-    real(8) :: rcut, rtmp
+    real(real64) :: rcut, rtmp
     integer :: ix2
     integer :: nmax
-    real(8), allocatable, dimension(:) :: allProjections
+    real(real64), allocatable, dimension(:) :: allProjections
     integer, allocatable, dimension(:) :: sortedIndices  
 
     natoms = frame % natoms
@@ -786,10 +755,10 @@ contains
   subroutine extend_rmat(a,i,j,k,n,m)
     implicit none
 
-    real(8), allocatable, dimension(:,:,:) :: a
+    real(real64), allocatable, dimension(:,:,:) :: a
     integer, intent(in) :: i, j, k
 
-    real(8), allocatable, dimension(:,:,:) :: b
+    real(real64), allocatable, dimension(:,:,:) :: b
     integer, intent(in) :: n, m
 
     allocate(b(i,n,m))
@@ -805,7 +774,7 @@ contains
     implicit none
     integer, intent(in) :: nn
     integer, allocatable, dimension(:,:) :: lneigh_tmp
-    real(8)   , allocatable, dimension(:,:) :: rneigh_tmp
+    real(real64)   , allocatable, dimension(:,:) :: rneigh_tmp
     integer :: itmp
 
     allocate(lneigh_tmp(neighmax,frame % natoms))
@@ -826,7 +795,7 @@ contains
     lneigh(1:itmp,1:frame % natoms) = lneigh_tmp(1:itmp,1:frame % natoms)
     rneigh(1:itmp,1:frame % natoms) = rneigh_tmp(1:itmp,1:frame % natoms)
     lneigh(itmp+1:neighmax,1:frame % natoms) = 0
-    rneigh(itmp+1:neighmax,1:frame % natoms) = 0.d0
+    rneigh(itmp+1:neighmax,1:frame % natoms) = 0.0_real64
 
     deallocate(lneigh_tmp)
     deallocate(rneigh_tmp)

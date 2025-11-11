@@ -17,9 +17,9 @@ module addFileModule
   type newMolecule
     integer :: natoms
     character(cp), allocatable, dimension(:) :: lab
-    real(8), allocatable, dimension(:,:) :: pos
-    real(8), allocatable, dimension(:) :: chg
-    real(8) :: centre(3)
+    real(real64), allocatable, dimension(:,:) :: pos
+    real(real64), allocatable, dimension(:) :: chg
+    real(real64) :: centre(3)
   end type 
   type(newMolecule), allocatable, dimension(:) :: localMolecules
 
@@ -34,7 +34,7 @@ contains
     type(fileTypeDef), allocatable, dimension(:) :: inputFile
     logical :: frameRead
     integer :: n, iFile
-    real(8) :: hmat(3,3)
+    real(real64) :: hmat(3,3)
 
     call associatePointers(a)
 
@@ -160,6 +160,8 @@ contains
       frame % lab(currentAtoms) = a % localFrame % lab(i) 
       frame % chg(currentAtoms) = a % localFrame % chg(i) 
     end do
+
+    frame % natoms = currentAtoms
 
   end subroutine computeAction
 

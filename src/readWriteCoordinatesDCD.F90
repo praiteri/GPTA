@@ -1,44 +1,14 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 subroutine readCoordinatesDCD(uinp,first,natoms,pos,h,go)
+  use moduleVariables, only: real64
   use moduleMessages 
   implicit none
 
   integer, intent(in) :: uinp 
   logical, intent(inout) :: first
   integer, intent(in) :: natoms
-  real(8), dimension(3,natoms), intent(out) :: pos
-  real(8), intent(out) :: h(3,3)
+  real(real64), dimension(3,natoms), intent(out) :: pos
+  real(real64), intent(out) :: h(3,3)
   logical, intent(out) :: go
 !
 ! DCD header
@@ -58,8 +28,8 @@ subroutine readCoordinatesDCD(uinp,first,natoms,pos,h,go)
 ! DCD variables
   integer :: j
   integer(4) :: nn
-  real(8), dimension(6) :: cell
-  real(8), dimension(6) :: cell_tmp
+  real(real64), dimension(6) :: cell
+  real(real64), dimension(6) :: cell_tmp
   real(4), allocatable, dimension(:), save  :: x, y, z
 
   logical, save :: actionInitialisation=.true.
@@ -88,7 +58,7 @@ subroutine readCoordinatesDCD(uinp,first,natoms,pos,h,go)
   if(icell==1)then
     read(uinp,end=112,err=112)cell(1),cell(6),cell(2),cell(5),cell(4),cell(3)
 
-    if ( all(cell(4:6) >= -1.d0) .and.  all(cell(4:6) <= 1.d0) ) then
+    if ( all(cell(4:6) >= -1.0_real64) .and.  all(cell(4:6) <= 1.0_real64) ) then
       cell(4) = dacos(cell(4))
       cell(5) = dacos(cell(5))
       cell(6) = dacos(cell(6))
@@ -97,10 +67,10 @@ subroutine readCoordinatesDCD(uinp,first,natoms,pos,h,go)
     cell_tmp=real(cell,8)
     call cell2hmat(cell_tmp,h)
   else
-    h=0.d0
-    h(1,1) = 1.d0
-    h(2,2) = 1.d0
-    h(3,3) = 1.d0
+    h=0.0_real64
+    h(1,1) = 1.0_real64
+    h(2,2) = 1.0_real64
+    h(3,3) = 1.0_real64
   end if
 
   read(uinp,end=111,err=111)x
@@ -145,7 +115,7 @@ subroutine writeCoordinatesDCD(uout,write_header)
 
   call hmat2cell(frame % hmat,cell,"COS")
 
-  if(all(cell(1:3)>1.d0))then
+  if(all(cell(1:3)>1.0_real64))then
     icell=1                 !! flag to indicate whether the cell is written in the dcd
   else
     icell=0

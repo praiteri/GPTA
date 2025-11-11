@@ -19,7 +19,7 @@ module addDummyModule
     integer :: numberOfAtoms
     integer, allocatable, dimension(:) :: listOfAtoms
     character(cp) :: label
-    real(8) :: distance
+    real(real64) :: distance
   end type
   type(dummyStructure) :: dummy
 
@@ -121,7 +121,7 @@ module addDummyModule
       end do
     end block
 
-    call assignFlagValue(actionCommand,"+dist ",dummy % distance,0.d0)
+    call assignFlagValue(actionCommand,"+dist ",dummy % distance,0.0_real64)
     
     call assignFlagValue(actionCommand,"+l ",dummy % label,"MW")
 
@@ -134,7 +134,7 @@ module addDummyModule
     integer :: idx, imol, n0
     integer :: i, j, k
     integer :: ii, jj ,kk
-    real(8), dimension(3) :: vec
+    real(real64), dimension(3) :: vec
 
     ii = dummy % listOfAtoms(1)
     jj = dummy % listOfAtoms(2)
@@ -148,7 +148,7 @@ module addDummyModule
       j = listOfMolecules(imol) % listOfAtoms(jj)
       k = listOfMolecules(imol) % listOfAtoms(kk)
 
-      vec(1:3) = frame % pos(1:3,j) + frame % pos(1:3,k) - 2.d0 * frame % pos(1:3,i)
+      vec(1:3) = frame % pos(1:3,j) + frame % pos(1:3,k) - 2.0_real64 * frame % pos(1:3,i)
       vec = vec / sqrt(sum(vec*vec))
       
       frame % pos(1:3 , n0+idx) = frame % pos(1:3,i) + vec(1:3) * dummy % distance
@@ -162,8 +162,6 @@ module addDummyModule
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine dumpScreenInfo()
     implicit none
-    integer :: i
-
     call message(0,"Add dummy particle to molecules")
 
     call message(0,"...Molecule's name",str=dummy % resname)

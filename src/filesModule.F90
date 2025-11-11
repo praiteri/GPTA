@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleFiles
 
   implicit none
@@ -49,16 +18,19 @@ module moduleFiles
     
 end module moduleFiles
   
-subroutine initialiseFile(file,fname,fposition,fstatus,fformat)
+subroutine initialiseFile(file,fname_input,fposition,fstatus,fformat)
   use moduleVariables
   use moduleMessages 
+  use moduleRandomNumbers
   implicit none
   type(fileTypeDef), intent(out) :: file
-  character(len=*), intent(in) :: fname
+  character(len=*), intent(in) :: fname_input
   character(len=*), intent(in), optional :: fposition
   character(len=*), intent(in), optional :: fstatus
   character(len=*), intent(in), optional :: fformat
   
+  character(len=len(fname_input)) :: fname
+
   integer :: ilen
   character(fp) :: ftype
   character(len=11) :: fform
@@ -70,6 +42,37 @@ subroutine initialiseFile(file,fname,fposition,fstatus,fformat)
   
   file % first_access = .true.
   
+  fname = fname_input
+
+  block
+    integer :: exitstat, cmdstat
+    character(256) :: ff, fnew
+    character(500) :: cmd
+    character(256) :: cmdmsg, rnd
+    
+    if (index(trim(fname),"@") > 0) then
+      call get_filename(trim(fname),ff)
+      write(rnd,'(i5)') int(grnd()*99999) + 1
+
+      fnew = "_tmp-gpta_"//trim(rnd)//"_"//trim(ff)
+      call message(0,"Fetching remote file",str=fname)
+      call message(0,"...local temporary file",str=fnew)
+
+      cmd = "scp "//trim(fname)//" ./"//trim(fnew)//" > /dev/null 2>&1"
+
+      call execute_command_line(cmd, .true., EXITSTAT=exitstat, CMDSTAT=cmdstat, CMDMSG=cmdmsg)
+
+      if (cmdstat /= 0) then
+          write(0,*) 'Command execution error: ', trim(cmdmsg)
+      else if (exitstat /= 0) then
+          write(0,*) 'Command failed with exit status:', exitstat
+      end if
+      call message(2)
+      fname = fnew
+    end if
+
+  end block
+
   if (present(fposition)) then
     fpos = fposition
   else

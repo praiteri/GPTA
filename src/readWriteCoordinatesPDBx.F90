@@ -4,9 +4,10 @@ subroutine writeCoordinatesPDBx(uout)
   implicit none
   integer, intent(inout) :: uout
 
-  integer :: nb, ib
+  integer :: nb, ib, id
   integer :: iatm, jatm, imol
   character(cp) :: l
+  character(31) :: line0, line1
 
   write(uout,'("data_cell")')
   write(uout,'("_cell.length_a",1x,f10.4)')frame % cell(1)
@@ -29,11 +30,17 @@ subroutine writeCoordinatesPDBx(uout)
   write(uout,'("_struct_conn.ptnr2_label_seq_id")')
   write(uout,'("_struct_conn.ptnr2_label_atom_id")')
 
+  nb = 0
   do ib=1,numberOfUniqueBonds
     iatm = listOfUniqueBonds(1,ib)
+    if (frame%lab(iatm) == "M" .or. frame%lab(iatm) == "MW") cycle
+
     jatm = listOfUniqueBonds(2,ib)
+    if (frame%lab(jatm) == "M" .or. frame%lab(jatm) == "MW") cycle
+
+    nb = nb + 1
     imol = atomToMoleculeIndex (iatm)
-    write(uout,'("bond",i0," covale",2(1x,"A",1x,a,1x,i5,1x,a))') ib, &
+    write(uout,'("bond",i0," covale",2(1x,"A",1x,a,1x,i5,1x,a))') nb, &
       listOfMolecules(imol) % resname, imol, frame % lab(iatm), &
       listOfMolecules(imol) % resname, imol, frame % lab(jatm) 
   end do
@@ -54,8 +61,9 @@ subroutine writeCoordinatesPDBx(uout)
   do iatm=1,frame%natoms
     imol = atomToMoleculeIndex (iatm)
     l = frame%lab(iatm)
-    write(uout,'("ATOM",1x,i6,3(1x,a6),1x,"A",1x,i6,3(1x,f10.4))') &
-      iatm, getElement(l), l, listOfMolecules(imol) % resname, imol, frame%pos(:,iatm)
+    id=getAtomicNumber(frame % lab(iatm))
+    write(uout,'("ATOM",1x,i6,3(1x,a3)," A ",1x,i8,3(1x,f11.7))') &
+      iatm, trim(atom(id) % lab), l, listOfMolecules(imol) % resname, imol, frame%pos(:,iatm)
   end do
 
 end subroutine writeCoordinatesPDBx

@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleResidenceTime
 
   use moduleVariables
@@ -47,7 +16,7 @@ module moduleResidenceTime
   
   integer, pointer :: numberOfBins
   integer, pointer :: tallyExecutions
-  real(8), pointer :: cutoffRadius
+  real(real64), pointer :: cutoffRadius
   integer, pointer, dimension(:,:,:) :: coordinationList
 
   integer, pointer :: numberOfCentres
@@ -146,7 +115,7 @@ contains
 
     a % actionInitialisation = .false.
 
-    call assignFlagValue(actionCommand,"+rcut",cutoffRadius,4.d0)
+    call assignFlagValue(actionCommand,"+rcut",cutoffRadius,4.0_real64)
     call assignFlagValue(actionCommand,"+ntraj",numberOfBins,1000)
     call assignFlagValue(actionCommand,"+nmax",MAX_NEIGH,10)
     call assignFlagValue(actionCommand,"+thres",threshold,1)
@@ -190,7 +159,7 @@ contains
     integer :: iatm, jatm, ineigh
     integer, allocatable, dimension(:,:) :: localList
     integer :: icentre, nshell, nsel, nsolvent
-    real(8) :: dij(3), rdist, r2
+    real(real64) :: dij(3), rdist, r2
     
     allocate(localList(MAX_NEIGH,numberOfCentres), source=0)
     
@@ -238,8 +207,8 @@ contains
     implicit none
     integer :: idx, nf
     integer, allocatable, dimension(:,:) :: localList
-    real(8), allocatable, dimension(:) :: residenceTime
-    real(8), allocatable, dimension(:) :: exchangeProbability
+    real(real64), allocatable, dimension(:) :: residenceTime
+    real(real64), allocatable, dimension(:) :: exchangeProbability
 #ifdef GPTA_MPI
     integer :: nn
 #endif
@@ -250,8 +219,8 @@ contains
     call MPI_allreduce(MPI_IN_PLACE, nf, 1, MPI_INT, MPI_MAX, MPI_Working_Comm, ierr_mpi)
 #endif
 
-    allocate(residenceTime(0:nf), source=0.d0)
-    allocate(exchangeProbability(0:nf), source=0.d0)
+    allocate(residenceTime(0:nf), source=0.0_real64)
+    allocate(exchangeProbability(0:nf), source=0.0_real64)
     allocate(localList(MAX_NEIGH,nf), source=0)
 
     do idx=1,numberOfCentres
@@ -274,7 +243,7 @@ contains
     residenceTime = residenceTime / numberOfCentres
     residenceTime = residenceTime / residenceTime(0)
 
-    exchangeProbability = exchangeProbability / numberOfCentres
+!    exchangeProbability = exchangeProbability / numberOfCentres
 !    exchangeProbability = exchangeProbability / sum(exchangeProbability)
 
     call initialiseFile(outputFile,outputFile % fname)
@@ -292,8 +261,8 @@ contains
 
     integer, intent(in) :: thres
     integer, dimension(MAX_NEIGH,frames_read) :: local_list
-    real(8), dimension(0:frames_read) :: survivalFunction
-    real(8), dimension(0:frames_read) :: distribution
+    real(real64), dimension(0:frames_read) :: survivalFunction
+    real(real64), dimension(0:frames_read) :: distribution
 
     integer, allocatable, dimension(:,:) :: coord
 
@@ -334,7 +303,7 @@ contains
         ! -> add to survival function
         if ( coord(3,j) > thres) then
           if (coord(2,j) > thres) then
-            survivalFunction(0:coord(2,j)) = survivalFunction(0:coord(2,j)) + 1.d0
+            survivalFunction(0:coord(2,j)) = survivalFunction(0:coord(2,j)) + 1.0_real64
             distribution(coord(2,j)) = distribution(coord(2,j)) + 1
           end if
           coord(:,j) = 0
@@ -369,7 +338,7 @@ contains
 
     ! Add the molecules still in the list to the survival function
     do j=1,n
-      survivalFunction(0:coord(2,j)) = survivalFunction(0:coord(2,j)) + 1.d0
+      survivalFunction(0:coord(2,j)) = survivalFunction(0:coord(2,j)) + 1.0_real64
     enddo
 
   end subroutine rest_original

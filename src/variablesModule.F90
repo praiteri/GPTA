@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleVariables
 #ifdef GPTA_MPI
     use mpi
@@ -38,6 +7,7 @@ module moduleVariables
     use omp_lib
 #endif
   use, intrinsic :: iso_c_binding, only: C_PTR, C_CHAR, C_FLOAT, C_INT, c_f_pointer, C_NULL_CHAR
+  use, intrinsic :: iso_fortran_env, only: real64
 
   implicit none
 
@@ -60,8 +30,8 @@ module moduleVariables
   logical :: ldebug = .false.
   
   ! Variables tha can be redefined on the command line
-  real(8) :: distanceScaling = 1.15d0
-  integer :: randomNumberSeed = 12345
+  real(real64) :: distanceScaling = 1.15_real64
+  integer :: randomNumberSeed = 0
   logical :: safeDistances = .false.
   logical :: forceVerletList = .false.
 
@@ -75,13 +45,13 @@ module moduleVariables
   integer, parameter :: fp       = 6  ! file type
 
   ! Pi and friends
-  real(8), parameter :: pi       = 3.1415926535898d0
-  real(8), parameter :: pih      = 1.5707963267949d0
-  real(8), parameter :: twopi    = 6.2831853071796d0
-  real(8), parameter :: sqrpi    = 1.772453850905515d0
-  real(8), parameter :: rbohr    = 0.529177249d0
+  real(real64), parameter :: pi       = 3.1415926535898_real64
+  real(real64), parameter :: pih      = 1.5707963267949_real64
+  real(real64), parameter :: twopi    = 6.2831853071796_real64
+  real(real64), parameter :: sqrpi    = 1.772453850905515_real64
+  real(real64), parameter :: rbohr    = 0.529177249_real64
 
-  real(8), dimension(3,3) :: identityMatrix = reshape([1.d0, 0.d0, 0.d0, 0.d0, 1.d0, 0.d0, 0.d0, 0.d0, 1.d0], [3,3])
+  real(real64), dimension(3,3) :: identityMatrix = reshape([1.0_real64, 0.0_real64, 0.0_real64, 0.0_real64, 1.0_real64, 0.0_real64, 0.0_real64, 0.0_real64, 1.0_real64], [3,3])
 
   ! The data type located in libxdrfile for XTC files
   type, public, bind(C) :: xdrfile
@@ -104,17 +74,20 @@ module moduleVariables
   type frameTypeDef
     integer :: nframe
     integer :: natoms
-    real(8) :: origin(3) = 0.d0
-    real(8) :: cell(6)
-    real(8) :: hmat(3,3)
-    real(8) :: hinv(3,3)
-    real(8) :: volume
+    real(real64) :: origin(3) = 0.0_real64
+    real(real64) :: cell(6)
+    real(real64) :: hmat(3,3)
+    real(real64) :: hinv(3,3)
+    real(real64) :: volume
     character(cp), allocatable, dimension(:) :: lab
     character(2), allocatable, dimension(:) :: element
-    real(8), allocatable, dimension(:) :: mass
-    real(8), allocatable, dimension(:,:) :: pos
-    real(8), allocatable, dimension(:,:) :: frac
-    real(8), allocatable, dimension(:) :: chg
+    real(real64), allocatable, dimension(:) :: mass
+    real(real64), allocatable, dimension(:,:) :: pos
+    real(real64), allocatable, dimension(:,:) :: frac
+    real(real64), allocatable, dimension(:) :: chg
+    ! real(real64), allocatable, dimension(:,:) :: vel
+    real(real64), allocatable, dimension(:,:) :: forces
+
   end type frameTypeDef
   logical :: resetFrameLabels =.true.
   logical :: resetFrameCharges = .true.
@@ -126,7 +99,7 @@ module moduleVariables
     integer                                  :: numberOfAtoms
     integer, allocatable, dimension(:)       :: listOfAtoms
     character(cp), allocatable, dimension(:) :: listOfLabels
-    real(8), dimension(3)                    :: centreOfMass
+  real(real64), dimension(3)                 :: centreOfMass
     logical                                  :: brokenBonds = .false.
   end type
 
@@ -139,14 +112,16 @@ module moduleVariables
 !!!!!!!!!!! Molecular properties
   abstract interface
     subroutine molecularProperty(numberOfLocalMolecules,list,property)
+      use, intrinsic :: iso_fortran_env, only: real64
       integer, intent(in) :: numberOfLocalMolecules
       integer, dimension(:), intent(in) :: list
-      real(8), dimension(:), intent(out) :: property
+      real(real64), dimension(:), intent(out) :: property
     end subroutine molecularProperty
 
     subroutine systemProperty(numberOfProperties, property, numberOfSelectedAtoms, selectionList)
+      use, intrinsic :: iso_fortran_env, only: real64
       integer, intent(inout) :: numberOfProperties
-      real(8), dimension(*), intent(out) :: property
+      real(real64), dimension(*), intent(out) :: property
       integer, intent(in), optional :: numberOfSelectedAtoms
       integer, dimension(:), intent(in), optional :: selectionList
     end subroutine systemProperty
@@ -171,35 +146,40 @@ module moduleVariables
     logical :: requiresNeighboursList = .false.
     logical :: requiresNeighboursListDouble = .false.
     logical :: requiresNeighboursListUpdates = .true.
-    real(8) :: cutoffNeighboursList
+    real(real64) :: cutoffNeighboursList
 
-    real(8) :: timeTally = 0.d0
+    real(real64) :: timeTally = 0.0_real64
     integer :: tallyExecutions
     
     integer,               dimension(maxVariables) :: integerVariables = 0
-    real(8),               dimension(maxVariables) :: doubleVariables  = 0.d0
+    real(real64),          dimension(maxVariables) :: doubleVariables  = 0.0_real64
     logical,               dimension(maxVariables) :: logicalVariables = .false.
     character(len=STRLEN), dimension(maxVariables) :: stringVariables  = ''
     character(cp),         dimension(maxVariables) :: labelVariables   = ''
 
     type(frameTypeDef)                         :: localFrame
     character(cp), allocatable, dimension(:)   :: localLabels
-    real(8),       allocatable, dimension(:,:) :: localPositions
-    real(8),       allocatable, dimension(:)   :: localCharges
+    real(real64),  allocatable, dimension(:,:) :: localPositions
+    real(real64),  allocatable, dimension(:)   :: localCharges
     integer,       allocatable, dimension(:)   :: localIndices
 
-    integer                                :: numberOfBins
-    real(8), dimension(2)                  :: distributionLimits
-    integer, allocatable, dimension(:)     :: arrayCounter
-    real(8), allocatable, dimension(:)     :: array1D
-    integer, dimension(2)                  :: numberOfBins2D
-    real(8), allocatable, dimension(:,:)   :: array2D
-    real(8), allocatable, dimension(:,:,:) :: array3D
+    integer                                     :: numberOfBins
+    real(real64), dimension(2)                  :: distributionLimits
+    integer, allocatable, dimension(:)          :: arrayCounter
+
+    real(real64), allocatable, dimension(:)     :: array1D
+    real(real64), allocatable, dimension(:,:)   :: array2D
+    real(real64), allocatable, dimension(:,:,:) :: array3D
+    integer, dimension(2)                       :: numberOfBins2D
+
+    integer, allocatable, dimension(:)     :: Iarray1D
+    integer, allocatable, dimension(:,:)   :: Iarray2D
     integer, allocatable, dimension(:,:,:) :: Iarray3D
 
     logical :: updateAtomsSelection = .true.
     logical, allocatable, dimension(:,:) :: isSelected
     integer, allocatable, dimension(:,:) :: idxSelection
+    integer, allocatable, dimension(:,:) :: idxToSelection
 
     type(fileTypeDef) :: inputFile
     type(fileTypeDef) :: outputFile
@@ -213,20 +193,22 @@ module moduleVariables
 
   interface 
     function cross_product(a,b) result(c)
-      real(8), dimension (3), intent(in)  :: a
-      real(8), dimension (3), intent(in)  :: b
-      real(8), dimension (3) :: c
+      use, intrinsic :: iso_fortran_env, only: real64
+      real(real64), dimension (3), intent(in)  :: a
+      real(real64), dimension (3), intent(in)  :: b
+      real(real64), dimension (3) :: c
     end function cross_product
   end interface
 
   interface
     subroutine dumpXYZ(iounit,nat,pos,lab,hmat)
+      use, intrinsic :: iso_fortran_env, only: real64
       implicit none
       integer, intent(in) :: iounit
       integer, intent(in) :: nat
-      real(8), dimension(3,nat), intent(in) :: pos
+      real(real64), dimension(3,nat), intent(in) :: pos
       character(4), dimension(nat), optional, intent(in) :: lab
-      real(8), dimension(3,3), optional, intent(in) :: hmat
+      real(real64), dimension(3,3), optional, intent(in) :: hmat
     end subroutine
   end interface
 
@@ -234,7 +216,7 @@ contains
 
   function timing() result(t1)
     implicit none
-    real(8) :: t1
+    real(real64) :: t1
 #ifdef GPTA_MPI
     t1 = MPI_wtime()
 #elif GPTA_OMP

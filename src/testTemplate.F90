@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleTemplateAction
   use moduleVariables
   use moduleSystem
@@ -41,7 +10,7 @@ module moduleTemplateAction
   
   implicit none
 
-  public :: testAction
+  public :: testAction,testActionHelp
   private
 
   character(:), pointer :: actionCommand
@@ -55,6 +24,71 @@ module moduleTemplateAction
   integer, pointer :: maxNeigh
 
 contains
+
+subroutine testActionHelp()
+  use moduleMessages
+  implicit none
+  call message(0,"This is a template action for developing new features.")
+  call message(0,"It action computes the Radial Pair Distribution function")
+  call message(0,"Examples:")
+  call message(0,"  gpta.x --i coord.pdb traj.dcd --gofr +s Ca O1,O2 +out gofr.out +nbin 100")
+end subroutine testActionHelp
+
+subroutine testAction(a)
+  implicit none
+  type(actionTypeDef), target :: a
+
+  if (a % actionInitialisation) then
+    call initialiseAction(a)
+    return
+  end if
+
+  if (frameReadSuccessfully) then
+    tallyExecutions = tallyExecutions + 1
+
+    ! Atoms' selection
+    if (firstAction) then
+      ! dump info about the action on the screen
+      call dumpScreenInfo()
+
+      ! select two groups of atoms
+      call selectAtoms(2,actionCommand,a)
+
+      ! update selection if "reactive" trajectory
+      ! i.e. if the atom may change name 
+      if (resetFrameLabels) then
+        a % updateAtomsSelection = .false.
+      else
+        a % updateAtomsSelection = .true.
+      end if
+
+      ! create a list of the atoms' indices for each group
+      call createSelectionList(a,2)
+
+      ! Throw a warning for unused flags
+      call checkUsedFlags(actionCommand)
+      firstAction = .false.
+
+    else
+      
+      ! Repeat selection for reactive trajectories
+      if (a % updateAtomsSelection) then
+        ! select two groups of atoms
+        call selectAtoms(2,actionCommand,a)
+        ! create a list of the atoms' indices for each group
+        call createSelectionList(a,2)
+      end if 
+        
+    end if
+
+    call computeAction(a)
+  end if
+
+  if (endOfCoordinatesFiles) then
+    call finaliseAction()
+  end if 
+
+end subroutine testAction
 
   subroutine initialiseAction(a)
 
@@ -172,61 +206,5 @@ contains
     call workData % compute(ID, numberOfValues=maxNeigh, xValues=allDistances)
 
   end subroutine computeAction
-
-  subroutine testAction(a)
-    implicit none
-    type(actionTypeDef), target :: a
-
-    if (a % actionInitialisation) then
-      call initialiseAction(a)
-      return
-    end if
-
-    if (frameReadSuccessfully) then
-      tallyExecutions = tallyExecutions + 1
-
-      ! Atoms' selection
-      if (firstAction) then
-        ! dump info about the action on the screen
-        call dumpScreenInfo()
-
-        ! select two groups of atoms
-        call selectAtoms(2,actionCommand,a)
-
-        ! update selection if "reactive" trajectory
-        ! i.e. if the atom may change name 
-        if (resetFrameLabels) then
-          a % updateAtomsSelection = .false.
-        else
-          a % updateAtomsSelection = .true.
-        end if
-
-        ! create a list of the atoms' indices for each group
-        call createSelectionList(a,2)
-
-        ! Throw a warning for unused flags
-        call checkUsedFlags(actionCommand)
-        firstAction = .false.
-
-      else
-        
-        ! Repeat selection for reactive trajectories
-        if (a % updateAtomsSelection) then
-          ! select two groups of atoms
-          call selectAtoms(2,actionCommand,a)
-          ! create a list of the atoms' indices for each group
-          call createSelectionList(a,2)
-        end if 
-          
-      end if
-
-      call computeAction(a)
-    end if
-
-    if (endOfCoordinatesFiles) then
-      call finaliseAction()
-    end if 
-
-  end subroutine testAction
 
 end module moduleTemplateAction

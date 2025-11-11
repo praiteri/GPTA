@@ -7,6 +7,7 @@
 !  https://github.com/kmtu/
 
 module moduleXDR
+    use moduleMessages
 
 #ifdef GPTA_XDR
     use, intrinsic :: iso_c_binding, only: C_PTR, C_CHAR, C_FLOAT, C_INT
@@ -137,7 +138,6 @@ contains
 
     ! our wrappers for the trjfile class
     subroutine init_xdr(trj,filename_in,mode_opt)
-        use moduleMessages
         use, intrinsic :: iso_c_binding, only: C_NULL_CHAR, C_CHAR, c_f_pointer
 
         implicit none
@@ -163,10 +163,6 @@ contains
 
           if (ex .eqv. .false.) then
             call message(-1,trim(filename_in)//" does not exist")
-            ! write(0,*)
-            ! write(0,'(a)') " Error: "//trim(filename_in)//" does not exist."
-            ! write(0,*)
-            ! stop
           end if
 
           select type (trj)
@@ -176,19 +172,11 @@ contains
 
             if (trj % stat /= 0) then
               call message(-1,trim(filename_in)//" not an XTC file")
-              ! write(0,*)
-              ! write(0,'(a)') " Error reading in "//trim(filename_in)//". Is it really an xtc file?"
-              ! write(0,*)
-              ! stop
             end if
 
             if ( allocated(trj%pos) ) then
               if (trj % natoms /= size(trj%pos)/3) then
                 call message(-1,"Wrong number of atoms in "//trim(filename_in))
-                ! write(0,*)
-                ! write(0,'(a)') " Error reading in "//trim(filename_in)//". Wrong number of atoms"
-                ! write(0,*)
-                stop
               endif
             else
               allocate(trj % pos(3,trj % natoms))
@@ -201,10 +189,6 @@ contains
 
             if (trj % stat /= 0) then
               call message(-1,trim(filename_in)//" not an TRR file")
-              ! write(0,*)
-              ! write(0,'(a)') " Error reading in "//trim(filename_in)//". Is it really an trr file?"
-              ! write(0,*)
-              ! stop
             end if
 
             allocate(trj % pos(3,trj % natoms))
@@ -212,20 +196,10 @@ contains
             allocate(trj % force(3,trj % natoms))
           end select
 
-!          write(0,'(a)') " Open "//trim(filename)//" for reading."
-!          write(0,'(a,i0,a)') " ",trj % natoms, " atoms present in system."
-!          write(0,*)
-
         case ('a')
         case ('w')
-!          write(0,'(a)') " Open "//trim(filename)//" for writing."
-!          write(0,*)
 
         case default
-!          write(0,*)
-!          write(0,*) "Unknown file mode: '"//trj % mode//"'. It can only be 'r' or 'w'."
-!          write(0,*)
-          stop
         end select
 
         ! Open the file for reading or writing. Convert C pointer to Fortran pointer.

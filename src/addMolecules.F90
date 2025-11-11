@@ -18,17 +18,17 @@ module addMoleculesModule
   type newMolecule
     integer :: natoms
     character(cp), allocatable, dimension(:) :: lab
-    real(8), allocatable, dimension(:,:) :: pos
-    real(8), allocatable, dimension(:) :: chg
-    real(8) :: centre(3)
+    real(real64), allocatable, dimension(:,:) :: pos
+    real(real64), allocatable, dimension(:) :: chg
+    real(real64) :: centre(3)
   end type 
   type(newMolecule), allocatable, dimension(:) :: localMolecules
 
   logical, pointer :: fillSphere, fillBox
-  real(8), pointer, dimension(:) :: origin
-  real(8), pointer, dimension(:) :: boxSize
-  real(8), pointer :: sphereRadius
-  real(8), pointer :: minimumDistance
+  real(real64), pointer, dimension(:) :: origin
+  real(real64), pointer, dimension(:) :: boxSize
+  real(real64), pointer :: sphereRadius
+  real(real64), pointer :: minimumDistance
 
 contains
 
@@ -41,7 +41,7 @@ contains
     type(fileTypeDef), allocatable, dimension(:) :: inputFile
     logical :: frameRead
     integer :: n, iFile
-    real(8) :: hmat(3,3)
+    real(real64) :: hmat(3,3)
 
     call associatePointers(a)
 
@@ -66,8 +66,8 @@ contains
           ! translate input molecule's centre to the origin
           block
             integer :: i
-            real(8), dimension(3) :: dij
-            real(8) :: rgyr=0.d0
+            real(real64), dimension(3) :: dij
+            real(real64) :: rgyr=0.0_real64
             dij = a % localFrame % pos(:,1)
             do i=2,a % localFrame % natoms
               dij = dij + a % localFrame % pos(:,i)
@@ -147,12 +147,12 @@ contains
     character(len=STRLEN), allocatable, dimension(:) :: localString2
 
     character(len=100) :: stringCell
-    real(8) :: hmat(3,3)
+    real(real64) :: hmat(3,3)
 
     a % actionInitialisation = .false.
     a % requiresNeighboursList = .false.
     
-    call assignFlagValue(actionCommand,"+rmin",minimumDistance,1.5d0)
+    call assignFlagValue(actionCommand,"+rmin",minimumDistance,1.5_real64)
 
     call assignFlagValue(actionCommand,"+f",localString)
     numberOfFiles = size(localString)
@@ -173,7 +173,7 @@ contains
     call assignFlagValue(actionCommand,"+box ",fillBox,.false.)
     call assignFlagValue(actionCommand,"+sphere ",fillSphere,.false.)
 
-    call assignFlagValue(actionCommand,"+origin ", origin, [0.d0,0.d0,0.d0])
+    call assignFlagValue(actionCommand,"+origin ", origin, [0.0_real64,0.0_real64,0.0_real64])
 
     if (fillBox) then
       call assignFlagValue(actionCommand,"+box ", stringCell, "NONE")
@@ -181,7 +181,7 @@ contains
       boxSize = reshape(hmat,[9])
 
     else if (fillSphere) then
-      call assignFlagValue(actionCommand,"+sphere ", sphereRadius, 0.d0)
+      call assignFlagValue(actionCommand,"+sphere ", sphereRadius, 0.0_real64)
 
     else
       fillBox = .true.
@@ -224,21 +224,32 @@ contains
 
   end subroutine dumpScreenInfo
 
-  subroutine createRandomPositionsBox()
+  subroutine createRandomPositionsBox
     use moduleRandomNumbers
     use moduleDistances
     implicit none
     integer :: iFile, imol
     integer :: addedMolecules
-    real(8), dimension(3) :: centre
-    real(8), dimension(3,3) :: hmat
-    real(8) :: theta, phi, vec(3)
+    real(real64), dimension(3) :: centre
+    real(real64), dimension(3,3) :: hmat
+    real(real64) :: theta, phi, vec(3)
     integer :: initialAtoms, currentAtoms
     integer :: initialMolecules, currentMolecules
+    integer :: nx, ny, nz
+    integer :: ix, iy, iz
 
     logical :: overlapFlag
 
     hmat = reshape(boxSize,[3,3])
+    
+    nx = int( sqrt( sum(hmat(1,1:3)**2) ) / minimumDistance )
+    ny = int( sqrt( sum(hmat(2,1:3)**2) ) / minimumDistance )
+    nz = int( sqrt( sum(hmat(3,1:3)**2) ) / minimumDistance )
+    if ( sum(numberOfNewMolecules) > nx*ny*nz ) then
+      call message(0,"Max number of atoms that can fit in a,b,c", iv=[nx,ny,nz])
+      call message(0,"Max number of atoms that can fit in the box", i=nx*ny*nz)
+      call message(-1,"--add too many atoms to fit in the box",iv=[sum(numberOfNewMolecules),nx*ny*nz])
+    end if
 
     addedMolecules = 0
     initialAtoms = frame % natoms
@@ -249,9 +260,25 @@ contains
     do iFile=1,numberOfFiles
       imol=0
       add : do while (imol<numberOfNewMolecules(iFile))
-        centre = [grnd() , grnd() , grnd()]
+        ! centre = [grnd() , grnd() , grnd()]
 
-        localMolecules(iFile) % centre = matmul(hmat,centre) + origin
+        ! generate position inside the box
+        ix = int(nx * grnd()) + 1.0
+        iy = int(ny * grnd()) + 1.0
+        iz = int(nz * grnd()) + 1.0
+        ! map to box    
+        centre = \
+          ix * hmat(1,1:3) / real(nx,real64) + \
+          iy * hmat(2,1:3) / real(ny,real64) + \
+          iz * hmat(3,1:3) / real(nz,real64)
+
+        ! add some noise
+        ! centre = centre + origin
+        ! localMolecules(iFile) % centre = matmul(hmat,centre) + origin
+        localMolecules(iFile) % centre = centre + \
+          [ 0.25 * minimumDistance * ( grnd() - 0.5_real64 ) , \
+            0.25 * minimumDistance * ( grnd() - 0.5_real64 ) , \
+            0.25 * minimumDistance * ( grnd() - 0.5_real64 ) ]
         
         ! random rotation around COM
         theta  = grnd() * pi
@@ -263,9 +290,8 @@ contains
 
         call rotateMolecule(vec(1:3), theta, localMolecules(iFile) % natoms, localMolecules(iFile) % pos, 0)
 
-        call checkMoleculesOverlap(1+initialMolecules, currentMolecules, localMolecules(iFile), overlapFlag)
-
-        if (overlapFlag) cycle add
+        ! call checkMoleculesOverlap(1+initialMolecules, currentMolecules, localMolecules(iFile), overlapFlag)
+        ! if (overlapFlag) cycle add
 
         imol = imol + 1
 
@@ -313,7 +339,7 @@ contains
 
     frame % natoms = currentAtoms
     numberOfMolecules = currentMolecules
-
+    
   end subroutine createRandomPositionsBox
 
   subroutine createRandomPositionsSphere()
@@ -321,9 +347,9 @@ contains
     implicit none
     integer :: iFile, imol
     integer :: addedMolecules
-    real(8), dimension(3) :: centre
+    real(real64), dimension(3) :: centre
 
-    real(8) :: theta, phi, vec(3)
+    real(real64) :: theta, phi, vec(3)
     integer :: initialAtoms, currentAtoms
     integer :: initialMolecules, currentMolecules
 
@@ -412,9 +438,9 @@ contains
     type(newMolecule), intent(in) :: mol
     logical, intent(out) :: overlap
     integer :: imol, iatm, idx, jatm
-    real(8), allocatable, dimension(:,:) :: pos
-    real(8), dimension(3) :: dij
-    real(8) :: dist
+    real(real64), allocatable, dimension(:,:) :: pos
+    real(real64), dimension(3) :: dij
+    real(real64) :: dist
 
     allocate(pos(3,mol % natoms))
     pos = mol % pos

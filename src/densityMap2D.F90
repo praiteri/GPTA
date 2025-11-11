@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleDensityMap2D
   use moduleVariables
   use moduleStrings
@@ -52,13 +21,13 @@ module moduleDensityMap2D
   integer, pointer, dimension(:) :: numberOfBins
   integer, pointer, dimension(:) :: hkl
 
-  real(8), pointer :: thickness
-  real(8), pointer, dimension(:) :: origin
-  real(8), pointer, dimension(:) :: normalUnitVector
-  real(8), pointer, dimension(:) :: delta
+  real(real64), pointer :: thickness
+  real(real64), pointer, dimension(:) :: origin
+  real(real64), pointer, dimension(:) :: normalUnitVector
+  real(real64), pointer, dimension(:) :: delta
 
   logical, pointer :: inputCell
-  real(8), pointer, dimension(:) :: surfaceCell
+  real(real64), pointer, dimension(:) :: surfaceCell
 
   integer, pointer :: ID
 
@@ -81,17 +50,17 @@ contains
     
     integer, dimension(2) :: itmp
     
-    real(8), allocatable, dimension(:,:) :: cartesianCoord
-    real(8), allocatable, dimension(:,:) :: fractionalCoord
+    real(real64), allocatable, dimension(:,:) :: cartesianCoord
+    real(real64), allocatable, dimension(:,:) :: fractionalCoord
     
     integer :: iatm, jatm, ntmp, mtmp, i, j, k
-    real(8) :: rtmp(3), vol
-    real(8) :: dist, sij(3), dij(3)
+    real(real64) :: rtmp(3), vol
+    real(real64) :: dist, sij(3), dij(3)
     logical, allocatable, dimension(:) :: ldel
-    real(8), dimension(3,3) :: hnew, hinv
+    real(real64), dimension(3,3) :: hnew, hinv
 
     integer :: nrepl
-    real(8), allocatable, dimension(:,:) :: vrepl
+    real(real64), allocatable, dimension(:,:) :: vrepl
     character(len=STRLEN) :: stringCell
 
     ! Associate variables
@@ -124,9 +93,9 @@ contains
       normalUnitVector = dble(hkl) 
       normalUnitVector = normalUnitVector / sqrt( sum( normalUnitVector * normalUnitVector ) )
 
-      call assignFlagValue(actionCommand,"+origin",origin,[0.d0,0.d0,0.d0])
+      call assignFlagValue(actionCommand,"+origin",origin,[0.0_real64,0.0_real64,0.0_real64])
 
-      call assignFlagValue(actionCommand,"+thick",thickness,1.d0)
+      call assignFlagValue(actionCommand,"+thick",thickness,1.0_real64)
 
       call assignFlagValue(actionCommand,"+nbin",itmp,[100,100])
       numberOfBins(1:2) = itmp
@@ -140,9 +109,9 @@ contains
         surfaceCell = reshape(hnew, [9])
       end if
 
-      call workData % initialise(ID, "dist2D", numberOfBins=numberOfBins, lowerLimits=[0.d0,0.d0], upperLimits=[1.d0,1.d0])
+      call workData % initialise(ID, "dist2D", numberOfBins=numberOfBins, lowerLimits=[0.0_real64,0.0_real64], upperLimits=[1.0_real64,1.0_real64])
 
-      allocate(a % array2D(itmp(1),itmp(2)) , source=0.d0)
+      allocate(a % array2D(itmp(1),itmp(2)) , source=0.0_real64)
       tallyExecutions = 0
       return
     end if
@@ -169,7 +138,7 @@ contains
         end if
 
         ! grid spacing in fractional coordinates
-        delta = 1.d0 / numberOfBins
+        delta = 1.0_real64 / numberOfBins
 
         ! write actions info
         call dumpActionInfo()
@@ -232,7 +201,7 @@ contains
             sij(1:3) = sij(1:3) - nint(sij(1:3))
             dij = matmul(hnew,sij)
             dist = sqrt( sum(dij*dij) )
-            if (dist < 0.1d0) ldel(jatm) = .true.
+            if (dist < 0.1_real64) ldel(jatm) = .true.
           end do
         end do
         mtmp = ntmp
@@ -249,7 +218,7 @@ contains
       ! extract the atoms that are within the desired thickness
       ntmp = 0
       do iatm=1,numberOfLocalAtoms * nrepl
-        if (cartesianCoord(3,iatm) > thickness .or. cartesianCoord(3,iatm) < -0.d0) cycle
+        if (cartesianCoord(3,iatm) > thickness .or. cartesianCoord(3,iatm) < -0.0_real64) cycle
         ntmp = ntmp + 1
         fractionalCoord(:,ntmp) = fractionalCoord(:,iatm)
       end do
@@ -271,9 +240,9 @@ contains
 
   subroutine finaliseAction()
     implicit none
-    real(8) :: da(2), db(2), pp(2), vol
-    real(8), dimension(3,3) :: hnew
-    real(8), allocatable, dimension(:) :: dataArray
+    real(real64) :: da(2), db(2), pp(2), vol
+    real(real64), dimension(3,3) :: hnew
+    real(real64), allocatable, dimension(:) :: dataArray
     integer :: i, j, k
     integer :: numberOfCounts
 

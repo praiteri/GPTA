@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleMolecularTopology
   use moduleVariables
   use moduleFiles
@@ -55,7 +24,9 @@ module moduleMolecularTopology
   logical, pointer :: rebuildMolecules
   logical, pointer :: checkForBroken
   logical, pointer :: reorderAtoms
+  logical, pointer :: groupAtoms
   logical, pointer :: userDefinedMolecules
+  logical, pointer :: verboseOutput
 
   character(STRLEN), pointer, dimension(:) :: moleculesLabels
 
@@ -73,8 +44,10 @@ contains
     rebuildMolecules       => a % logicalVariables(3)
     checkForBroken         => a % logicalVariables(4)
     reorderAtoms           => a % logicalVariables(5)
+    groupAtoms             => a % logicalVariables(6)
+    verboseOutput          => a % logicalVariables(7)
     
-    userDefinedMolecules   => a % logicalVariables(6)
+    userDefinedMolecules   => a % logicalVariables(8)
     moleculesLabels(1:)    => a % stringVariables(1:)
 
   end subroutine associatePointers
@@ -86,13 +59,13 @@ contains
     character(STRLEN), allocatable, dimension(:) :: tmpLabels
     character(STRLEN) :: flagString
     logical :: lflag
-    real(8) :: rcut
+    real(real64) :: rcut
 
     a % actionInitialisation = .false.
     a % requiresNeighboursList = .true.
     a % requiresNeighboursListUpdates = .false.
     a % requiresNeighboursListDouble = .false.
-    a % cutoffNeighboursList = 3.0d0    
+    a % cutoffNeighboursList = 3.0_real64    
   
     call assignFlagValue(actionCommand,"+update",lflag,.false.)
     if (lflag) then
@@ -114,6 +87,10 @@ contains
     
     call assignFlagValue(actionCommand,"+reorder ",reorderAtoms,.false.)
 
+    call assignFlagValue(actionCommand,"+group ",groupAtoms,.false.)
+
+    call assignFlagValue(actionCommand,"+v ",verboseOutput,.false.)
+
     call assignFlagValue(actionCommand,"+def",userDefinedMolecules,.false.)
     if (userDefinedMolecules) then
       call extractFlag(actionCommand,"+def",flagString)
@@ -128,12 +105,13 @@ contains
 
   end subroutine initialiseAction
 
-  subroutine dumpScreenInfo()
+  subroutine dumpScreenInfo(lflag)
     implicit none
+    logical, intent(in) :: lflag
     integer :: idx, jdx, kdx 
     integer :: iatm, n
     character(len=30) :: str, str1
-    real(8) :: molecularCharge
+    real(real64) :: molecularCharge, molecularMass
 
     call message(0,"Topology information")
     call message(0,"...Number of molecules found",i=numberOfMolecules)
@@ -159,28 +137,32 @@ contains
 
       call message(0,"......Number of atoms in molecule",i=listOfMolecules(kdx) % numberOfAtoms)
 
-      iatm = listOfMolecules(kdx) % listOfAtoms(1)
-      molecularCharge = frame % chg(iatm)
-      do jdx=2,listOfMolecules(kdx) % numberOfAtoms
+      molecularCharge = 0.0_real64
+      molecularMass = 0.0_real64
+      do jdx=1,listOfMolecules(kdx) % numberOfAtoms
         iatm = listOfMolecules(kdx) % listOfAtoms(jdx)
-        molecularCharge = molecularCharge + frame % chg(iatm) 
-      enddo
+        molecularCharge = molecularCharge + frame % chg(iatm)
+        molecularMass = molecularMass + getElementMass(frame % lab(iatm))
+        enddo
       call message(0,"......Molecular charge",r=molecularCharge)
-      if (frame % volume > 1e-6) &
-        call message(0,"......Concentration [M]",r=1660.5d0*n/frame % volume)
-    enddo
+      if (frame % volume > 1e-6_real64) &
+      call message(0,"......Concentration [M]",r=1660.5_real64*n/frame % volume)
+      call message(0,"......Concentration [%w]",r=100*n*molecularMass/totalMass)
+      call message(0,"......Concentration [%m]",r=100*dble(n)/numberOfMolecules)
 
-    call message(3)
-    call message(0,"Connectivity summary")
-    call message(0,"  Number of bonds",i=numberOfUniqueBonds)
-    if (numberOfUniqueBonds > 0) call writeUniqueCovalentTypes(1)
-    call message(0,"  Number of angles",i=numberOfUniqueAngles)
-    if (numberOfUniqueAngles > 0) call writeUniqueCovalentTypes(2)
-    call message(0,"  Number of torsions",i=numberOfUniqueTorsions)
-    if (numberOfUniqueTorsions > 0) call writeUniqueCovalentTypes(3)
-    call message(0,"  Number of impropers",i=numberOfUniqueOutOfPlane)
-    if (numberOfUniqueOutOfPlane > 0) call writeUniqueCovalentTypes(4)
-  
+    enddo
+    if (lflag) then
+      call message(3)
+      call message(0,"Connectivity summary")
+      call message(0,"  Number of bonds",i=numberOfUniqueBonds)
+      if (numberOfUniqueBonds > 0) call writeUniqueCovalentTypes(1)
+      call message(0,"  Number of angles",i=numberOfUniqueAngles)
+      if (numberOfUniqueAngles > 0) call writeUniqueCovalentTypes(2)
+      call message(0,"  Number of torsions",i=numberOfUniqueTorsions)
+      if (numberOfUniqueTorsions > 0) call writeUniqueCovalentTypes(3)
+      call message(0,"  Number of impropers",i=numberOfUniqueOutOfPlane)
+      if (numberOfUniqueOutOfPlane > 0) call writeUniqueCovalentTypes(4)
+    end if
     call message(2)
 
   end subroutine dumpScreenInfo
@@ -191,7 +173,7 @@ contains
 
     integer :: iatm, jatm, ineigh, idx, jdx, itmp
     character(cp) :: l1 ,l2
-    real(8) :: rmax
+    real(real64) :: rmax
 
     logical, allocatable, dimension(:) :: atomsUsed
     type(moleculeTypeDef), allocatable, dimension(:) :: m
@@ -295,7 +277,7 @@ contains
   subroutine finaliseTopology()
     implicit none
     integer :: idx, jdx, kdx, itmp, i, j, n
-    integer :: isWater, indices(3)
+    integer :: isWater, indices(4)
     character(len=30) :: str
 
     ! Search for unique molecules' types
@@ -333,10 +315,14 @@ contains
         do jdx=1,listOfMolecules(itmp) % numberOfAtoms
           indices(jdx) = getAtomicNumber(listOfMolecules(itmp) % listOfLabels(jdx))
         end do
-        if (count(indices ==8)==1 .and. count(indices==1)==2) isWater = idx
+        if (count(indices(1:3)==8)==1 .and. count(indices(1:3)==1)==2) isWater = idx
+      else if (listOfMolecules(itmp) % numberOfAtoms == 4) then
+        do jdx=1,listOfMolecules(itmp) % numberOfAtoms
+          indices(jdx) = getAtomicNumber(listOfMolecules(itmp) % listOfLabels(jdx))
+        end do
+        if (count(indices(1:4)==8)==1 .and. count(indices(1:4)==1)==2 .and. count(indices(1:4)==0)==1 ) isWater = idx
       end if
     end do
-
 
     ! Assign a name to the molecules
     do idx=1,numberOfMolecules
@@ -503,7 +489,7 @@ contains
     implicit none
     integer :: imol, idx, jdx, iatm, jatm
     character(cp) :: l1 ,l2
-    real(8) :: rmax, dij(3), d2
+    real(real64) :: rmax, dij(3), d2
 
     if (allocated(numberOfCovalentBondsPerAtom)) then
       deallocate(numberOfCovalentBondsPerAtom,listOfCovalentBondsPerAtom)
@@ -571,12 +557,13 @@ contains
           call defineMoleculesFromLabels()
         else
           call defineMoleculesFromDistances()
-          if (reorderAtoms) call reoderAtomsByMolecule()
+          if (reorderAtoms) call reorderAtomsByMolecule()
+          if (groupAtoms) call groupAtomsByMolecule()
         end if
         if (updateTopologyOnce) updateTopology = .false.
         
         call computeConnectivity() 
-        call dumpScreenInfo()
+        call dumpScreenInfo(verboseOutput)
 
         call checkUsedFlags(actionCommand)
       end if
@@ -594,11 +581,11 @@ contains
 
   end subroutine computeTopology
 
-  subroutine reoderAtomsByMolecule()
+  subroutine reorderAtomsByMolecule()
     implicit none
     integer :: imol, jmol, idx, jdx, iatm, itmp
-    real(8), allocatable, dimension(:,:) :: cartesianCoord
-    real(8), allocatable, dimension(:) :: saveCharges
+    real(real64), allocatable, dimension(:,:) :: cartesianCoord
+    real(real64), allocatable, dimension(:) :: saveCharges
     character(cp), allocatable, dimension(:) :: saveLabels
     logical :: foundPerm
     logical, allocatable, dimension(:) :: removeMoleculeType
@@ -691,7 +678,40 @@ contains
     call updateNeighboursList(.true.)
     call computeCovalentBondsFromMolecules()
 
-  end subroutine reoderAtomsByMolecule
+  end subroutine reorderAtomsByMolecule
+
+  subroutine groupAtomsByMolecule()
+    implicit none
+    integer :: imol, jmol, idx, jdx, iatm, itmp, jatm
+    real(real64), allocatable, dimension(:,:) :: cartesianCoord
+    real(real64), allocatable, dimension(:) :: saveCharges
+    character(cp), allocatable, dimension(:) :: saveLabels
+    logical, allocatable, dimension(:) :: lused
+    character(len=5) :: str
+
+    allocate(cartesianCoord(3,frame % natoms), source=frame % pos(1:3,1:frame % natoms))
+    allocate(saveLabels    (  frame % natoms), source=frame % lab(    1:frame % natoms))
+    allocate(saveCharges   (  frame % natoms), source=frame % chg(    1:frame % natoms))
+    allocate(lused         (  frame % natoms), source=.false.)
+
+    jatm = 0
+    do imol=1,numberOfMolecules
+      do idx=1,listOfMolecules(imol) % numberOfAtoms
+        iatm = listOfMolecules(imol) % listOfAtoms(idx)
+        jatm = jatm + 1
+        frame % pos(1:3,jatm) = cartesianCoord(1:3,iatm)
+        frame % lab(    jatm) = saveLabels    (    iatm)
+        frame % chg(    jatm) = saveCharges   (    iatm)
+        lused(iatm) = .true.
+      end do
+    end do
+
+    call cartesianToFractional(frame % natoms, frame % pos, frame % frac)
+    call updateNeighboursList(.true.)
+    call runInternalAction("topology","+update")
+    ! call computeCovalentBondsFromMolecules()
+
+  end subroutine groupAtomsByMolecule
 
 end module moduleMolecularTopology
 
@@ -735,7 +755,7 @@ subroutine computeConnectivity()
   ! Skip if it's only ions in water
   if (any(listOfMolecules(:) % numberOfAtoms > 3)) then
     ! Upper limit for torsions
-    n = numberOfUniqueBonds*4
+    n = numberOfUniqueBonds*6
     if (allocated(listOfUniqueTorsions)) deallocate(listOfUniqueTorsions)
     allocate(listOfUniqueTorsions(4,n))
     do i=1,numberOfUniqueAngles-1

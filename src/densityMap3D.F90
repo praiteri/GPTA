@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleDensityMap3D
   use moduleVariables
   use moduleStrings
@@ -48,10 +17,10 @@ module moduleDensityMap3D
   
   integer, pointer, dimension(:) :: numberOfBins
   integer, pointer :: numberOfLocalAtoms
-  real(8), pointer :: origin(:)
-  real(8), pointer, dimension(:) :: densityBox
+  real(real64), pointer :: origin(:)
+  real(real64), pointer, dimension(:) :: densityBox
   
-  real(8), pointer, dimension(:,:,:) :: dmap
+  real(real64), pointer, dimension(:,:,:) :: dmap
 
 contains
 
@@ -71,12 +40,12 @@ contains
     type(actionTypeDef), target :: a
 
     integer, dimension(3) :: itmp
-    real(8), allocatable, dimension(:,:) :: cartesianCoord
-    real(8), allocatable, dimension(:,:) :: fractionalCoord
+    real(real64), allocatable, dimension(:,:) :: cartesianCoord
+    real(real64), allocatable, dimension(:,:) :: fractionalCoord
 
     integer :: iatm
-    real(8), dimension(3) :: p, pinv, dp
-    real(8), dimension(3,3) :: htmp
+    real(real64), dimension(3) :: p, pinv, dp
+    real(real64), dimension(3,3) :: htmp
     character(len=STRLEN) :: stringCell
 
     ! Associate variables
@@ -98,10 +67,10 @@ contains
       call assignFlagValue(actionCommand,"+out",outputFile % fname,'dmap3D.cube')
       
       call assignFlagValue(actionCommand,"+nbin",itmp,[50,50,50])
-      allocate(a % array3D(itmp(1),itmp(2),itmp(3)) , source=0.d0)
+      allocate(a % array3D(itmp(1),itmp(2),itmp(3)) , source=0.0_real64)
       numberOfBins(1:3) = itmp
       
-      call assignFlagValue(actionCommand,"+origin",origin,[0.d0,0.d0,0.d0])
+      call assignFlagValue(actionCommand,"+origin",origin,[0.0_real64,0.0_real64,0.0_real64])
       
       call assignFlagValue(actionCommand,"+cell ", stringCell, "NONE")
       if (stringCell == "NONE") then
@@ -142,7 +111,7 @@ contains
 
       p(1:3) = densityBox(1:3) + densityBox(4:6) + densityBox(7:9)
       call cartesianToFractional(1,p,pinv)
-      where (pinv < 1.d-3) pinv = 1.d0
+      where (pinv < 1.0e-3_real64) pinv = 1.0_real64
       dp = pinv / real(numberOfBins,8)
 
       do iatm=1,numberOfLocalAtoms
@@ -176,8 +145,8 @@ contains
 
   subroutine dumpDensityCube()
     implicit none
-    real(8), dimension(3,3) :: hmat, hinv, dh
-    real(8) :: dvol
+    real(real64), dimension(3,3) :: hmat, hinv, dh
+    real(real64) :: dvol
     integer :: i, ix, iy, iz
     integer :: funit=123
 
@@ -205,7 +174,7 @@ contains
     do ix=0,1
       do iy=0,1
         do iz=0,1
-          write(funit,'(i6,4f13.5)')1, 1.d0, (origin + ix*hmat(:,1) + iy*hmat(:,2) + iz*hmat(:,3)) / rbohr
+          write(funit,'(i6,4f13.5)')1, 1.0_real64, (origin + ix*hmat(:,1) + iy*hmat(:,2) + iz*hmat(:,3)) / rbohr
         end do
       end do
     end do

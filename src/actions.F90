@@ -1,42 +1,10 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 subroutine initialiseActions()
   use moduleActions
   use moduleMessages
   use moduleStrings
   use moduleTemplateAction
 
-  use moduleOpenMM
   use moduleAtomsAttributes
   use moduleDeleteAtoms
   use moduleMolecularTopology
@@ -44,6 +12,8 @@ subroutine initialiseActions()
   use moduleDumpCoordinates
   use moduleCreateSurface
   use moduleAlignMolecule
+  
+  use XMLtopology
   
   use moduleExtractSystemProperties
   use moduleRDF
@@ -59,10 +29,9 @@ subroutine initialiseActions()
   use moduleExtractClustersAction
   use moduleSolvationShell
   use moduleExtractFramesByProperty
-
-#ifdef GPTA_OPENMM
-  use moduleAmoeba
-#endif
+  use moduleSteinhardt
+  use moduleCommonNeighboursAnalysis
+  use moduleMergeFiles
 
 #ifdef GPTA_PLUMED
   use modulePlumedInterface
@@ -88,6 +57,7 @@ subroutine initialiseActions()
     if (actionType(i) == "--unwrap"           ) allActions(i) % work => unwrapCoordinates
     if (actionType(i) == "--shift"            ) allActions(i) % work => shiftCoordinates
     if (actionType(i) == "--rescale"          ) allActions(i) % work => rescaleCell
+    if (actionType(i) == "--newcell"          ) allActions(i) % work => defineNewCell
     if (actionType(i) == "--fixcom"           ) allActions(i) % work => shiftCOM
     if (actionType(i) == "--repl"             ) allActions(i) % work => replicateCell
     if (actionType(i) == "--mirror"           ) allActions(i) % work => mirrorCell
@@ -98,8 +68,10 @@ subroutine initialiseActions()
     if (actionType(i) == "--add"              ) allActions(i) % work => addAtoms
     if (actionType(i) == "--surface"          ) allActions(i) % work => createSurface
     if (actionType(i) == "--align"            ) allActions(i) % work => alignMolecule
+    if (actionType(i) == "--merge"            ) allActions(i) % work => mergeFiles
          
-    if (actionType(i) == "--fixCell"          ) allActions(i) % work => fixCellJumps
+    if (actionType(i) == "--fixcell"          ) allActions(i) % work => fixCell
+    if (actionType(i) == "--xml"              ) allActions(i) % work => writeXML
 
     if (actionType(i) == "--extract "         ) allActions(i) % work => extractSystemProperties
     if (actionType(i) == "--cluster"          ) allActions(i) % work => extractClusters
@@ -114,11 +86,8 @@ subroutine initialiseActions()
     if (actionType(i) == "--restime"          ) allActions(i) % work => computeResidenceTime
     if (actionType(i) == "--xray"             ) allActions(i) % work => computeXrayPowder
     if (actionType(i) == "--msd"              ) allActions(i) % work => computeMSD
-
-! openMM driver for AMOEBA
-#ifdef GPTA_OPENMM
-    if (actionType(i) == "--amoeba" ) allActions(i) % work => amoeba
-#endif
+    if (actionType(i) == "--stein"            ) allActions(i) % work => computeSteinhardt
+    if (actionType(i) == "--cna"              ) allActions(i) % work => cnaAction
 
 #ifdef GPTA_PLUMED
     if (actionType(i) == "--plumed" ) allActions(i) % work => plumedInterface
@@ -150,7 +119,7 @@ subroutine runAllActions()
   use moduleNeighbours
 
   integer :: iact
-  real(8) :: startTime, endTime
+  real(real64) :: startTime, endTime
 
   ! Run over the processing commands
   do iact=1,numberOfActions

@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleHelp
   
   implicit none
@@ -82,12 +51,18 @@ contains
     call message(0," --replace     :: replace molecules in the system")
     call message(0," --add         :: adds atoms/molecules to the system")
     call message(0," --surface     :: creates a surface of a crystal")
-    call message(0," --cluster     :: extract spherical clusters from the coordinates")
-    
+    call message(0," --surface     :: aligns the coordinates of a molecule to a reference")
+    call message(0," --merge       :: merges more than one coordinates file into one")
+    call message(0," --fixcell     :: fixes the cell parameters")
+    call message(0," --xml         :: writes the coordinates in XML format")
+    call message(0," --cna         :: computes the common neighbours analysis")
+
     call message(2)
     call message(0,"%%%%% Actions that calculate properties ")
     call message(0," --top         :: calculates of the topology")
     call message(0," --extract     :: computes system-wide properties from the trajectory file")
+    call message(0," --cluster     :: extract spherical clusters from the coordinates")
+
     call message(0," --gofr        :: computes the radial pair distribution function")
     call message(0," --dmap1D      :: computes the 1D density map")
     call message(0," --dmap2D      :: computes the 2D density map")
@@ -97,6 +72,7 @@ contains
     call message(0," --restime     :: computes the solvent residence time")
     call message(0," --xray        :: computes the x-ray powder diffraction spectrum")
     call message(0," --msd         :: computes the mean square displacement")
+    call message(0," --stein       :: computes the Steinhardt's order parameter")
 
     call message(2)
     call message(0,"%%%%% Special actions ")
@@ -104,16 +80,12 @@ contains
     call message(0, " --plumed      :: conputes properties of the system using PLUMED")
 #endif
 
-! openMM driver for AMOEBA
-#ifdef GPTA_OPENMM
-    call message(0, " --amoeba      :: computes the energy/induced dipole... using openMM")
-#endif
     call message(1," --test        :: test routine for develpment")
 
 #ifdef GPTA_MPI
     call MPI_Abort(MPI_COMM_WORLD, 9, idx )
 #else
-    stop
+    call exit(0)
 #endif
 
   end subroutine help
@@ -123,7 +95,6 @@ contains
 
     use moduleTemplateAction
 
-    use moduleOpenMM
     use moduleAtomsAttributes
     use moduleDeleteAtoms
     use moduleMolecularTopology
@@ -146,10 +117,9 @@ contains
     use moduleExtractClustersAction
     use moduleSolvationShell
     use moduleExtractFramesByProperty
-
-#ifdef GPTA_OPENMM
-    use moduleAmoeba
-#endif
+    use moduleSteinhardt
+    use moduleCommonNeighboursAnalysis
+    use moduleMergeFiles
 
 #ifdef GPTA_PLUMED
     use modulePlumedInterface
@@ -208,11 +178,7 @@ contains
       call message(0,"  gpta.x --ixyz coord.data --i traj.pdb")
     end if
 
-    if (cmd == "--test" ) then
-      call message(0,"This action is used for development only and has custom flags.")
-      call message(0,"Examples:")
-      call message(0,"  gpta.x --i coord.pdb --test")
-    end if
+    if (cmd == "--test"             ) call testActionHelp()
 
     if (cmd == "--top" ) then
       call message(0,"This action computes the system's topology and groups the atoms in molecules.")
@@ -224,6 +190,7 @@ contains
     if (cmd == "--define"           ) call defineVariablesHelp()
 
     if (cmd == "--rescale"          ) call rescaleCellHelp()
+    if (cmd == "--newcell"          ) call defineNewCellHelp()
     if (cmd == "--shift"            ) call shiftCoordinatesHelp()
     if (cmd == "--fixcom"           ) call shiftCOMHelp()
     if (cmd == "--pbc"              ) call applyPeriodicboundaryConditionsHelp()
@@ -231,7 +198,15 @@ contains
     if (cmd == "--repl"             ) call replicateCellHelp()
     if (cmd == "--mirror"           ) call mirrorCellHelp()
     if (cmd == "--noclash"          ) call removeOverlappingMoleculesHelp()
-        
+    
+    ! if (cmd == "--xml"              ) call writeXMLHelp()
+    ! if (cmd == "--frames"           ) call selectFramesHelp()
+    ! if (cmd == "--frame"            ) call selectFrameHelp()
+    ! if (cmd == "--last"             ) call selectLastFrameHelp()
+    ! if (cmd == "--skip"             ) call selectSkipFramesHelp()
+    ! if (cmd == "--log"              ) call setLogFileHelp()
+    ! if (cmd == "--nt"               ) call setNumberOfThreadsHelp()
+
     if (cmd == "--delete"           ) call deleteAtomsHelp()
     if (cmd == "--set"              ) call setAtomAttributesHelp()
     if (cmd == "--replace"          ) call replaceMoleculesHelp()
@@ -240,7 +215,8 @@ contains
     if (cmd == "--cluster"          ) call extractClustersHelp()
         
     if (cmd == "--align"            ) call alignMoleculeHelp()
-    if (cmd == "--fixCell"          ) call fixCellJumpsHelp()
+    if (cmd == "--merge"            ) call mergeFilesHelp()
+    if (cmd == "--fixcell"          ) call fixCellHelp()
         
     if (cmd == "--extract"          ) call extractSystemPropertiesHelp()
     if (cmd == "--framesByProperty" ) call extractFramesByPropertyHelp()
@@ -253,14 +229,12 @@ contains
     if (cmd == "--restime"          ) call computeResidenceTimeHelp()
     if (cmd == "--xray"             ) call computeXrayPowderHelp()
     if (cmd == "--msd"              ) call computeMSDHelp()
+    if (cmd == "--stein"            ) call computeSteinhardtHelp()
+    if (cmd == "--cna"              ) call cnaActionHelp()
 
-! openMM driver for AMOEBA
-#ifdef GPTA_OPENMM
-    if (cmd == "--amoeba" ) call amoebaHelp()
-#endif
 
 #ifdef GPTA_PLUMED
-    ! if (cmd == "--plumed" ) call plumedInterfaceHelp()
+     if (cmd == "--plumed" ) call plumedInterfaceHelp()
 #endif
 
     call message(-3)

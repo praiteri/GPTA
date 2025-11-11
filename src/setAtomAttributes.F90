@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleAtomsAttributes
   use moduleMessages 
   
@@ -50,7 +19,6 @@ contains
     use moduleStrings
     use moduleSystem 
     use moduleElements
-    use moduleOpenMM, only : qType
 
     implicit none
     type(actionTypeDef), target :: a
@@ -59,6 +27,8 @@ contains
     logical, pointer :: actionInitialisation
     logical, pointer :: firstAction
 
+    logical, pointer :: uniqueLabels
+    logical, pointer :: elementLabels
     logical, pointer :: labelSelection
     logical, pointer :: indexSelection
     logical, pointer :: moleculeSelection
@@ -80,12 +50,14 @@ contains
     actionInitialisation => a % actionInitialisation
     firstAction          => a % firstAction
 
-    labelSelection       => a % logicalVariables(1)
-    indexSelection       => a % logicalVariables(2)
-    moleculeSelection    => a % logicalVariables(3)
-    renameAtoms          => a % logicalVariables(5)
-    rechargeAtoms        => a % logicalVariables(6)
-    tinkerAtoms          => a % logicalVariables(7)
+    uniqueLabels         => a % logicalVariables(1) 
+    elementLabels        => a % logicalVariables(2) 
+    labelSelection       => a % logicalVariables(3)
+    indexSelection       => a % logicalVariables(4)
+    moleculeSelection    => a % logicalVariables(5)
+    renameAtoms          => a % logicalVariables(6)
+    rechargeAtoms        => a % logicalVariables(7)
+    tinkerAtoms          => a % logicalVariables(8)
 
     if (actionInitialisation) then
       actionInitialisation = .false.
@@ -98,6 +70,11 @@ contains
       call assignFlagValue(actionCommand,"+s",labelSelection,.false.)
       call assignFlagValue(actionCommand,"+i",indexSelection,.false.)
       call assignFlagValue(actionCommand,"+mol",moleculeSelection,.false.)
+      
+      call assignFlagValue(actionCommand,"+ul",uniqueLabels,.false.)
+
+      call assignFlagValue(actionCommand,"+el",elementLabels,.false.)
+
       if ( count([labelSelection,indexSelection,moleculeSelection]) /= 1) call message(-1,"--set | mixed selection not available")
 
       call checkUsedFlags(actionCommand)
@@ -105,7 +82,6 @@ contains
     end if
 
     if (frameReadSuccessfully) then
-
       if (firstAction) then
         allocate(atomFlag(frame % natoms), source=0)
 
@@ -126,7 +102,7 @@ contains
           idx = 0
           do itmp=1,size(moleculeLabels)
             do imol=1,numberOfMolecules
-              if (listOfMolecules(imol) % resname == moleculeLabels(itmp)) then
+              if (listOfMolecules(imol) % resname == moleculeLabels(itmp) .or. moleculeLabels(itmp) == "all") then
                 natoms = listOfMolecules(imol) % numberOfAtoms
                 do iatm=1,natoms
                   jdx = listOfMolecules(imol) % listOfAtoms(iatm)
@@ -179,40 +155,57 @@ contains
         if (renameAtoms) then
           allocate(a % localLabels(frame % natoms))
           call assignFlagValue(actionCommand,"+l",newLabels)
-          if (index(newLabels(1),"elem") > 0) then
-            deallocate(newLabels)
-            allocate(newLabels(numberOfUniqueLabels))
-            newLabels = " "
-            do idx=1,numberOfUniqueLabels
-              newLabels(idx)(1:2) = listOfElements(idx)
-            end do
-          else
-            if (moleculeSelection) then
-              if (size(newLabels) /= maxval(atomFlag)) &
-                call message(-1,"--set | +mol and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
-            else
-              if (size(newLabels) /= size(oldLabels)) then
-                if (size(newLabels) /= 1) call message(-1,"--set | +s and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
-                ctmp = newLabels(1)
-                deallocate(newLabels)
-                allocate(newLabels(size(oldLabels)), source=ctmp)
-                newLabels = ctmp
-              end if
-            end if
-          end if
+          ! if (moleculeSelection) then
+          !   if (size(newLabels) /= maxval(atomFlag)) &
+          !     call message(-1,"--set | +mol and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
+          ! else if (indexSelection) then
+          !     if (size(newLabels) /= 1) call message(-1,"--set | only one new label is allowed with +is")
+          ! else
+          !   if (size(newLabels) /= size(oldLabels)) then
+          !     if (size(newLabels) /= 1) call message(-1,"--set | +s and +l have different number of elements",iv=[size(oldLabels),size(newLabels)])
+          !     ctmp = newLabels(1)
+          !     deallocate(newLabels)
+          !     allocate(newLabels(size(oldLabels)), source=ctmp)
+          !     newLabels = ctmp
+          !   end if
+          ! end if
 
-          do iatm=1,frame % natoms
-            if (atomFlag(iatm)==0) then
-              a % localLabels(iatm) = frame % lab(iatm)
-            else
-              a % localLabels(iatm) = newLabels(atomFlag(iatm))(1:4)
-            end if
-          enddo
-          str = trim(newLabels(1))
-          do idx=2,size(newLabels)
-            str = trim(str)//" "//trim(newLabels(idx))
-          enddo
-          call message(0,"...Renaming selected atoms as",str=str)
+          if (newLabels(1) == "unique") then
+            do iatm=1,frame % natoms
+              if (atomFlag(iatm)==0) then
+                a % localLabels(iatm) = frame % lab(iatm)
+              else
+                write(str,"(a,i0)")trim(getElement(frame % lab(iatm))),atomFlag(iatm)
+                
+                a % localLabels(iatm) = trim(str)
+              end if
+            enddo
+            call message(0,"...Giving unique names to residue atoms")
+
+          else if (newLabels(1) == "element") then
+              do iatm=1,frame % natoms
+                if (atomFlag(iatm)==0) then
+                  a % localLabels(iatm) = frame % lab(iatm)
+                else
+                  write(str,"(a)")trim(getElement(frame % lab(iatm)))
+                  a % localLabels(iatm) = trim(str)
+                end if
+              enddo
+              call message(0,"...Replacing atoms names with elements")
+          else
+            do iatm=1,frame % natoms
+              if (atomFlag(iatm)==0) then
+                a % localLabels(iatm) = frame % lab(iatm)
+              else
+                a % localLabels(iatm) = newLabels(atomFlag(iatm))(1:4)
+              end if
+            enddo
+            str = trim(newLabels(1))
+            do idx=2,size(newLabels)
+              str = trim(str)//" "//trim(newLabels(idx))
+            enddo
+            call message(0,"...Renaming selected atoms as",str=str)
+          end if
         end if
 
         if (rechargeAtoms) then
@@ -222,7 +215,8 @@ contains
             if (size(newLabels) /= 1) call message(-1,"select +s and +q have different number of elements")
             ctmp = newLabels(1)
             deallocate(newLabels)
-            allocate(newLabels(size(oldLabels)), source=ctmp)
+            allocate(newLabels(size(oldLabels)))
+            newLabels = ctmp
           end if
 
           do iatm=1,frame % natoms
@@ -240,33 +234,6 @@ contains
           call message(0,"...Setting atomic charges to",str=str)
         end if
 
-        if (tinkerAtoms) then
-          allocate(qType(frame % natoms))
-          allocate(a % localIndices(frame % natoms))
-          call assignFlagValue(actionCommand,"+tq",newLabels)
-          if (size(newLabels) /= maxval(atomFlag)) then
-            if (size(newLabels) /= 1) call message(-1,"select +s and +tq have different number of elements",iv=[size(oldLabels),size(newLabels),maxval(atomFlag)])
-            ctmp = newLabels(1)
-            deallocate(newLabels)
-            allocate(newLabels(size(oldLabels)), source=ctmp)
-          end if
-
-          do iatm=1,frame % natoms
-            if (atomFlag(iatm)==0) then
-              call message(-1,"All atoms must have a TINKER type")
-            else
-              read(newLabels(atomFlag(iatm)),*) a % localIndices(iatm) 
-            end if
-          enddo
-
-          str = trim(newLabels(1))
-          do idx=2,size(newLabels)
-            str = trim(str)//" "//trim(newLabels(idx))
-          enddo
-          call message(0,"...Setting TINKER types to",str=str)
-
-        end if
-
         call message(2)
 
         call checkUsedFlags(actionCommand)
@@ -277,8 +244,6 @@ contains
       if (renameAtoms) frame % lab = a % localLabels
 
       if (rechargeAtoms) frame % chg = a % localCharges
-
-      if (tinkerAtoms) qType = a % localIndices
 
     end if
 

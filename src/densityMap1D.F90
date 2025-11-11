@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleDensityProfile
   use moduleVariables
   use moduleFiles
@@ -49,9 +18,12 @@ module moduleDensityProfile
 
   integer, pointer :: numberOfBins
   integer, pointer :: iAxis
+  integer, pointer, dimension(:) :: cAxes
   integer, pointer :: ID
 
-  real(8), pointer :: averageSize, averageVolume
+  real(real64), pointer :: averageSize, averageVolume
+  real(real64), pointer, dimension(:) :: centre
+  real(real64), pointer :: radiusSquared
 
 contains
 
@@ -63,6 +35,8 @@ contains
     call message(0,"  gpta.x --i coord.pdb --dmap1D +z +s O +out dmap.out")
     call message(0,"  gpta.x --i coord.pdb --dmap1D +z +s Ca +nbin 200 +out dmap.out")
     call message(0,"  gpta.x --i coord.pdb --dmap1D +z +i 1:300:3 +out dmap.out")
+    call message(0,"  gpta.x --i coord.pdb --dmap1D +r 10,10,10 +s O")
+    call message(0,"  gpta --i coord.pdb trajectory.0.dcd --dmap1D +cz 75,75,50 +s Kr")
   end subroutine computeDensityProfileHelp
 
   subroutine associatePointers(a)
@@ -75,11 +49,14 @@ contains
     outputFile           => a % outputFile
 
     numberOfBins         => a % numberOfBins
-    iAxis                => a % integerVariables(1)
-    ID                   => a % integerVariables(2)
+    ID                   => a % integerVariables(1)
+    iAxis                => a % integerVariables(2)
+    cAxes                => a % integerVariables(3:4)
 
     averageVolume        => a % doubleVariables(1)
     averageSize          => a % doubleVariables(2)
+    centre(1:3)          => a % doubleVariables(3:5)
+    radiusSquared        => a % doubleVariables(6)
 
   end subroutine 
 
@@ -89,33 +66,67 @@ contains
     type(actionTypeDef), target :: a
 
     integer :: i
-    logical :: lflag(3)
+    logical :: lflag(7)
+    real(real64) :: rtmp(4)
 
     a % actionInitialisation = .false.
     a % requiresNeighboursList = .false.
     a % requiresNeighboursListUpdates = .false.
     a % requiresNeighboursListDouble = .false.
-    a % cutoffNeighboursList = 3.0d0
+    a % cutoffNeighboursList = 3.0_real64
 
     call assignFlagValue(actionCommand,"+out",outputFile % fname,'dmap1D.out')
 
     call assignFlagValue(actionCommand,"+nbin",numberOfBins,100)
+    allocate(a % array1D(0:numberOfBins+1) , source=0.0_real64)
 
     call assignFlagValue(actionCommand,"+x",lflag(1),.false.)
     call assignFlagValue(actionCommand,"+y",lflag(2),.false.)
     call assignFlagValue(actionCommand,"+z",lflag(3),.false.)
-    if (count(lflag)==0) call message(-1,"--dmap1D no direction specified +x/+y/+z")
-    if (count(lflag)>1) call message(-1,"--dmap1D more than one direction specified +x/+y/+z")
-    do i=1,3
+    call assignFlagValue(actionCommand,"+r",lflag(4),.false.)
+    call assignFlagValue(actionCommand,"+cx",lflag(5),.false.)
+    call assignFlagValue(actionCommand,"+cy",lflag(6),.false.)
+    call assignFlagValue(actionCommand,"+cz",lflag(7),.false.)
+
+    if (count(lflag)==0) call message(-1,"--dmap1D no direction specified +x/+y/+z/+r/+cx/+cy/+cz")
+    if (count(lflag)>1) call message(-1,"--dmap1D more than one direction specified +x/+y/+z/+r/+cx/+cy/+cz")
+
+    do i=1,size(lflag)
       if (lflag(i)) iAxis = i
     enddo
-    allocate(a % array1D(0:numberOfBins+1) , source=0.d0)
+
+    if (lflag(4)) then
+      call assignFlagValue(actionCommand,"+r",rtmp,[0.0_real64,0.0_real64,0.0_real64,1.0_real64])
+      centre = rtmp(1:3)
+      radiusSquared = rtmp(4)**2
+    end if
+
+    if (lflag(5)) then
+      call assignFlagValue(actionCommand,"+cx",rtmp(1:3),[0.0_real64,0.0_real64,0.0_real64])
+      cAxes = [2,3]
+      centre(1:2) = rtmp(1:2)
+      radiusSquared = rtmp(3)**2
+    end if
+
+    if (lflag(6)) then
+      call assignFlagValue(actionCommand,"+cy",rtmp(1:3),[0.0_real64,0.0_real64,0.0_real64])
+      cAxes = [1,3]
+      centre(1:2) = rtmp(1:2)
+      radiusSquared = rtmp(3)**2
+    end if
+
+    if (lflag(7)) then
+      call assignFlagValue(actionCommand,"+cz",rtmp(1:3),[0.0_real64,0.0_real64,0.0_real64])
+      cAxes = [1,2]
+      centre(1:2) = rtmp(1:2)
+      radiusSquared = rtmp(3)**2
+    end if
 
     tallyExecutions = 0 
-    averageSize = 0.d0
-    averageVolume = 0.d0
+    averageSize = 0.0_real64
+    averageVolume = 0.0_real64
 
-    call workData % initialise(ID, "histogram", numberOfBins=[numberOfBins], lowerLimits=[0.d0], upperLimits=[1.d0])
+    call workData % initialise(ID, "histogram", numberOfBins=[numberOfBins], lowerLimits=[0.0_real64], upperLimits=[1.0_real64])
 
   end subroutine initialiseAction
 
@@ -135,38 +146,101 @@ contains
     type(actionTypeDef), target :: a
 
     integer :: iatm, nlocal
-    real(8), allocatable, dimension(:), save :: fractionalCoord
+    real(real64), allocatable, dimension(:), save :: localCoord
 
-    averageSize = averageSize + frame % hmat(iAxis,iAxis)
-    averageVolume = averageVolume + frame % volume
+    real(real64) :: dij(3), dist2, height
+    integer :: axes(2)
+    integer :: i, n
+    
+    if (iAxis == 4) then
+      ! Local array with the coordinates of only the selected atoms
+      nlocal = count(a % isSelected(:,1))
+      allocate(localCoord(nlocal))
+      nlocal = 0
 
-    ! Local array with the coordinates of only the selected atoms
-    nlocal = count(a % isSelected(:,1))
-    allocate(fractionalCoord(nlocal))
-    nlocal = 0
-    do iatm=1,frame % natoms
-      if (.not. a % isSelected(iatm,1)) cycle
-      nlocal = nlocal + 1
-      fractionalCoord(nlocal) = frame % frac(iAxis,iatm)
-    enddo
-    call workData % compute(ID, numberOfValues=nlocal, xValues=fractionalCoord)
-    deallocate(fractionalCoord)
+      do iatm=1,frame % natoms
+        if (.not. a % isSelected(iatm,1)) cycle
+        dij = frame % pos(:,iatm) - centre
+        dist2 = computeDistanceSquaredPBC(dij) 
+        if (dist2 < radiusSquared) then
+          nlocal = nlocal + 1
+          localCoord(nlocal) = sqrt(dist2 / radiusSquared)
+        end if
+      enddo
+      call workData % compute(ID, numberOfValues=nlocal, xValues=localCoord)
+      
+      deallocate(localCoord)
+  
+    else if (iAxis == 5 .or. iAxis == 6 .or. iAxis == 7) then
+      averageSize = averageSize + frame % hmat(iAxis-4,iAxis-4)
+      averageVolume = averageVolume + frame % volume
+
+      ! Local array with the coordinates of only the selected atoms
+      nlocal = count(a % isSelected(:,1))
+      allocate(localCoord(nlocal))
+      nlocal = 0
+
+      dij = 0.d0
+      do iatm=1,frame % natoms
+        if (.not. a % isSelected(iatm,1)) cycle
+        do i=1,2
+          dij(i) = frame % pos(cAxes(i),iatm) - centre(i)
+        end do
+        dist2 = computeDistanceSquaredPBC(dij) 
+        if (dist2 < radiusSquared) then
+          nlocal = nlocal + 1
+          localCoord(nlocal) = sqrt(dist2 / radiusSquared)
+        end if
+      enddo
+      call workData % compute(ID, numberOfValues=nlocal, xValues=localCoord)
+      
+      deallocate(localCoord)
+
+    else
+      averageSize = averageSize + frame % hmat(iAxis,iAxis)
+      averageVolume = averageVolume + frame % volume
+
+      ! Local array with the coordinates of only the selected atoms
+      nlocal = count(a % isSelected(:,1))
+      allocate(localCoord(nlocal))
+      nlocal = 0
+      do iatm=1,frame % natoms
+        if (.not. a % isSelected(iatm,1)) cycle
+        nlocal = nlocal + 1
+        localCoord(nlocal) = frame % frac(iAxis,iatm)
+      enddo
+      call workData % compute(ID, numberOfValues=nlocal, xValues=localCoord)
+      deallocate(localCoord)
+    end if
 
   end subroutine computeAction
 
   subroutine finaliseAction()
     implicit none
-    real(8) :: dVolume
+    real(real64) :: dVolume, upperLimit
     character(len=30) :: str
 
     call initialiseFile(outputFile,outputFile % fname)
-    averageVolume = averageVolume / tallyExecutions
-    dVolume =  averageVolume / dble(numberOfBins)
-    write(outputFile % funit,'("# Position  | Density [atom/angstrom^3]")')
-    write(str,'("custom=",e20.15)') dVolume * tallyExecutions
-    
-    averageSize = averageSize / tallyExecutions
-    call workData % dump(ID, outputFile % funit, upperLimits=[averageSize], normalisation=str)
+    write(outputFile % funit,'("# Distance  | Density [atom/angstrom^3]")')
+
+    if (iAxis == 4) then
+      write(str,'("sphere=",e20.15)') dble(tallyExecutions)
+      upperLimit = sqrt(radiusSquared)
+
+    else if (iAxis == 5 .or. iAxis == 6 .or. iAxis == 7) then
+      averageSize = averageSize / tallyExecutions
+      write(str,'("cylinder=",e20.15)') dble(tallyExecutions * averageSize)
+      upperLimit = sqrt(radiusSquared)
+
+    else
+      averageVolume = averageVolume / tallyExecutions
+      dVolume =  averageVolume / dble(numberOfBins)
+      write(str,'("custom=",e20.15)') dVolume * tallyExecutions 
+      upperLimit = averageSize / tallyExecutions
+
+    end if
+
+    call workData % dump(ID, outputFile % funit, upperLimits=[upperLimit], normalisation=str)
     close(outputFile % funit)
 
   end subroutine finaliseAction

@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 subroutine debugTiming_old(idx)
   use moduleVariables
   use moduleMessages
@@ -37,8 +6,8 @@ subroutine debugTiming_old(idx)
   integer, intent(in) :: idx
   logical, save :: firstTimeIn = .true.
   integer, save :: numberOfSplits
-  real(8), save, allocatable, dimension(:) :: timeTally
-  real(8), save, allocatable, dimension(:) :: startClock
+  real(real64), save, allocatable, dimension(:) :: timeTally
+  real(real64), save, allocatable, dimension(:) :: startClock
   logical, save, allocatable, dimension(:) :: splitOn
   
   integer :: i
@@ -49,14 +18,14 @@ subroutine debugTiming_old(idx)
     numberOfSplits = 20
     allocate(startClock(numberOfSplits))
     allocate(splitOn(numberOfSplits), source=.false.)
-    allocate(timeTally(numberOfSplits), source=-1.d0)
+    allocate(timeTally(numberOfSplits), source=-1.0_real64)
   end if
 
   if (idx<0) then
-    if (all(timeTally < 0.d0)) return
+    if (all(timeTally < 0.0_real64)) return
     call message(0,"---> Partial Debug Timings <---")
     do i=1,numberOfSplits
-      if (timeTally(i) < 0.d0) exit
+      if (timeTally(i) < 0.0_real64) exit
       write(str,'(i0)')i
       if (splitOn(i)) then
         call message(0,"...Unended split time "//trim(str))
@@ -74,21 +43,21 @@ subroutine debugTiming_old(idx)
   else
     splitOn(idx) = .true.
     startClock(idx) = timing()
-    if (timeTally(idx)<0.d0) timeTally(idx)=0.d0
+    if (timeTally(idx)<0.0_real64) timeTally(idx)=0.0_real64
   end if
 
 end subroutine debugTiming_old
 
 subroutine debugTiming(idx)
-  use moduleVariables, only : timing
+  use moduleVariables, only : timing, real64
   use moduleMessages
   implicit none
   integer, intent(in) :: idx
 
   logical, save :: firstTimeIn = .true.
   integer, save :: numberOfSplits
-  real(8), save, allocatable, dimension(:) :: timeTally
-  real(8), save :: startClock, stopClock
+  real(real64), save, allocatable, dimension(:) :: timeTally
+  real(real64), save :: startClock, stopClock
   integer, save :: splitID = 0
   integer :: i
   character(len=2) :: str
@@ -96,12 +65,12 @@ subroutine debugTiming(idx)
   if (firstTimeIn) then
     firstTimeIn = .false.
     numberOfSplits = 20
-    allocate(timeTally(numberOfSplits), source=-1.d-8)
+    allocate(timeTally(numberOfSplits), source=-1.0e-8_real64)
   end if
 
   if (idx < 0) then
     do i=1,numberOfSplits
-      if (timeTally(i) < 0.d0) exit
+      if (timeTally(i) < 0.0_real64) exit
       write(str,'(i0)')i
       call message(0,"...Timing for block "//trim(str),r=timeTally(i))
     end do
@@ -203,26 +172,26 @@ end do
 end subroutine lowercase
 
 subroutine cell2hmat(cell,h)
-  use moduleVariables, only : pi, pih
+  use moduleVariables, only : pi, pih, real64
   implicit none
-  real(8) :: cellInput(6)
-  real(8) :: cell(6)
-  real(8) :: h(3,3)
+  real(real64) :: cellInput(6)
+  real(real64) :: cell(6)
+  real(real64) :: h(3,3)
 
   cellInput = cell
 
   if (any(cell(4:6)>pi)) then
-    cell(4:6) = cell(4:6)*pi/180.0d0
+    cell(4:6) = cell(4:6)*pi/180.0_real64
   end if
 
-  if (cell(2)<1.0d-6) cell(2) = cell(1)
-  if (cell(3)<1.0d-6) cell(3) = cell(2)
-  if (cell(4)<1.0d-6) cell(4) = pih
-  if (cell(5)<1.0d-6) cell(5) = pih
-  if (cell(6)<1.0d-6) cell(6) = pih
+  if (cell(2)<1.0e-6_real64) cell(2) = cell(1)
+  if (cell(3)<1.0e-6_real64) cell(3) = cell(2)
+  if (cell(4)<1.0e-6_real64) cell(4) = pih
+  if (cell(5)<1.0e-6_real64) cell(5) = pih
+  if (cell(6)<1.0e-6_real64) cell(6) = pih
 
 !!p cell  :: a, b, c, alpha, beta, gamma in radians
-  h = 0d0
+  h = 0_real64
   h(1,1) = cell(1)
   h(1,2) = cell(2) * cos(cell(6))
   h(2,2) = cell(2) * sin(cell(6))
@@ -230,19 +199,19 @@ subroutine cell2hmat(cell,h)
   h(2,3) = (cell(3) * cell(2) * cos(cell(4)) - h(1,2) * h(1,3)) / h(2,2)
   h(3,3) = sqrt(cell(3)*cell(3) - h(1,3)*h(1,3) - h(2,3)*h(2,3))
 !
-  if ( abs(h(1,2)) < 1.d-4 ) h(1,2) = 0.0d0
-  if ( abs(h(1,3)) < 1.d-4 ) h(1,3) = 0.0d0
-  if ( abs(h(2,3)) < 1.d-4 ) h(2,3) = 0.0d0
+  if ( abs(h(1,2)) < 1.0e-4_real64 ) h(1,2) = 0.0_real64
+  if ( abs(h(1,3)) < 1.0e-4_real64 ) h(1,3) = 0.0_real64
+  if ( abs(h(2,3)) < 1.0e-4_real64 ) h(2,3) = 0.0_real64
 !
   cell = cellInput
   return
 end subroutine cell2hmat
 
 subroutine hmat2cell(hmat,cell,angle)
-  use moduleVariables, only : pi, pih
+  use moduleVariables, only : pi, pih, real64
   implicit none
-  real(8) :: hmat(3,3)
-  real(8) :: cell(6)
+  real(real64) :: hmat(3,3)
+  real(real64) :: cell(6)
   character(len=3)  :: angle
 
 !!p a, b, c
@@ -251,9 +220,9 @@ subroutine hmat2cell(hmat,cell,angle)
   cell(3) = sqrt(dot_product(hmat(:,3),hmat(:,3)))
 !!p alpha, beta, gamma in degrees
   if(angle=="DEG")then
-    cell(4) = acos(dot_product(hmat(:,2),hmat(:,3))/cell(2)/cell(3))/pi*180d0
-    cell(5) = acos(dot_product(hmat(:,1),hmat(:,3))/cell(1)/cell(3))/pi*180d0
-    cell(6) = acos(dot_product(hmat(:,1),hmat(:,2))/cell(1)/cell(2))/pi*180d0
+    cell(4) = acos(dot_product(hmat(:,2),hmat(:,3))/cell(2)/cell(3))/pi*180_real64
+    cell(5) = acos(dot_product(hmat(:,1),hmat(:,3))/cell(1)/cell(3))/pi*180_real64
+    cell(6) = acos(dot_product(hmat(:,1),hmat(:,2))/cell(1)/cell(2))/pi*180_real64
 !!p alpha, beta, gamma in radians
   else if(angle=="RAD")then
     cell(4) = acos(dot_product(hmat(:,2),hmat(:,3))/cell(2)/cell(3))
@@ -269,17 +238,18 @@ subroutine hmat2cell(hmat,cell,angle)
 end subroutine hmat2cell
 
 subroutine getInverseCellMatrix (hmat,hmati,deth)
+  use moduleVariables, only: real64
   implicit none
-  real(8), dimension(3,3)  :: hmat, hmati
-  real(8) :: deth
-  real(8) :: odet
+  real(real64), dimension(3,3)  :: hmat, hmati
+  real(real64) :: deth
+  real(real64) :: odet
 
   deth = &
        hmat(1,1) * ( hmat(2,2)*hmat(3,3)-hmat(2,3)*hmat(3,2) ) + &
        hmat(1,2) * ( hmat(2,3)*hmat(3,1)-hmat(2,1)*hmat(3,3) ) + &
        hmat(1,3) * ( hmat(2,1)*hmat(3,2)-hmat(2,2)*hmat(3,1) )
-  if ( deth < 1.d-4 ) return
-  odet = 1.d0 / deth
+  if ( deth < 1.0e-4_real64 ) return
+  odet = 1.0_real64 / deth
   hmati(1,1) = (hmat(2,2)*hmat(3,3)-hmat(2,3)*hmat(3,2))*odet
   hmati(2,2) = (hmat(1,1)*hmat(3,3)-hmat(1,3)*hmat(3,1))*odet
   hmati(3,3) = (hmat(1,1)*hmat(2,2)-hmat(1,2)*hmat(2,1))*odet
@@ -294,12 +264,13 @@ subroutine getInverseCellMatrix (hmat,hmati,deth)
 end subroutine getInverseCellMatrix
  
 subroutine makeUpperTriangularCell(hmat,pos,nn)
+  use moduleVariables, only: real64
   implicit none
-  real(8), intent(inout) :: hmat(3,3)
-  real(8), dimension(3,nn), intent(inout) :: pos
-  real(8) :: hnew(3,3), rotchi(3,3)
-  real(8) :: u(3), v(3), rotmat(3,3)
   integer :: nn
+  real(real64), intent(inout) :: hmat(3,3)
+  real(real64), dimension(3,nn), intent(inout) :: pos
+  real(real64) :: hnew(3,3), rotchi(3,3)
+  real(real64) :: u(3), v(3), rotmat(3,3)
   integer :: i
 
   u = hmat(:,1)
@@ -310,16 +281,16 @@ subroutine makeUpperTriangularCell(hmat,pos,nn)
   enddo
 
   ! One more rotation if the b vector points towards -y
-  if ( dot_product(hnew(:,2) , [0.d0,1.d0,0.d0]) < 0.d0 ) then
-    rotchi(1,1) = 1.0d0
-    rotchi(1,2) = 0.0d0
-    rotchi(1,3) = 0.0d0
-    rotchi(2,1) = 0.0d0
-    rotchi(2,2) = -1.d0
-    rotchi(2,3) = 0.d0
-    rotchi(3,1) = 0.0d0
-    rotchi(3,2) = 0.d0
-    rotchi(3,3) = -1.d0
+  if ( dot_product(hnew(:,2) , [0.0_real64,1.0_real64,0.0_real64]) < 0.0_real64 ) then
+    rotchi(1,1) = 1.0_real64
+    rotchi(1,2) = 0.0_real64
+    rotchi(1,3) = 0.0_real64
+    rotchi(2,1) = 0.0_real64
+    rotchi(2,2) = -1.0_real64
+    rotchi(2,3) = 0.0_real64
+    rotchi(3,1) = 0.0_real64
+    rotchi(3,2) = 0.0_real64
+    rotchi(3,3) = -1.0_real64
   
     rotmat  = matmul(rotchi,rotmat)
     do i=1,3
@@ -337,33 +308,34 @@ subroutine makeUpperTriangularCell(hmat,pos,nn)
 end subroutine makeUpperTriangularCell
 
 subroutine rotateCell(u,v,rot)
+  use moduleVariables, only: real64
   implicit none
-  real(8)  :: u(3), v(3)
-  real(8)  :: normu, u1(3)
-  real(8)  :: cospsi, costheta, coschi, sinchi, sintheta, sinpsi
-  real(8)  :: rottheta(3,3), rotpsi(3,3), rot1(3,3), rotchi(3,3)
-  real(8)  :: vnew(3), rot(3,3)
+  real(real64)  :: u(3), v(3)
+  real(real64)  :: normu, u1(3)
+  real(real64)  :: cospsi, costheta, coschi, sinchi, sintheta, sinpsi
+  real(real64)  :: rottheta(3,3), rotpsi(3,3), rot1(3,3), rotchi(3,3)
+  real(real64)  :: vnew(3), rot(3,3)
   integer :: i
 
-  rot=0.0d0
+  rot=0.0_real64
   do i=1,3
-    rot(i,i) = 1.0d0
+    rot(i,i) = 1.0_real64
   enddo
 
 ! Align a with x
-  if(abs(u(2))>1.d-6 .or. abs(u(3))>1.d-6)then
+  if(abs(u(2))>1.0e-6_real64 .or. abs(u(3))>1.0e-6_real64)then
     normu = sqrt(dot_product(u,u))
 
     costheta = u(2)/sqrt(u(2)**2+u(3)**2)
     sintheta = u(3)/sqrt(u(2)**2+u(3)**2)
 
-    rottheta(1,1) = 1.0d0
-    rottheta(1,2) = 0.0d0
-    rottheta(1,3) = 0.0d0
-    rottheta(2,1) = 0.0d0
+    rottheta(1,1) = 1.0_real64
+    rottheta(1,2) = 0.0_real64
+    rottheta(1,3) = 0.0_real64
+    rottheta(2,1) = 0.0_real64
     rottheta(2,2) = costheta
     rottheta(2,3) = sintheta
-    rottheta(3,1) = 0.0d0
+    rottheta(3,1) = 0.0_real64
     rottheta(3,2) = -sintheta
     rottheta(3,3) = costheta
 
@@ -374,40 +346,40 @@ subroutine rotateCell(u,v,rot)
 
     rotpsi(1,1) = cospsi
     rotpsi(1,2) = sinpsi
-    rotpsi(1,3) = 0.0d0
+    rotpsi(1,3) = 0.0_real64
     rotpsi(2,1) = -sinpsi
     rotpsi(2,2) = cospsi
-    rotpsi(2,3) = 0.0d0
-    rotpsi(3,1) = 0.0d0
-    rotpsi(3,2) = 0.0d0
-    rotpsi(3,3) = 1.0d0
+    rotpsi(2,3) = 0.0_real64
+    rotpsi(3,1) = 0.0_real64
+    rotpsi(3,2) = 0.0_real64
+    rotpsi(3,3) = 1.0_real64
 
     rot1 = matmul(rotpsi,rottheta)
   else
-    rot1=0.0d0
+    rot1=0.0_real64
     do i=1,3
-      rot1(i,i)=1.0d0
+      rot1(i,i)=1.0_real64
     enddo
   end if
   vnew = matmul(rot1, v)
 
 !!p rotate around x in order to place b on the xy plane
 
-  if( abs(vnew(3)) > 1.d-6)then
+  if( abs(vnew(3)) > 1.0e-6_real64)then
     coschi = vnew(2)/sqrt(vnew(2)**2+vnew(3)**2)
     sinchi = vnew(3)/sqrt(vnew(2)**2+vnew(3)**2)
   else 
-    coschi = 1.d0
-    sinchi = 0.d0
+    coschi = 1.0_real64
+    sinchi = 0.0_real64
   end if
 
-  rotchi(1,1) = 1.0d0
-  rotchi(1,2) = 0.0d0
-  rotchi(1,3) = 0.0d0
-  rotchi(2,1) = 0.0d0
+  rotchi(1,1) = 1.0_real64
+  rotchi(1,2) = 0.0_real64
+  rotchi(1,3) = 0.0_real64
+  rotchi(2,1) = 0.0_real64
   rotchi(2,2) = coschi
   rotchi(2,3) = sinchi
-  rotchi(3,1) = 0.0d0
+  rotchi(3,1) = 0.0_real64
   rotchi(3,2) = -sinchi
   rotchi(3,3) = coschi
   
@@ -417,16 +389,17 @@ subroutine rotateCell(u,v,rot)
 end subroutine rotateCell
 
 subroutine straightenCell(hmat,dir,hnew)
+  use moduleVariables, only : cp, real64
   use moduleMessages
   implicit none
-  real(8), intent(in) :: hmat(3,3)
+  real(real64), intent(in) :: hmat(3,3)
   character(len=*) :: dir
-  real(8), intent(out), target :: hnew(3,3)
+  real(real64), intent(out), target :: hnew(3,3)
 
   integer :: nn, ia, ib
-  real(8), dimension(3) :: sij, dij
-  real(8), pointer, dimension(:) :: vec1, vec2, vec3
-  real(8) :: len0, len1
+  real(real64), dimension(3) :: sij, dij
+  real(real64), pointer, dimension(:) :: vec1, vec2, vec3
+  real(real64) :: len0, len1
 
   hnew = hmat
   if (dir == "x") then
@@ -472,10 +445,11 @@ subroutine straightenCell(hmat,dir,hnew)
 end subroutine straightenCell
 
 function cross_product(a,b) result(c)
+  use moduleVariables, only : cp, real64
   implicit none
-  real(8), dimension (3), intent(in)  :: a
-  real(8), dimension (3), intent(in)  :: b
-  real(8), dimension (3) :: c
+  real(real64), dimension (3), intent(in)  :: a
+  real(real64), dimension (3), intent(in)  :: b
+  real(real64), dimension (3) :: c
 
   c(1) =  a(2)*b(3) - a(3)*b(2)
   c(2) = -a(1)*b(3) + a(3)*b(1)
@@ -485,17 +459,18 @@ function cross_product(a,b) result(c)
 end function cross_product
 
 subroutine readCellFreeFormat(string, hmat)
+  use moduleVariables, only: real64
   use moduleStrings
   use moduleMessages
   implicit none
   character(len=*), intent(in) :: string
-  real(8), dimension(3,3), intent(out) :: hmat
+  real(real64), dimension(3,3), intent(out) :: hmat
 
   integer :: numberOfWords
   character(len=STRLEN), dimension(100) :: listOfWords
-  real(8), dimension(6) :: cell
+  real(real64), dimension(6) :: cell
 
-  hmat = 0.d0
+  hmat = 0.0_real64
   call parse(string,",",listOfWords,numberOfWords)
   if (numberOfWords == 1) then
     read(listOfWords(1),*) hmat(1,1)
@@ -573,17 +548,18 @@ end subroutine readCellFreeFormat
     return
   end function
   
-subroutine  rotateMolecule(vec,theta,natoms,pos,pivot)
+subroutine rotateMolecule(vec,theta,natoms,pos,pivot)
+  use moduleVariables, only: real64
   implicit none
-  real(8), intent(in) :: vec(3), theta
+  real(real64), intent(in) :: vec(3), theta
   integer, intent(in) :: natoms
-  real(8), dimension(3,natoms), intent(inout) :: pos
+  real(real64), dimension(3,natoms), intent(inout) :: pos
   integer, intent(in) :: pivot
 
   integer :: i
-  real(8) :: v(3), v2(3), costheta, sintheta, u(3), rcom(3)
-  real(8), dimension (3,3) :: rotmat
-  real(8) :: norm
+  real(real64) :: v(3), v2(3), costheta, sintheta, u(3), rcom(3)
+  real(real64), dimension (3,3) :: rotmat
+  real(real64) :: norm
 
   norm=sqrt(sum(vec*vec))
   v=vec/norm
@@ -609,7 +585,7 @@ subroutine  rotateMolecule(vec,theta,natoms,pos,pivot)
 
   ! rotates around the centre of mass
   elseif (pivot == 0) then
-    rcom=0.0d0
+    rcom=0.0_real64
     do i=1,natoms
       rcom=rcom+pos(1:3,i)
     enddo
@@ -617,7 +593,7 @@ subroutine  rotateMolecule(vec,theta,natoms,pos,pivot)
 
   ! rotates around the origin
   else
-    rcom = 0.d0
+    rcom = 0.0_real64
   endif
 
   do i=1,natoms
@@ -628,22 +604,23 @@ subroutine  rotateMolecule(vec,theta,natoms,pos,pivot)
 end subroutine rotateMolecule
 
 subroutine linearRegression(n,x,y,alpha,beta,rfact)
+  use moduleVariables, only: real64
   ! y = alpha + beta*x
   implicit none
   integer, intent(in) :: n
-  real(8), dimension(n), intent(in) :: x
-  real(8), dimension(n), intent(in) :: y
-  real(8), intent(out) :: alpha, beta, rfact
+  real(real64), dimension(n), intent(in) :: x
+  real(real64), dimension(n), intent(in) :: y
+  real(real64), intent(out) :: alpha, beta, rfact
 
-  real(8) :: xavg, yavg, xyavg, x2avg, y2avg
-  real(8) :: ssxx, ssyy, ssxy
+  real(real64) :: xavg, yavg, xyavg, x2avg, y2avg
+  real(real64) :: ssxx, ssyy, ssxy
   integer :: i
 
-  xavg  = 0.0d0
-  yavg  = 0.0d0
-  xyavg = 0.0d0
-  x2avg = 0.0d0
-  y2avg = 0.0d0
+  xavg  = 0.0_real64
+  yavg  = 0.0_real64
+  xyavg = 0.0_real64
+  x2avg = 0.0_real64
+  y2avg = 0.0_real64
   do i=1,n
     xavg  = xavg  + x(i)
     yavg  = yavg  + y(i)
@@ -666,7 +643,7 @@ subroutine linearRegression(n,x,y,alpha,beta,rfact)
 end subroutine linearRegression
 
 subroutine createSelectionList(a,n)
-  use moduleVariables, only : actionTypeDef
+  use moduleVariables, only : actionTypeDef, real64
   use moduleSystem, only : frame 
   use moduleMessages
   implicit none
@@ -680,7 +657,10 @@ subroutine createSelectionList(a,n)
     ntmp = max(ntmp , count(a % isSelected(:,idx)))
   end do
 
-  if (.not. allocated(a % idxSelection)) allocate(a % idxSelection(ntmp,n))
+  if (.not. allocated(a % idxSelection)) then
+    allocate(a % idxSelection(ntmp,n))
+    allocate(a % idxToSelection(frame%natoms,n))
+  end if
   
   do idx=1,n
     ntmp = 0
@@ -688,12 +668,13 @@ subroutine createSelectionList(a,n)
       if (.not. a % isSelected(i, idx)) cycle
       ntmp = ntmp + 1
       a % idxSelection(ntmp, idx) = i
+      a % idxToSelection(i, idx) = ntmp
     end do
   end do
 end subroutine createSelectionList
 
 subroutine createInvertedSelectionList(a,n)
-  use moduleVariables, only : actionTypeDef
+  use moduleVariables, only : actionTypeDef, real64
   use moduleSystem, only : frame 
   use moduleMessages
   implicit none
@@ -720,20 +701,21 @@ subroutine createInvertedSelectionList(a,n)
 end subroutine createInvertedSelectionList
 
 subroutine defineSurfaceVectors(imiller, hmat, hsurf)
+  use moduleVariables, only: real64
   ! use m_rnkpar
   use m_mrgrnk
   implicit none
   integer, dimension(3), intent(in) :: imiller
-  real(8), dimension(3,3), intent(in) :: hmat
-  real(8), dimension(3,3), intent(out) :: hsurf
+  real(real64), dimension(3,3), intent(in) :: hmat
+  real(real64), dimension(3,3), intent(out) :: hsurf
   
-  real(8), dimension(3,3) :: hinv
+  real(real64), dimension(3,3) :: hinv
   integer :: kmax, maxsurf, itmp
   integer :: h, k, l, ii, i
-  real(8), dimension(3) :: vec0, vec1, vec2
-  real(8) :: nrm1, nrm2, rtmp1, d0
-  real(8), allocatable, dimension(:,:) :: hkl
-  real(8), allocatable, dimension(:) :: dist
+  real(real64), dimension(3) :: vec0, vec1, vec2
+  real(real64) :: nrm1, nrm2, rtmp1, dist0
+  real(real64), allocatable, dimension(:,:) :: hkl
+  real(real64), allocatable, dimension(:) :: dist
   integer, allocatable, dimension(:) :: order
 
   ! Vector normal to the surface with length equal to to the spacing between the planes
@@ -742,7 +724,7 @@ subroutine defineSurfaceVectors(imiller, hmat, hsurf)
   vec0(1:3) = vec0(1:3) + imiller(2) * hinv(2,:)
   vec0(1:3) = vec0(1:3) + imiller(3) * hinv(3,:)
   vec0 = vec0 / sqrt(sum(vec0**2))
-  kmax = 4
+  kmax = 10
 100 continue
   maxsurf=(kmax*2+1)**3
   allocate(dist(maxsurf))
@@ -755,9 +737,9 @@ subroutine defineSurfaceVectors(imiller, hmat, hsurf)
       do h=kmax,-kmax,-1
         vec1(1:3) = real(h,8) * hmat(1:3,1) + real(k,8) * hmat(1:3,2) + real(l,8) * hmat(1:3,3)
         nrm1=sqrt(sum(vec1*vec1))
-        if (nrm1<0.1) cycle
+        if (nrm1<0.01) cycle
         rtmp1 = dot_product(vec0,vec1) / nrm1
-        if (abs(rtmp1)>0.001d0) cycle
+        if (abs(rtmp1)>0.001_real64) cycle
         itmp=itmp+1
         dist(itmp) = nrm1
         hkl(1:3,itmp) = [h,k,l]
@@ -777,20 +759,26 @@ subroutine defineSurfaceVectors(imiller, hmat, hsurf)
   call mrgrnk(dist(1:maxsurf) , order(1:maxsurf))
   ! call rnkpar(dist(1:maxsurf) , order(1:maxsurf) , maxsurf)
 
+  ! do itmp=1,maxsurf
+  !   ii=order(itmp)
+  !   write(0,*)itmp,dist(ii),hkl(:,ii)
+  ! end do
+
   ii=order(1)
-  d0 = dist(ii)
+  dist0 = dist(ii)
   vec1(1:3) = hkl(1,ii) * hmat(:,1) + hkl(2,ii) * hmat(:,2) + hkl(3,ii) * hmat(:,3)
   nrm1=sqrt(sum(vec1*vec1))
+  ! do itmp=maxsurf,2,-1
   do itmp=2,maxsurf
     ii=order(itmp)
-    if ( (dist(ii) - d0) < 0.01) cycle
+    if ( (dist(ii) - dist0) < 0.01) cycle
     
     vec2(1:3) = hkl(1,ii) * hmat(:,1) + hkl(2,ii) * hmat(:,2) + hkl(3,ii) * hmat(:,3)
     nrm2=sqrt(sum(vec2*vec2))
     rtmp1 = dot_product(vec1,vec2) / nrm1 / nrm2
     
     ! Limit the space to get the more orthorhombic possible - maybe useless/dangerous
-    if (rtmp1 > 0.7 .or. rtmp1 < -0.7) cycle
+    if (rtmp1 > 0.2 .or. rtmp1 < -0.2) cycle
 
     hsurf(1:3,1) = vec1
     hsurf(1:3,2) = vec2
@@ -798,7 +786,7 @@ subroutine defineSurfaceVectors(imiller, hmat, hsurf)
 
     ! This is the new c vector for a 3D periodic cell
     do i=1,3
-      if (imiller(i)/=0) hsurf(1:3,3) = hsurf(1:3,3) + hmat(1:3,i)
+      if (imiller(i)/=0) hsurf(1:3,3) = hsurf(1:3,3) + hmat(1:3,i) * sign(1,imiller(i))
     enddo
     exit
   enddo
@@ -815,3 +803,94 @@ logical function integer2logical(i)
     integer2logical = .false.
   end if
 end function integer2logical
+
+subroutine compute_histogram(data, n_data, min_val, max_val, n_bins, bins, hist)
+    use, intrinsic :: iso_fortran_env, only: real64
+    implicit none
+    
+    ! Arguments
+    real(real64), intent(in) :: data(n_data)        ! Input data array
+    integer, intent(in) :: n_data           ! Number of data points
+    real(real64), intent(in) :: min_val             ! Minimum value for binning
+    real(real64), intent(in) :: max_val             ! Maximum value for binning
+    integer, intent(in) :: n_bins           ! Number of bins
+    real(real64), intent(OUT) :: bins(n_bins)       ! Bin edges
+    real(real64), intent(OUT) :: hist(n_bins)    ! Histogram counts
+    
+    ! Local variables
+    integer :: i, bin_index
+    real :: bin_width
+    
+    ! Initialize histogram counts to zero
+    hist = 0
+    
+    ! Calculate bin width
+    bin_width = (max_val - min_val) / n_bins
+    
+    ! Calculate bin edges
+    do i = 1, n_bins
+        bins(i) = min_val + (i-1) * bin_width
+    end do
+    
+    ! Compute histogram
+    do i = 1, n_data
+        if (data(i) >= min_val .AND. data(i) < max_val) then
+            bin_index = INT((data(i) - min_val) / bin_width) + 1
+            if (bin_index <= n_bins) then
+                hist(bin_index) = hist(bin_index) + 1
+            end if
+        end if
+    end do
+end subroutine compute_histogram
+
+subroutine get_time_seed(seed)
+    implicit none
+    integer, intent(out) :: seed
+    
+    ! Local variables
+    integer :: time_values(8)
+    integer :: milliseconds
+    
+    ! Get current date and time
+    call date_and_time(values=time_values)
+    
+    ! time_values contains:
+    ! (1) year, (2) month, (3) day, (4) time difference with UTC in minutes
+    ! (5) hour, (6) minute, (7) second, (8) milliseconds
+    
+    ! Create seed from time components
+    ! Use seconds, minutes, hours, and milliseconds for maximum variability
+    seed = time_values(8) + &           ! milliseconds (0-999)
+           time_values(7) * 1000 + &    ! seconds 
+           time_values(6) * 6000        ! minutes 
+    
+    ! Ensure seed is positive (some RNGs require positive seeds)
+    seed = abs(seed)
+    
+    ! Avoid zero seed (some RNGs fail with zero)
+    if (seed == 0) seed = 1
+    
+end subroutine get_time_seed
+
+subroutine get_filename(path, filename)
+    implicit none
+    character(len=*), intent(in) :: path
+    character(len=256), intent(out) :: filename
+    integer :: i, last_slash
+
+    ! Find the last '/' in the path
+    last_slash = 0
+    do i = 1, len_trim(path)
+        if (path(i:i) == '/') then
+            last_slash = i
+        end if
+    end do
+
+    ! Extract filename (everything after the last '/')
+    if (last_slash > 0) then
+        filename = path(last_slash+1:len_trim(path))
+    else
+        filename = path  ! No '/' found, entire string is filename
+    end if
+
+end subroutine get_filename

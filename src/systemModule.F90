@@ -1,37 +1,6 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleSystem 
-  use moduleVariables, only : frameTypeDef, fileTypeDef, moleculeTypeDef, MAXFILES, cp
+  use moduleVariables, only : frameTypeDef, fileTypeDef, moleculeTypeDef, MAXFILES, cp, real64
   implicit none
  
   integer                                         :: numberInputFiles
@@ -54,18 +23,19 @@ module moduleSystem
 
   ! Global system properties  
   integer                                         :: inputNumberOfAtoms
-  real(8)                                         :: totalMass
-  real(8)                                         :: totalCharge
+  real(real64)                                         :: totalMass
+  real(real64)                                         :: totalCharge
   integer                                         :: numberOfUniqueLabels
   character(len=cp), allocatable, dimension(:)    :: listOfUniqueLabels
   character(len=2), allocatable, dimension(:)     :: listOfElements
 
   logical                                         :: userDefinedCell = .false.
-  real(8), dimension(3,3)                         :: userDefinedHMatrix
+  real(real64), dimension(3,3)                         :: userDefinedHMatrix
   character(len=5)                                :: pbc_type
   logical                                         :: inputCoordInNM = .false.
   logical                                         :: inputCoordInBohr = .false.
   logical                                         :: inputCoordInFractional = .false.
+  logical                                         :: outputCoordInFractional = .false.
   logical                                         :: outputCoordInBohr = .false.
 
   ! Neighbours' list  
@@ -73,14 +43,14 @@ module moduleSystem
   logical                                         :: computeNeighboursListOnce   = .true.
   logical                                         :: computeNeighboursListDouble = .false.
   logical                                         :: computeNeighboursListVerlet = .false.
-  real(8)                                         :: cutoffNeighboursListGlobal  = 3.d0
+  real(real64)                                         :: cutoffNeighboursListGlobal  = 3.0_real64
   integer                                         :: updatedListFrameNumber
   integer                                         :: neighboursListUpdates
 
   integer                                         :: neighmax = 100
   integer, allocatable, dimension(:)              :: nneigh
   integer, allocatable, dimension(:,:)            :: lneigh
-  real(8), allocatable, dimension(:,:)            :: rneigh
+  real(real64), allocatable, dimension(:,:)            :: rneigh
   
   integer                                          :: numberOfMolecules
   type(moleculeTypeDef), allocatable, dimension(:) :: listOfMolecules
@@ -108,13 +78,14 @@ module moduleSystem
            
   integer, parameter                               :: MAXBOND=10
   integer                                          :: sbond_n=0
-  real(8), dimension(MAXBOND)                      :: sbond_d
+  real(real64), dimension(MAXBOND)                 :: sbond_d
   character(len=cp), dimension(2,MAXBOND)          :: sbond_l
 
   interface
     subroutine stuff(np, property, numberOfSelectedAtoms, selectionList)
+      use, intrinsic :: iso_fortran_env, only: real64
       integer, intent(inout) :: np
-      real(8), dimension(*), intent(out) :: property
+      real(real64), dimension(*), intent(out) :: property
       integer, intent(in), optional :: numberOfSelectedAtoms
       integer, dimension(:), intent(in), optional :: selectionList
     end subroutine stuff
@@ -122,13 +93,14 @@ module moduleSystem
 
   interface
     subroutine dumpCoordinates(ftype, funit, natoms, pos, label, hmat, header)
+      use, intrinsic :: iso_fortran_env, only: real64
       implicit none 
       character(len=*) :: ftype
       integer, intent(in) :: funit
       integer, intent(in) :: natoms
-      real(8), dimension(3,natoms), intent(in) :: pos
+      real(real64), dimension(3,natoms), intent(in) :: pos
       character(4), dimension(natoms), intent(in) :: label
-      real(8), dimension(3,3), optional, intent(in) :: hmat
+      real(real64), dimension(3,3), optional, intent(in) :: hmat
       logical, optional, intent(in) :: header
     end subroutine
   end interface
@@ -136,7 +108,7 @@ module moduleSystem
 end module moduleSystem 
 
 subroutine createSystemArrays(localFrame, numberOfAtoms)
-  use moduleVariables, only : frameTypeDef
+  use moduleVariables, only : frameTypeDef, real64
   use moduleMessages 
   implicit none
   type(frameTypeDef) :: localFrame
@@ -148,12 +120,14 @@ subroutine createSystemArrays(localFrame, numberOfAtoms)
   allocate(localFrame % mass(numberOfAtoms))
   allocate(localFrame % pos(3,numberOfAtoms))
   allocate(localFrame % frac(3,numberOfAtoms))
-  allocate(localFrame % chg(numberOfAtoms) , source=0.d0)
+  allocate(localFrame % chg(numberOfAtoms) , source=0.0_real64)
+  ! allocate(localFrame % vel(3,numberOfAtoms) , source=0.0_real64)
+  allocate(localFrame % forces(3,numberOfAtoms) , source=0.0_real64)
   
 end subroutine createSystemArrays
 
 subroutine deleteSystemArrays(localFrame)
-  use moduleVariables, only : frameTypeDef
+  use moduleVariables, only : frameTypeDef, real64
   use moduleMessages 
   implicit none
   type(frameTypeDef) :: localFrame
@@ -165,6 +139,8 @@ subroutine deleteSystemArrays(localFrame)
   deallocate(localFrame % pos)
   deallocate(localFrame % frac)
   deallocate(localFrame % chg)
+  ! deallocate(localFrame % vel)
+  deallocate(localFrame % forces)
   
 end subroutine deleteSystemArrays
 
@@ -268,7 +244,7 @@ subroutine receiveFrameFromMaster(f)
   type(frameTypeDef), intent(inout) :: f 
   logical, save :: firstTimeIn = .true.
   character(cp), allocatable, dimension(:), save :: savedLabels
-  real(8), allocatable, dimension(:), save :: savedCharges
+  real(real64), allocatable, dimension(:), save :: savedCharges
   character(2), allocatable, dimension(:), save :: savedElements
 
   integer, save :: numberOfAtoms

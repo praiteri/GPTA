@@ -132,7 +132,7 @@ module addCentresModule
     implicit none
     type(actionTypeDef), target :: a
     integer :: idx, jdx, kdx, imol, n0, iatm
-    real(8), dimension(3) :: xcom
+    real(real64), dimension(3) :: xcom
 
     n0 = frame % natoms
 
@@ -147,7 +147,7 @@ module addCentresModule
       
       do idx=1,numberOfNewMolecules
         imol = a % localIndices(idx)
-        xcom = 0.d0
+        xcom = 0.0_real64
         do jdx=1,centres % numberOfAtoms
           kdx = centres % listOfAtoms(jdx)
           iatm = listOfMolecules(imol) % listOfAtoms(kdx)

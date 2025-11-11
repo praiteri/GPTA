@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleExtractFramesByProperty
   use moduleVariables
   use moduleSystem
@@ -49,10 +18,10 @@ module moduleExtractFramesByProperty
   type(fileTypeDef), pointer :: inputfile
   type(fileTypeDef), pointer :: outputfile
   integer, pointer :: tallyExecutions
-  real(8), pointer, dimension(:) :: limits
+  real(real64), pointer, dimension(:) :: limits
 
   integer, pointer :: nProperties
-  real(8), pointer, dimension(:,:) :: properties
+  real(real64), pointer, dimension(:,:) :: properties
   logical, pointer :: header 
 
 contains
@@ -127,7 +96,7 @@ contains
     a % requiresNeighboursList = .true.
     a % requiresNeighboursListUpdates = .false.
     a % requiresNeighboursListDouble = .true.
-    a % cutoffNeighboursList = 3.0d0
+    a % cutoffNeighboursList = 3.0_real64
 
     call assignFlagValue(actionCommand,"+f",inputfile % fname,'properties')
     call assignFlagValue(actionCommand,"+out",outputfile % fname,'out.pdb')
@@ -168,8 +137,7 @@ contains
         i = i + 1
         read(line,*,iostat=ierr)a % array2D(:,i)
         if (ierr/=0) then
-          write(0,*)trim(line)
-          stop
+          call message(-1,line)
         endif
       end do
       close(io)
@@ -180,7 +148,7 @@ contains
     if (nval /= nProperties) call message(-1,"Number of values /= from number of columns",iv=[nval,nProperties])
     do i=1,nProperties
       if (str(i) == "*" .or. str(i) == "INF") then
-        limits(i) = minval(a % array2D(i,:)) - 1.d0
+        limits(i) = minval(a % array2D(i,:)) - 1.0_real64
       else
         read(str(i),*)limits(i)
       end if
@@ -191,7 +159,7 @@ contains
     if (nval /= nProperties) call message(-1,"Number of values /= from number of columns",iv=[nval,nProperties])
     do i=1,nProperties
       if (str(i) == "*" .or. str(i) == "INF") then
-        limits(i+nProperties) = maxval(a % array2D(i,:)) + 1.d0
+        limits(i+nProperties) = maxval(a % array2D(i,:)) + 1.0_real64
       else
         read(str(i),*)limits(i+nProperties)
       end if

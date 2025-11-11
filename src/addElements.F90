@@ -17,10 +17,11 @@ module addElementsModule
   character(cp), allocatable, dimension(:) :: newElementsLabels
 
   logical :: fillSphere, fillBox
-  real(8), dimension(3) :: origin
-  real(8), dimension(9) :: boxSize
-  real(8) :: sphereRadius
-  real(8) :: minimumDistance
+  real(real64), dimension(3) :: origin
+  real(real64), dimension(9) :: boxSize
+  real(real64) :: sphereRadius
+  real(real64) :: minimumDistance
+  real(real64) :: maximumOverlap
 
 contains
 
@@ -80,15 +81,17 @@ contains
     character(len=STRLEN), allocatable, dimension(:) :: localString
 
     character(len=100) :: stringCell
-    real(8) :: hmat(3,3)
+    real(real64) :: hmat(3,3)
 
     a % actionInitialisation = .false.
     a % requiresNeighboursList = .false.
 
-    call assignFlagValue(actionCommand,"+rmin",minimumDistance,1.5d0)
+    call assignFlagValue(actionCommand,"+rmin",minimumDistance,1.5_real64)
 
     call assignFlagValue(actionCommand,"+atom",newElementsLabels)
     
+    ! call assignFlagValue(actionCommand,"+rclash",maximumOverlap)
+
     call assignFlagValue(actionCommand,"+n",numberOfNewElements)
     if (.not. allocated(numberOfNewElements) ) \
       call message(-1,"--add | numner of new species must be specified using the +n flag")
@@ -100,7 +103,7 @@ contains
     call assignFlagValue(actionCommand,"+box ",fillBox,.false.)
     call assignFlagValue(actionCommand,"+sphere ",fillSphere,.false.)
 
-    call assignFlagValue(actionCommand,"+origin ", origin, [0.d0,0.d0,0.d0])
+    call assignFlagValue(actionCommand,"+origin ", origin, [0.0_real64,0.0_real64,0.0_real64])
 
     if (fillBox) then
       call assignFlagValue(actionCommand,"+box ", stringCell, "NONE")
@@ -108,7 +111,7 @@ contains
       boxSize = reshape(hmat,[9])
 
     else if (fillSphere) then
-      call assignFlagValue(actionCommand,"+sphere ", sphereRadius, 0.d0)
+      call assignFlagValue(actionCommand,"+sphere ", sphereRadius, 0.0_real64)
 
     else
       fillBox = .true.
@@ -154,15 +157,27 @@ contains
     implicit none
     integer :: iElement, imol
     integer :: addedMolecules
-    real(8), dimension(3) :: centre
-    real(8), dimension(3,3) :: hmat
-    real(8), allocatable, dimension(:) :: localSize
+    real(real64), dimension(3) :: centre
+    real(real64), dimension(3,3) :: hmat
+    real(real64), allocatable, dimension(:) :: localSize
     integer :: initialAtoms, currentAtoms
     integer :: initialMolecules, currentMolecules
+    integer :: nx, ny, nz
+    integer :: ix, iy, iz
 
     character(len=2) :: str
 
     hmat = reshape(boxSize,[3,3])
+
+    nx = int( sqrt( sum(hmat(1,1:3)**2) ) / minimumDistance )
+    ny = int( sqrt( sum(hmat(2,1:3)**2) ) / minimumDistance )
+    nz = int( sqrt( sum(hmat(3,1:3)**2) ) / minimumDistance )
+    if ( sum(numberOfNewElements) > nx*ny*nz ) then
+      call message(0,"Max number of atoms that can fit in a,b,c", iv=[nx,ny,nz])
+      call message(0,"Max number of atoms that can fit in the box", i=nx*ny*nz)
+      call message(-1,"--add too many atoms to fit in the box",iv=[sum(numberOfNewElements),nx*ny*nz])
+    end if
+
     allocate(localSize(sum(numberOfNewElements)))
 
     addedMolecules = 0
@@ -174,19 +189,22 @@ contains
     do iElement=1,newSpecies
       imol=0
       add : do while (imol<numberOfNewElements(iElement))
-        centre = [grnd() , grnd() , grnd()] 
-        centre = matmul(hmat,centre)
+        ! generate position inside the box
+        ix = int(nx * grnd()) + 1.0
+        iy = int(ny * grnd()) + 1.0
+        iz = int(nz * grnd()) + 1.0
+        ! map to box    
+        centre = \
+          ix * hmat(1,1:3) / real(nx,real64) + \
+          iy * hmat(2,1:3) / real(ny,real64) + \
+          iz * hmat(3,1:3) / real(nz,real64)
+
+        ! add some noise
+        centre = centre + \
+          [ 0.25 * minimumDistance * ( grnd() - 0.5_real64 ) , \
+            0.25 * minimumDistance * ( grnd() - 0.5_real64 ) , \
+            0.25 * minimumDistance * ( grnd() - 0.5_real64 ) ]
         centre = centre + origin
-      
-        block
-          integer :: i
-          real(8) :: dist, dij(3)
-          do i=initialAtoms+1,currentAtoms
-            dij = frame % pos(1:3,i) - centre
-            dist = sqrt(computeDistanceSquaredPBC(dij))
-            if (dist < minimumDistance) cycle add
-          end do
-        end block
       
         imol = imol + 1
 
@@ -224,11 +242,11 @@ contains
     implicit none
     integer :: iElement, imol
     integer :: addedMolecules
-    real(8), dimension(3) :: centre
-    real(8), dimension(3,3) :: hmat
-    real(8), allocatable, dimension(:) :: localSize
+    real(real64), dimension(3) :: centre
+    real(real64), dimension(3,3) :: hmat
+    real(real64), allocatable, dimension(:) :: localSize
 
-    real(8) :: theta, phi
+    real(real64) :: theta, phi
     integer :: initialAtoms, currentAtoms
     integer :: initialMolecules, currentMolecules
 
@@ -247,8 +265,8 @@ contains
       add : do while (imol<numberOfNewElements(iElement))
         ! generate position inside a sphere
 
-        centre = 2.d0 * [grnd() , grnd() , grnd()] - 1
-        if ( sqrt(sum(centre**2)) > 1.d0 ) cycle add
+        centre = 2.0_real64 * [grnd() , grnd() , grnd()] - 1
+        if ( sqrt(sum(centre**2)) > 1.0_real64 ) cycle add
         centre = centre * sphereRadius + origin
         ! theta  = grnd() * pi
         ! phi    = grnd() * twopi
@@ -257,7 +275,7 @@ contains
     
         block
           integer :: i
-          real(8) :: dist, dij(3)
+          real(real64) :: dist, dij(3)
           do i=initialAtoms+1,currentAtoms
             dij = frame % pos(1:3,i) - centre
             dist = sqrt(computeDistanceSquaredPBC(dij))

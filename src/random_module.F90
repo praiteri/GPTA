@@ -4,7 +4,7 @@
 ! "Mersenne Twister: A 623-dimensionally equidistributed uniform pseudorandom number generator"
 ! ACM Trans. on Modeling and Computer Simulation Vol. 8, No. 1, January pp.3-30 (1998)
 module moduleRandomNumbers
-!
+use, intrinsic :: iso_fortran_env, only: real64
 implicit none
 !
 ! period parameters
@@ -44,18 +44,18 @@ contains
 
 function gauss_rand() result(gr)
   implicit none
-  real(8) :: r1, r2, rr, fac, gr
-  real(8), save :: gset
+  real(real64) :: r1, r2, rr, fac, gr
+  real(real64), save :: gset
   integer, save :: iset=0
 
   if (iset==0) then 
-100 r1=2.0d0*grnd()-1.0d0
-    r2=2.0d0*grnd()-1.0d0
+100 r1=2.0_real64*grnd()-1.0_real64
+    r2=2.0_real64*grnd()-1.0_real64
     rr=r1*r1+r2*r2
-    if (rr.ge.1.0d0.or.rr.eq.0.0d0) then 
+    if (rr.ge.1.0_real64.or.rr.eq.0.0_real64) then 
       goto 100
     endif
-    fac=(sqrt(-2.0d0*log(rr)/rr))
+    fac=(sqrt(-2.0_real64*log(rr)/rr))
     gr=r1*fac
     gset=r2*fac
     iset=1
@@ -134,9 +134,9 @@ y = ieor(y, iand(tshftt(y),tmaskc))
 y = ieor(y, tshftl(y))
 
 if (y < 0) then
-  fn_val = (dble(y) + 2.0d0**32) / (2.0d0**32 - 1.0d0)
+  fn_val = (dble(y) + 2.0_real64**32) / (2.0_real64**32 - 1.0_real64)
 else
-  fn_val = dble(y) / (2.0d0**32 - 1.0d0)
+  fn_val = dble(y) / (2.0_real64**32 - 1.0_real64)
 end if
 
 return

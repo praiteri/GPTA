@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
   subroutine getNumberOfAtomsGaussian(iounit,natoms)
     integer, intent(in) :: iounit
     integer, intent(out) :: natoms
@@ -63,11 +32,12 @@
   end subroutine getNumberOfAtomsGaussian
 
   subroutine readCoordinatesGaussian(iounit,n,pos,lab,go)
+    use moduleVariables, only: real64
     use moduleElements
     implicit none
     integer, intent(in) :: iounit
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(out) :: pos
+    real(real64), dimension(3,n), intent(out) :: pos
     character(len=4), dimension(n), intent(out) :: lab
     logical, intent(out) :: go
 
@@ -119,10 +89,11 @@
   end subroutine readCoordinatesGaussian
 
   subroutine getNumberOfAtomsXYZ(iounit,natoms,hmat)
+    use moduleVariables, only: real64
     implicit none
     integer, intent(in) :: iounit
     integer, intent(out) :: natoms
-    real(8), dimension(3,3), intent(inout) :: hmat
+    real(real64), dimension(3,3), intent(inout) :: hmat
     character(len=2000) :: line
     character(len=500) :: cellString
     integer :: ierr, i,j
@@ -145,7 +116,7 @@
     i = index(line,"Cell=")
     if (i > 0) then
       read(line(i+5:),*)cellString
-      hmat = 0.d0
+      hmat = 0.0_real64
       j = len_trim(cellString)-1
       read(cellString,*)hmat(1,1), hmat(2,2), hmat(3,3)
     end if
@@ -153,14 +124,15 @@
   end subroutine getNumberOfAtomsXYZ
 
   subroutine readCoordinatesXYZ(iounit,n,pos,lab,chg,hmat,go)
+    use moduleVariables, only: real64
     use moduleStrings
     implicit none
     integer, intent(in) :: iounit
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(out) :: pos
-    real(8), dimension(n), intent(out) :: chg
+    real(real64), dimension(3,n), intent(out) :: pos
+    real(real64), dimension(n), intent(out) :: chg
     character(len=4), dimension(n), intent(out) :: lab
-    real(8), dimension(3,3), intent(inout) :: hmat
+    real(real64), dimension(3,3), intent(inout) :: hmat
     logical, intent(out) :: go
 
     integer :: i, j, nn, ierr
@@ -203,7 +175,7 @@
     i = index(line,"Cell=")
     if (i > 0) then
       read(line(i+5:),*)cellString
-      hmat = 0.d0
+      hmat = 0.0_real64
       j = len_trim(cellString)-1
       read(cellString,*)hmat(1,1), hmat(2,2), hmat(3,3)
     end if
@@ -293,15 +265,16 @@
 
   end subroutine readCoordinatesXYZ
 
-    subroutine readCoordinatesXYZ_basic(iounit,n,pos,lab,chg,hmat,go)
+  subroutine readCoordinatesXYZ_basic(iounit,n,pos,lab,chg,hmat,go)
+    use moduleVariables, only: real64
     use moduleStrings
     implicit none
     integer, intent(in) :: iounit
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(out) :: pos
-    real(8), dimension(n), intent(out) :: chg
+    real(real64), dimension(3,n), intent(out) :: pos
+    real(real64), dimension(n), intent(out) :: chg
     character(len=4), dimension(n), intent(out) :: lab
-    real(8), dimension(3,3), intent(inout) :: hmat
+    real(real64), dimension(3,3), intent(inout) :: hmat
     logical, intent(out) :: go
 
     integer :: i, j, nn, ierr
@@ -339,7 +312,7 @@
     i = index(line,"Cell=")
     if (i > 0) then
       read(line(i+5:),*)cellString
-      hmat = 0.d0
+      hmat = 0.0_real64
       j = len_trim(cellString)-1
       read(cellString,*)hmat(1,1), hmat(2,2), hmat(3,3)
     end if
@@ -355,11 +328,12 @@
   end subroutine readCoordinatesXYZ_basic
 
   subroutine getNumberOfAtomsARC(iounit,natoms,hmat)
-    use moduleVariables, only : identityMatrix
+    use moduleVariables, only: real64
+    use moduleVariables, only : identityMatrix, real64
     implicit none
     integer, intent(in) :: iounit
     integer, intent(out) :: natoms
-    real(8), dimension(3,3), intent(inout) :: hmat
+    real(real64), dimension(3,3), intent(inout) :: hmat
     character(len=500) :: line
     integer :: ierr
     
@@ -378,15 +352,16 @@
   end subroutine getNumberOfAtomsARC
 
   subroutine readCoordinatesARC(iounit,n,pos,lab,chg,hmat,go)
+    use moduleVariables, only: real64
     use moduleStrings
     use moduleVariables, only : identityMatrix
     implicit none
     integer, intent(in) :: iounit
     integer, intent(in) :: n
-    real(8), dimension(3,n), intent(out) :: pos
-    real(8), dimension(n), intent(out) :: chg
+    real(real64), dimension(3,n), intent(out) :: pos
+    real(real64), dimension(n), intent(out) :: chg
     character(len=4), dimension(n), intent(out) :: lab
-    real(8), dimension(3,3), intent(inout) :: hmat
+    real(real64), dimension(3,3), intent(inout) :: hmat
     logical, intent(out) :: go
 
     integer :: i, j, nn, ierr
@@ -423,7 +398,7 @@
       end if
     enddo
     
-    chg = 0.d0
+    chg = 0.0_real64
     
   end subroutine readCoordinatesARC
 

@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 module moduleAlignMolecule
   use moduleVariables
   use moduleSystem
@@ -59,8 +28,8 @@ module moduleAlignMolecule
   character(len=STRLEN) :: moleculeName
 
   integer, pointer, dimension(:) :: atomIndices
-  real(8), pointer, dimension(:,:) :: referencePositions
-  real(8), pointer, dimension(:,:) :: currentPositions
+  real(real64), pointer, dimension(:,:) :: referencePositions
+  real(real64), pointer, dimension(:,:) :: currentPositions
 
 contains
 
@@ -211,12 +180,12 @@ contains
 
     integer :: i, iatm, nRef, nSolvent
 
-    real(8), save :: shift0(3)
-    real(8), dimension(3) :: shift, dij
-    real(8), allocatable, dimension(:,:) :: tmpArray
-    real(8), allocatable, dimension(:,:) :: systemPositions
+    real(real64), save :: shift0(3)
+    real(real64), dimension(3) :: shift, dij
+    real(real64), allocatable, dimension(:,:) :: tmpArray
+    real(real64), allocatable, dimension(:,:) :: systemPositions
     
-    real(8), dimension(3,3) :: rotationalMatrix
+    real(real64), dimension(3,3) :: rotationalMatrix
     
     integer :: irot, nRotations
     integer, allocatable, dimension(:,:) :: localIndices
@@ -293,19 +262,19 @@ contains
 
   subroutine findBestOverlap(nat, referencePositions, currentPositions, rotmat)
     integer, intent(in) :: nat
-    real(8), intent(inout), dimension(3,nat) :: referencePositions, currentPositions
-    real(8), intent(out), dimension(3,3) :: rotmat
+    real(real64), intent(inout), dimension(3,nat) :: referencePositions, currentPositions
+    real(real64), intent(out), dimension(3,3) :: rotmat
     
-    real(8) :: rmsd, rvec(9)
+    real(real64) :: rmsd, rvec(9)
     integer :: i, j, k, ntot, n1, n2, n, ntmp
     integer, allocatable, dimension(:) :: order
     logical, external :: nextp
     integer, allocatable, dimension(:) :: numberOfIndices
     integer, allocatable, dimension(:) :: listOfIndices
     
-    real(8), allocatable, dimension(:,:) :: currentPositions1
-    real(8), allocatable, dimension(:,:) :: currentPositions2
-    real(8) :: rmsd2, rvec2(9)
+    real(real64), allocatable, dimension(:,:) :: currentPositions1
+    real(real64), allocatable, dimension(:,:) :: currentPositions2
+    real(real64) :: rmsd2, rvec2(9)
 
     character(len=200), dimension(100) :: tokens
 
@@ -373,7 +342,7 @@ contains
     type(actionTypeDef), target :: a
 
     integer :: imol, n, iatm, idx
-    real(8), dimension(3) :: shift
+    real(real64), dimension(3) :: shift
     
     if (moleculeName == "NULL") then
       call message(-1,"Align - +id flag is required")
@@ -389,7 +358,7 @@ contains
     n = listOfMolecules(imol) % numberOfAtoms
     allocate(a % localLabels(n))
     allocate(a % localIndices(n))
-    allocate(a % localPositions(3,n*3), source=0.d0)    
+    allocate(a % localPositions(3,n*3), source=0.0_real64)    
 
     a % localLabels(:) = listOfMolecules(imol) % listOfLabels(:)
     a % localIndices(:) = listOfMolecules(imol) % listOfAtoms(:)
@@ -416,7 +385,7 @@ contains
 
     integer :: imol, n
     logical :: frameRead
-    real(8), dimension(3,3) :: hmat
+    real(real64), dimension(3,3) :: hmat
     
     ! Initialise coordinates file
     call initialiseFile(inputFile, f)

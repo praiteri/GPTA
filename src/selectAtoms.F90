@@ -1,35 +1,4 @@
-! ! Copyright (c) 2021, Paolo Raiteri, Curtin University.
-! ! All rights reserved.
-! ! 
-! ! This program is free software; you can redistribute it and/or modify it 
-! ! under the terms of the GNU General Public License as published by the 
-! ! Free Software Foundation; either version 3 of the License, or 
-! ! (at your option) any later version.
-! !  
-! ! Redistribution and use in source and binary forms, with or without 
-! ! modification, are permitted provided that the following conditions are met:
-! ! 
-! ! * Redistributions of source code must retain the above copyright notice, 
-! !   this list of conditions and the following disclaimer.
-! ! * Redistributions in binary form must reproduce the above copyright notice, 
-! !   this list of conditions and the following disclaimer in the documentation 
-! !   and/or other materials provided with the distribution.
-! ! * Neither the name of the <ORGANIZATION> nor the names of its contributors 
-! !   may be used to endorse or promote products derived from this software 
-! !   without specific prior written permission.
-! ! 
-! ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! ! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! ! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-! ! PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-! ! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-! ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-! ! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-! ! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-! ! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ! 
+!disclaimer
 subroutine selectAtoms(nsel,cmd,a)
   use moduleVariables
   use moduleSystem 
@@ -59,18 +28,21 @@ subroutine selectAtoms(nsel,cmd,a)
   character(len=STRLEN), dimension(100) :: tmpString
   logical, dimension(3) :: lflag
 
-  real(8), dimension(2,3) :: posLimits
+  real(real64), dimension(2,3) :: posLimits
 
   selectionString = ''
 
   if (.not. allocated(a % isSelected)) then
     allocate(a % isSelected(frame % natoms , nsel), source=.false.)
   else
-    a % isSelected =.false.
+    a % isSelected = .false.
   end if 
 
   selectionID = 0
   call parse2(cmd,"+",listOfFlags,numberOfFlags)
+  do idx=1,numberOfFlags
+  end do
+
   do idx=1,numberOfFlags
 
     ! select atoms by label
@@ -164,7 +136,7 @@ subroutine selectAtoms(nsel,cmd,a)
       
       do i=1,numberOfWords
         call parse(listOfWords(i),",",localString,numberOfStrings)
-        if (numberOfStrings /= 3) call message(-1,"Wrong number of blocks for +pos selection")
+        if (numberOfStrings /= 3) call message(-1,"Wrong number of blocks for +pos selection :",numberOfStrings)
         do j=1,numberOfStrings
           posString = trim(localString(j))
           call removeCharacter(posString,"[")
@@ -173,13 +145,13 @@ subroutine selectAtoms(nsel,cmd,a)
 
           call parse(posString,":",tmpString,ntmp)
           if (trim(tmpString(1)) == "inf") then
-            posLimits(1,j) = -huge(1.d0)
+            posLimits(1,j) = -huge(1.0_real64)
           else
             read(tmpString(1),*) posLimits(1,j) 
           endif
 
           if (trim(tmpString(2)) == "inf") then
-            posLimits(2,j) = huge(1.d0)
+            posLimits(2,j) = huge(1.0_real64)
           else
             read(tmpString(2),*) posLimits(2,j) 
           endif
